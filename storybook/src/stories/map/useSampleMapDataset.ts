@@ -14,7 +14,11 @@ const columns: IColumn[] = [
     { name: 'lng', alias: 'lng', displayName: 'Longitude', dataType: DataTypes.Decimal, order: 2, visualSizeFactor: 100 },
 ]
 
-export const mapPinMetadata = { LatitudeAttributeName: 'lat', LongitudeAttributeName: 'lng' }
+/** Attribute names of the sample dataset, fed to the control's static input parameters. */
+export const sampleMapAttributes = {
+    latitude: 'lat',
+    longitude: 'lng',
+}
 
 export const useSampleMapDataset = (showPins: boolean) => {
     return useMemo(() => {

@@ -6,6 +6,8 @@ export const getMapStyles = () => {
             width: '100%',
             height: '100%',
             minHeight: 200,
+            //the box the provider picker is positioned against
+            position: 'relative',
             display: 'flex',
             flexDirection: 'column',
         }
