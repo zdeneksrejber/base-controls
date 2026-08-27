@@ -1,7 +1,7 @@
 import { Dropdown, IDropdownOption, ThemeProvider } from "@fluentui/react";
 import { useMemo } from "react";
 import { ITheme } from "@legacy";
-import { IMapProviderOption } from "../providers";
+import { IMapProviderOption } from "../providers/IMapProvider";
 import { getMapProviderPickerStyles } from "./styles";
 
 export interface IMapProviderPickerProps {

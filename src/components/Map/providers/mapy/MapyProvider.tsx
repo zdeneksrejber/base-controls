@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { IMapProvider, IMapProviderProps } from '../IMapProvider';
-import { LeafletMap } from '../Leaflet';
-import { getMapyMapProviderStyles } from './styles';
+import { IMapProvider } from '../IMapProvider';
+import { createLeafletMapProvider } from '../leaflet';
+import { getMapyProviderStyles } from './styles';
 
 /**
  * Map sets the [Mapy.com Map Tiles API](https://developer.mapy.com/rest-api-mapy-cz/function/map-tiles/)
@@ -55,7 +55,7 @@ const getTileLayerUrl = (config: IMapyConfig): string => {
 
 /** Required over any map drawn from Mapy.com tiles: visible, at least 30px tall, and linking to mapy.com. */
 const MapyLogo = () => {
-    const styles = useMemo(() => getMapyMapProviderStyles(), []);
+    const styles = useMemo(() => getMapyProviderStyles(), []);
 
     return (
         <a className={styles.logo} href={LOGO_URL} target="_blank" rel="noreferrer noopener">
@@ -64,26 +64,20 @@ const MapyLogo = () => {
     );
 };
 
-const MapyMap = (props: IMapProviderProps & IMapyConfig) => {
-    const mapset = props.mapset ?? DEFAULT_MAPSET;
-
-    return (
-        <LeafletMap
-            {...props}
-            tileLayerUrl={getTileLayerUrl(props)}
-            attribution={getAttribution(props.lang)}
-            maxZoom={MAX_ZOOM}
-            //no dark map set, so dark themes filter the tiles - except aerial, where that makes a negative
-            invertTilesInDarkTheme={mapset !== 'aerial'}
-            overlay={<MapyLogo />} />
-    );
-};
-
 /**
  * Provider backed by the Mapy.com Map Tiles API. Needs nothing but an api key - the tiles are plain XYZ
- * raster images, so there is no Mapy.com sdk to install. The logo and copyright notice their licence
- * requires are part of the provider, not something the host has to remember to add.
+ * raster images, so there is no Mapy.com sdk to install, only a tile url on the Leaflet seam. The logo and
+ * copyright notice their licence requires are part of the provider, not something the host has to add.
  */
 export const createMapyProvider = (config: IMapyConfig): IMapProvider => {
-    return (props: IMapProviderProps) => <MapyMap {...props} {...config} />;
+    const mapset = config.mapset ?? DEFAULT_MAPSET;
+
+    return createLeafletMapProvider({
+        tileLayerUrl: getTileLayerUrl(config),
+        attribution: getAttribution(config.lang),
+        maxZoom: MAX_ZOOM,
+        //no dark map set, so dark themes filter the tiles - except aerial, where that makes a negative
+        invertTilesInDarkTheme: mapset !== 'aerial',
+        overlay: <MapyLogo />
+    });
 };

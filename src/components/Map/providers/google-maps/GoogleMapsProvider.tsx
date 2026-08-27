@@ -1,7 +1,7 @@
 import { APIProvider, ColorScheme, Map as GoogleMap, MapCameraChangedEvent, Marker, Polyline, useMap } from '@vis.gl/react-google-maps';
 import { useCallback, useEffect, useMemo } from 'react';
 import { IMapProvider, IMapProviderProps } from '../IMapProvider';
-import { ROUTE_STROKE_WEIGHT, UNSELECTED_PIN_OPACITY } from '../pinStyle';
+import { ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
 import { IMapVendor } from '../vendors';
 import { IMapViewport } from '../../viewport';
 import { getGoogleMapsProviderStyles } from './styles';
@@ -38,7 +38,7 @@ const ApplyViewport = (props: { viewport: IMapViewport }) => {
 const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
     const { apiKey, locations, routes, viewport, selectedLocationIds, theme, onLocationClick, onViewportChange } = props;
     const styles = useMemo(() => getGoogleMapsProviderStyles(), []);
-    const selectedIds = useMemo(() => new Set(selectedLocationIds), [selectedLocationIds]);
+    const selection = useMapPinSelection(selectedLocationIds);
 
     const onCameraChanged = useCallback((event: MapCameraChangedEvent) => {
         onViewportChange({
@@ -73,8 +73,8 @@ const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
                             key={location.id}
                             position={{ lat: location.latitude, lng: location.longitude }}
                             title={location.label}
-                            opacity={selectedIds.size === 0 || selectedIds.has(location.id) ? 1 : UNSELECTED_PIN_OPACITY}
-                            zIndex={selectedIds.has(location.id) ? 1 : undefined}
+                            opacity={selection.getOpacity(location)}
+                            zIndex={selection.isSelected(location) ? 1 : undefined}
                             onClick={() => onLocationClick(location)} />
                     ))}
                 </GoogleMap>

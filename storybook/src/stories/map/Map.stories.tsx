@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { IDataProviderEventListeners } from '@talxis/client-libraries'
 import { IMapOutputs, IMapViewport, Map, resolveLocationFromIpAddress } from '@talxis/base-controls/components/Map'
 import { useEventEmitter } from '@talxis/base-controls/hooks'
-import { googleMapsVendor } from '@talxis/base-controls/components/Map/providers/GoogleMaps'
+import { googleMapsVendor } from '@talxis/base-controls/components/Map/providers/google-maps'
 import { usePcfContext } from '@talxis/base-controls/utils'
 import { sampleMapAttributes, useSampleMapDataset } from './useSampleMapDataset'
 
@@ -193,7 +193,7 @@ Google Maps is the one vendor the wrapper has to name in code, because importing
 \`@vis.gl/react-google-maps\` peer dependency into the build. The key still comes from the manifest:
 
 \`\`\`tsx
-import { googleMapsVendor } from '@talxis/base-controls/dist/components/Map/providers/GoogleMaps';
+import { googleMapsVendor } from '@talxis/base-controls/dist/components/Map/providers/google-maps';
 
 //module scope, so the identity is stable
 const vendors = [googleMapsVendor];

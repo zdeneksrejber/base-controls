@@ -1,6 +1,6 @@
 import { mergeStyleSets } from "@fluentui/react";
 
-export const getMapyMapProviderStyles = () => {
+export const getMapyProviderStyles = () => {
     return mergeStyleSets({
         logo: {
             position: 'absolute',

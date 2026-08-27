@@ -1,8 +1,8 @@
 import L from 'leaflet';
 import { ReactNode, useEffect, useMemo } from 'react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { IMapLocation, IMapProvider, IMapProviderProps } from '../IMapProvider';
-import { ROUTE_STROKE_WEIGHT, UNSELECTED_PIN_OPACITY } from '../pinStyle';
+import { IMapProvider, IMapProviderProps } from '../IMapProvider';
+import { ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
 import { IMapViewport } from '../../viewport';
 import { getLeafletMapProviderStyles } from './styles';
 import 'leaflet/dist/leaflet.css';
@@ -30,6 +30,12 @@ export interface ILeafletMapConfig {
      */
     overlay?: ReactNode;
 }
+
+/**
+ * Builds the config from what the control handed the provider, for a service whose tiles depend on it -
+ * a vendor with a dark style of its own picks it off `theme`.
+ */
+export type ILeafletMapConfigResolver = (props: IMapProviderProps) => ILeafletMapConfig;
 
 const DEFAULT_TILE_LAYER_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const DEFAULT_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
@@ -108,9 +114,7 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
     const invertTiles = !!theme.isInverted && (props.invertTilesInDarkTheme ?? true);
     const styles = useMemo(() => getLeafletMapProviderStyles(invertTiles), [invertTiles]);
     const icon = useMemo(() => getPinIcon(theme.palette.themePrimary), [theme.palette.themePrimary]);
-    const selectedIds = useMemo(() => new Set(selectedLocationIds), [selectedLocationIds]);
-    const getPinOpacity = (location: IMapLocation) =>
-        selectedIds.size === 0 || selectedIds.has(location.id) ? 1 : UNSELECTED_PIN_OPACITY;
+    const selection = useMapPinSelection(selectedLocationIds);
 
     return (
         <div className={styles.container}>
@@ -139,7 +143,7 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
                         key={location.id}
                         position={[location.latitude, location.longitude]}
                         icon={icon}
-                        opacity={getPinOpacity(location)}
+                        opacity={selection.getOpacity(location)}
                         eventHandlers={{ click: () => onLocationClick(location) }}>
                         {location.label && <Popup>{location.label}</Popup>}
                     </Marker>
@@ -150,7 +154,12 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
     );
 };
 
-/** Keyless provider backed by Leaflet and, by default, the public OpenStreetMap tiles. The control's default. */
-export const createLeafletMapProvider = (config?: ILeafletMapConfig): IMapProvider => {
-    return (props: IMapProviderProps) => <LeafletMap {...props} {...config} />;
+/**
+ * Provider backed by Leaflet and, by default, the public OpenStreetMap tiles - the control's default, and the
+ * seam every other raster tile vendor here is built on. Pass a resolver instead of a config for a service
+ * whose tiles depend on what the control hands the provider.
+ */
+export const createLeafletMapProvider = (config?: ILeafletMapConfig | ILeafletMapConfigResolver): IMapProvider => {
+    return (props: IMapProviderProps) =>
+        <LeafletMap {...props} {...(typeof config === 'function' ? config(props) : config)} />;
 };

@@ -8,6 +8,7 @@ import {
     IMapProvider,
     IMapProviderOption,
     IMapVendor,
+    useMapProviderCache,
     useMapVendorOptions
 } from "./providers";
 
@@ -50,14 +51,15 @@ export const useMapProviders = (props: IUseMapProviders): IMapProviders => {
     const letUserSwitch = LetUserSwitch?.raw !== false;
     const defaultVendorId = DefaultVendor?.raw || DEFAULT_MAP_VENDOR_ID;
     //keys are read by the name their vendor declares, not by one the control knows
-    const getApiKey = (parameterName: string) => (parameters[parameterName] as IStringProperty | undefined)?.raw ?? undefined;
+    const getApiKey = (parameterName: string) => (parameters[parameterName] as IStringProperty | undefined)?.raw || undefined;
     const vendorOptions = useMapVendorOptions({
         vendors: getMapVendors(props.onGetMapVendors?.()),
         getApiKey,
         letUserSwitch,
         defaultVendorId
     });
-    const requestedProviderId = MapProviderId?.raw ?? DefaultVendor?.raw ?? undefined;
+    //an empty MapProviderId is a field nobody has picked in yet, so it falls through to the maker's default
+    const requestedProviderId = MapProviderId?.raw || DefaultVendor?.raw || undefined;
     const [pickedProviderId, setPickedProviderId] = useState(requestedProviderId);
     const onPickRef = useRef(onPick);
     onPickRef.current = onPick;
@@ -70,17 +72,12 @@ export const useMapProviders = (props: IUseMapProviders): IMapProviders => {
     }
 
     //cached by id, so a host may rebuild the list every render - only a new id remounts the map
-    const hostProviderCacheRef = useRef<{ [id: string]: IMapProvider }>({});
-    const hostProviderCache: { [id: string]: IMapProvider } = {};
-    const hostOptions = props.onGetMapProviders?.()?.map((option) => {
-        const provider = hostProviderCacheRef.current[option.id] ?? option.provider;
-        hostProviderCache[option.id] = provider;
-        return provider === option.provider ? option : { ...option, provider };
-    });
-    hostProviderCacheRef.current = hostProviderCache;
+    const resolveHostOptions = useMapProviderCache();
+    const hostOptions = resolveHostOptions((props.onGetMapProviders?.() ?? [])
+        .map(({ id, label, provider }) => ({ id, label, createProvider: () => provider })));
 
     //a single code provider is the same list with one entry, uncached - it has no id to key a cache on
-    const options = hostOptions?.length
+    const options = hostOptions.length
         ? hostOptions
         : props.onGetMapProvider
             ? [{ id: CODE_PROVIDER_ID, provider: props.onGetMapProvider() }]

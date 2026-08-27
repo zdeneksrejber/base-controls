@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
+import deepEqual from 'fast-deep-equal/es6';
 import { IMapProvider, IMapProviderOption } from './IMapProvider';
-import { createLeafletMapProvider } from './Leaflet';
-import { createHereMapsProvider } from './HereMaps';
-import { createMapyProvider } from './Mapy';
+import { useMapProviderCache } from './providerCache';
+import { createLeafletMapProvider } from './leaflet';
+import { createHereMapsProvider } from './here-maps';
+import { createMapyProvider } from './mapy';
 
 /**
  * A map vendor the control can build a provider for on its own, from an api key configured in the manifest.
@@ -42,7 +44,7 @@ export const DEFAULT_MAP_PROVIDER = createLeafletMapProvider();
  *
  * Google Maps is deliberately absent: it needs the optional `@vis.gl/react-google-maps` peer dependency, and
  * importing it here would put that package in every consumer's build graph. It ships as `googleMapsVendor`
- * from `.../Map/providers/GoogleMaps` instead, registered through `onGetMapVendors` like any other vendor.
+ * from `.../Map/providers/google-maps` instead, registered through `onGetMapVendors` like any other vendor.
  */
 export const BUILT_IN_MAP_VENDORS: IMapVendor[] = [
     {
@@ -65,38 +67,32 @@ export const BUILT_IN_MAP_VENDORS: IMapVendor[] = [
 ];
 
 /**
- * Merges host registered vendors into the built-in list. An entry reusing a built-in id replaces it, the
- * rest are appended in the order given, which is the order the picker lists them in.
+ * Merges host registered vendors into the built-in list. An entry reusing a built-in id replaces it in place,
+ * the rest are appended in the order given, which is the order the picker lists them in.
  */
 export const getMapVendors = (hostVendors?: IMapVendor[]): IMapVendor[] => {
     if (!hostVendors?.length) {
         return BUILT_IN_MAP_VENDORS;
     }
-    const overrides = hostVendors.filter((vendor) => BUILT_IN_MAP_VENDORS.some((builtIn) => builtIn.id === vendor.id));
-    const added = hostVendors.filter((vendor) => !overrides.includes(vendor));
-    return [
-        ...BUILT_IN_MAP_VENDORS.map((builtIn) => overrides.find((override) => override.id === builtIn.id) ?? builtIn),
-        ...added
-    ];
+    //a Map keeps the position of a key it already holds, which is what makes an override a replacement
+    const merged = new Map(BUILT_IN_MAP_VENDORS.map((vendor) => [vendor.id, vendor]));
+    hostVendors.forEach((vendor) => merged.set(vendor.id, vendor));
+    return [...merged.values()];
 };
 
 export interface IMapVendorOptions {
     /** Vendors to consider, in picker order. */
     vendors: IMapVendor[];
-    /** Reads the raw value of an api key parameter by the name a vendor declares. */
+    /**
+     * Reads the raw value of an api key parameter by the name a vendor declares. An empty value counts as no
+     * key at all, since that is what an unset manifest property looks like.
+     */
     getApiKey: (parameterName: string) => string | undefined;
     /** Whether every configured vendor is offered, or only `defaultVendorId`. */
     letUserSwitch: boolean;
     /** Vendor the map opens with, and the only one offered while `letUserSwitch` is off. */
     defaultVendorId: string;
 }
-
-const isSameOptions = (left: IMapProviderOption[], right: IMapProviderOption[]): boolean =>
-    left.length === right.length &&
-    left.every((option, index) =>
-        option.id === right[index].id &&
-        option.label === right[index].label &&
-        option.provider === right[index].provider);
 
 /**
  * Resolves the manifest vendors and api keys into the provider list the control offers.
@@ -107,24 +103,23 @@ const isSameOptions = (left: IMapProviderOption[], right: IMapProviderOption[]):
  */
 export const useMapVendorOptions = (options: IMapVendorOptions): IMapProviderOption[] => {
     const { vendors, getApiKey, letUserSwitch, defaultVendorId } = options;
-    const providerCacheRef = useRef<{ [cacheKey: string]: IMapProvider }>({});
+    const resolveOptions = useMapProviderCache();
     const offeredRef = useRef<IMapProviderOption[]>([]);
-    //rebuilt rather than added to, so a key the maker edited does not stay cached
-    const providerCache: { [cacheKey: string]: IMapProvider } = {};
-    const configured: IMapProviderOption[] = [];
 
-    vendors.forEach((vendor) => {
-        const apiKey = vendor.apiKeyParameterName ? getApiKey(vendor.apiKeyParameterName) : undefined;
+    const configured = resolveOptions(vendors
+        //a keyless vendor is configured by definition, so it reads as an empty key rather than a missing one
+        .map((vendor) => ({
+            vendor,
+            apiKey: vendor.apiKeyParameterName ? getApiKey(vendor.apiKeyParameterName) || undefined : ''
+        }))
         //a vendor that needs a key stays off the list until the maker fills it in
-        if (vendor.apiKeyParameterName && !apiKey) {
-            return;
-        }
-        const cacheKey = `${vendor.id}|${apiKey ?? ''}`;
-        const provider = providerCacheRef.current[cacheKey] ?? vendor.createProvider(apiKey ?? '');
-        providerCache[cacheKey] = provider;
-        configured.push({ id: vendor.id, label: vendor.label, provider });
-    });
-    providerCacheRef.current = providerCache;
+        .filter((entry): entry is { vendor: IMapVendor; apiKey: string } => entry.apiKey !== undefined)
+        .map(({ vendor, apiKey }) => ({
+            id: vendor.id,
+            label: vendor.label,
+            cacheKey: `${vendor.id}|${apiKey}`,
+            createProvider: () => vendor.createProvider(apiKey)
+        })));
 
     const picked = configured.find((option) => option.id === defaultVendorId);
     //a misconfigured default is invisible on the map itself, it just opens on something else
@@ -139,7 +134,7 @@ export const useMapVendorOptions = (options: IMapVendorOptions): IMapProviderOpt
 
     const offered = letUserSwitch ? configured : picked ? [picked] : configured.slice(0, 1);
     //compared rather than replaced, so a rebuilt list does not invalidate everything memoized on it
-    if (!isSameOptions(offeredRef.current, offered)) {
+    if (!deepEqual(offeredRef.current, offered)) {
         offeredRef.current = offered;
     }
     return offeredRef.current;

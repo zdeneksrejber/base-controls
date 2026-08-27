@@ -10,9 +10,10 @@ import { useMapProviders } from "./useMapProviders";
 import { useMapViewport } from "./useMapViewport";
 import { mapTranslations } from "./translations";
 import { getMapStyles } from "./styles";
-import { MapProviderPicker } from "./MapProviderPicker";
+import { MapProviderPicker } from "./map-provider-picker";
 
 export const Map = (props: IMap) => {
+    const onOverrideComponentProps = props.onOverrideComponentProps ?? ((providerProps) => providerProps);
     const {
         Dataset: dataset,
         LatitudeAttributeName,
@@ -86,7 +87,7 @@ export const Map = (props: IMap) => {
 
     return (
         <div className={getClassNames([className, styles.root])}>
-            <MapProvider {...(props.onOverrideComponentProps?.(providerProps) ?? providerProps)} />
+            <MapProvider {...onOverrideComponentProps(providerProps)} />
             {options.length > 1 &&
                 <MapProviderPicker
                     options={options}

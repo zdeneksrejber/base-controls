@@ -68,7 +68,7 @@ export interface IMapParameters extends IParameters {
     MapyApiKey?: IStringProperty;
     /**
      * Google Maps api key. Offers the Google Maps vendor once set, provided the host registered
-     * `googleMapsVendor` from `.../Map/providers/GoogleMaps` - that import is what pulls the optional
+     * `googleMapsVendor` from `.../Map/providers/google-maps` - that import is what pulls the optional
      * `@vis.gl/react-google-maps` peer dependency into the build, which is why it is not done here.
      */
     GoogleApiKey?: IStringProperty;

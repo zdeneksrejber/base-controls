@@ -1,5 +1,5 @@
-import { IMapProvider, IMapProviderProps } from '../IMapProvider';
-import { LeafletMap } from '../Leaflet';
+import { IMapProvider } from '../IMapProvider';
+import { createLeafletMapProvider } from '../leaflet';
 
 /**
  * Styles the [HERE Raster Tile API v3](https://www.here.com/docs/category/raster-tile-api-v3) renders. The
@@ -89,27 +89,19 @@ const getTileLayerUrl = (config: IHereMapsConfig, style: IHereMapsStyle): string
     return `${TILE_ENDPOINT}/${resource}/${PROJECTION}/{z}/{x}/{y}/${format}?${parameters.toString()}`;
 };
 
-const HereMapsMap = (props: IMapProviderProps & IHereMapsConfig) => {
-    const style = props.theme.isInverted
-        ? props.darkStyle ?? DEFAULT_DARK_STYLE
-        : props.style ?? DEFAULT_STYLE;
-
-    return (
-        <LeafletMap
-            {...props}
-            tileLayerUrl={getTileLayerUrl(props, style)}
-            attribution={props.attribution ?? getAttribution()}
-            maxZoom={MAX_ZOOM}
-            //HERE has a night style, so the tiles arrive dark instead of being filtered
-            invertTilesInDarkTheme={false} />
-    );
-};
-
 /**
  * Provider backed by the HERE Raster Tile API v3. Needs nothing but an api key - the tiles are plain XYZ
- * raster images, so there is no HERE sdk to install. Dark mode swaps the HERE style rather than filtering
- * the tiles, so it is a real dark map instead of an inverted light one.
+ * raster images, so there is no HERE sdk to install, only a tile url on the Leaflet seam. Dark mode swaps
+ * the HERE style rather than filtering the tiles, so it is a real dark map instead of an inverted light one.
  */
 export const createHereMapsProvider = (config: IHereMapsConfig): IMapProvider => {
-    return (props: IMapProviderProps) => <HereMapsMap {...props} {...config} />;
+    return createLeafletMapProvider(({ theme }) => ({
+        tileLayerUrl: getTileLayerUrl(config, theme.isInverted
+            ? config.darkStyle ?? DEFAULT_DARK_STYLE
+            : config.style ?? DEFAULT_STYLE),
+        attribution: config.attribution ?? getAttribution(),
+        maxZoom: MAX_ZOOM,
+        //HERE has a night style, so the tiles arrive dark instead of being filtered
+        invertTilesInDarkTheme: false
+    }));
 };
