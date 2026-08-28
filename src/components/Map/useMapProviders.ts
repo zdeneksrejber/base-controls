@@ -52,11 +52,19 @@ export const useMapProviders = (props: IUseMapProviders): IMapProviders => {
     const defaultVendorId = DefaultVendor?.raw || DEFAULT_MAP_VENDOR_ID;
     //keys are read by the name their vendor declares, not by one the control knows
     const getApiKey = (parameterName: string) => (parameters[parameterName] as IStringProperty | undefined)?.raw || undefined;
+
+    //cached by id, so a host may rebuild the list every render - only a new id remounts the map
+    const resolveHostOptions = useMapProviderCache();
+    const hostOptions = resolveHostOptions((props.onGetMapProviders?.() ?? [])
+        .map(({ id, label, provider }) => ({ id, label, createProvider: () => provider })));
+
+    //the manifest vendors only draw the map, and so are only worth warning about, while nothing else took over
     const vendorOptions = useMapVendorOptions({
         vendors: getMapVendors(props.onGetMapVendors?.()),
         getApiKey,
         letUserSwitch,
-        defaultVendorId
+        defaultVendorId,
+        active: !hostOptions.length && !props.onGetMapProvider
     });
     //an empty MapProviderId is a field nobody has picked in yet, so it falls through to the maker's default
     const requestedProviderId = MapProviderId?.raw || DefaultVendor?.raw || undefined;
@@ -70,11 +78,6 @@ export const useMapProviders = (props: IUseMapProviders): IMapProviders => {
         requestedProviderIdRef.current = requestedProviderId;
         setPickedProviderId(requestedProviderId);
     }
-
-    //cached by id, so a host may rebuild the list every render - only a new id remounts the map
-    const resolveHostOptions = useMapProviderCache();
-    const hostOptions = resolveHostOptions((props.onGetMapProviders?.() ?? [])
-        .map(({ id, label, provider }) => ({ id, label, createProvider: () => provider })));
 
     //a single code provider is the same list with one entry, uncached - it has no id to key a cache on
     const options = hostOptions.length

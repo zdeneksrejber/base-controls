@@ -41,16 +41,19 @@ export const useMapViewport = (props: IUseMapViewport): IMapViewportController =
     const [fallbackLocation, setFallbackLocation] = useState<IMapCoordinates>();
     const onChangeRef = useRef(onChange);
     onChangeRef.current = onChange;
+    //stashed the same way as onChange - a host has no reason to memoize this, so the effect below must not care
+    const onResolveFallbackLocationRef = useRef(onResolveFallbackLocation);
+    onResolveFallbackLocationRef.current = onResolveFallbackLocation;
     const hasLocations = locations.length > 0;
 
     useEffect(() => {
-        if (!onResolveFallbackLocation || hasLocations) {
+        if (!onResolveFallbackLocationRef.current || hasLocations) {
             return;
         }
         const controller = new AbortController();
         const debounce = setTimeout(() => {
             const timeout = setTimeout(() => controller.abort(), FALLBACK_LOCATION_TIMEOUT_MS);
-            onResolveFallbackLocation(controller.signal)
+            onResolveFallbackLocationRef.current!(controller.signal)
                 .then((location) => {
                     if (location && !controller.signal.aborted) {
                         setFallbackLocation(location);
@@ -64,7 +67,8 @@ export const useMapViewport = (props: IUseMapViewport): IMapViewportController =
             clearTimeout(debounce);
             controller.abort();
         };
-    }, [onResolveFallbackLocation, hasLocations]);
+        //only hasLocations should restart this - an unmemoized resolver prop must not debounce forever
+    }, [hasLocations]);
 
     const derivedViewport = useMemo(() => {
         if (!hasLocations && fallbackLocation) {
@@ -77,20 +81,21 @@ export const useMapViewport = (props: IUseMapViewport): IMapViewportController =
     const appliedProviderRef = useRef(provider);
     const viewportRef = useRef(derivedViewport);
     const reportedViewportRef = useRef<IMapViewport>();
-    const handoffViewportRef = useRef<IMapViewport>();
 
-    //a new provider is a fresh map, hand it the view the user was on rather than the pins
-    if (appliedProviderRef.current !== provider) {
-        appliedProviderRef.current = provider;
-        if (handoffViewportRef.current) {
-            viewportRef.current = handoffViewportRef.current;
-        }
-    }
+    const providerChanged = appliedProviderRef.current !== provider;
+    appliedProviderRef.current = provider;
+    const derivedChanged = !deepEqual(derivedViewportRef.current, derivedViewport);
+    derivedViewportRef.current = derivedViewport;
 
-    //new records are a reason to move the map and outrank the handoff, reloading the same ones is not
-    if (!deepEqual(derivedViewportRef.current, derivedViewport)) {
-        derivedViewportRef.current = derivedViewport;
+    //new records are a reason to move the map and outrank a provider switch's handoff, reloading the same
+    //records is neither - precedence is explicit here rather than left to the order two updates run in
+    if (derivedChanged) {
         viewportRef.current = derivedViewport;
+    } else if (providerChanged && reportedViewportRef.current) {
+        //a new provider is a fresh map, hand it the view the user was on rather than the pins - bounds are
+        //left out on purpose, fitting them keeps the padding free and zooms out a notch per switch
+        const { bounds, ...handoff } = reportedViewportRef.current;
+        viewportRef.current = handoff;
     }
 
     const onViewportChange = useCallback((changedViewport: IMapViewport) => {
@@ -98,12 +103,6 @@ export const useMapViewport = (props: IUseMapViewport): IMapViewportController =
             return;
         }
         reportedViewportRef.current = changedViewport;
-        //bounds are left out on purpose - fitting them keeps the padding free and zooms out a notch per switch
-        handoffViewportRef.current = {
-            center: changedViewport.center,
-            zoom: changedViewport.zoom,
-            padding: changedViewport.padding
-        };
         onChangeRef.current(changedViewport);
     }, []);
 

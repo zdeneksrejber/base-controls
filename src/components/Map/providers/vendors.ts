@@ -92,6 +92,12 @@ export interface IMapVendorOptions {
     letUserSwitch: boolean;
     /** Vendor the map opens with, and the only one offered while `letUserSwitch` is off. */
     defaultVendorId: string;
+    /**
+     * Whether this vendor list is the one actually drawing the map, rather than one a host took over with
+     * `onGetMapProvider`/`onGetMapProviders`. A misconfigured `defaultVendorId` only warns while it is - a
+     * vendor list nothing is drawn from has nothing to warn about.
+     */
+    active: boolean;
 }
 
 /**
@@ -102,7 +108,7 @@ export interface IMapVendorOptions {
  * another vendor's map, while changing a key does rebuild the provider it configures.
  */
 export const useMapVendorOptions = (options: IMapVendorOptions): IMapProviderOption[] => {
-    const { vendors, getApiKey, letUserSwitch, defaultVendorId } = options;
+    const { vendors, getApiKey, letUserSwitch, defaultVendorId, active } = options;
     const resolveOptions = useMapProviderCache();
     const offeredRef = useRef<IMapProviderOption[]>([]);
 
@@ -123,9 +129,9 @@ export const useMapVendorOptions = (options: IMapVendorOptions): IMapProviderOpt
 
     const picked = configured.find((option) => option.id === defaultVendorId);
     //a misconfigured default is invisible on the map itself, it just opens on something else
-    const warning = picked || !configured.length
-        ? undefined
-        : `Map: DefaultVendor is "${defaultVendorId}", but no vendor with that id is configured - using "${configured[0].id}" instead.`;
+    const warning = active && !picked && configured.length
+        ? `Map: DefaultVendor is "${defaultVendorId}", but no vendor with that id is configured - using "${configured[0].id}" instead.`
+        : undefined;
     useEffect(() => {
         if (warning) {
             console.warn(warning);

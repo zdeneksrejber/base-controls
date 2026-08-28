@@ -2,7 +2,8 @@ import L from 'leaflet';
 import { ReactNode, useEffect, useMemo } from 'react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { IMapProvider, IMapProviderProps } from '../IMapProvider';
-import { ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
+import { ROUTE_STROKE_OPACITY, ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
+import { applyMapViewport } from '../viewportApply';
 import { IMapViewport } from '../../viewport';
 import { getLeafletMapProviderStyles } from './styles';
 import 'leaflet/dist/leaflet.css';
@@ -63,16 +64,12 @@ const ApplyViewport = (props: Pick<IMapProviderProps, 'viewport'>) => {
     const map = useMap();
 
     useEffect(() => {
-        const { bounds, center, zoom, padding } = props.viewport;
-        try {
-            if (bounds) {
-                map.fitBounds(toLeafletBounds({ bounds }), { padding: [padding, padding] });
-                return;
-            }
-            map.setView([center.latitude, center.longitude], zoom);
-        } catch (error) {
-            console.warn('LeafletMapProvider: failed to apply the requested viewport:', error);
-        }
+        applyMapViewport(
+            props.viewport,
+            (bounds, padding) => map.fitBounds(toLeafletBounds({ bounds }), { padding: [padding, padding] }),
+            (center, zoom) => map.setView([center.latitude, center.longitude], zoom),
+            (error) => console.warn('LeafletMapProvider: failed to apply the requested viewport:', error)
+        );
     }, [map, props.viewport]);
 
     return null;
@@ -115,6 +112,13 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
     const styles = useMemo(() => getLeafletMapProviderStyles(invertTiles), [invertTiles]);
     const icon = useMemo(() => getPinIcon(theme.palette.themePrimary), [theme.palette.themePrimary]);
     const selection = useMapPinSelection(selectedLocationIds);
+    //keyed per location, so a re-render that leaves locations and onLocationClick untouched (a selection or
+    //viewport-report update) does not give react-leaflet a new eventHandlers identity to rebind every marker for
+    const markerEventHandlers = useMemo(() => {
+        const handlers = new Map<string, L.LeafletEventHandlerFnMap>();
+        locations.forEach((location) => handlers.set(location.id, { click: () => onLocationClick(location) }));
+        return handlers;
+    }, [locations, onLocationClick]);
 
     return (
         <div className={styles.container}>
@@ -136,7 +140,8 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
                         key={route.id}
                         positions={route.locations.map((location) => [location.latitude, location.longitude])}
                         color={theme.palette.themePrimary}
-                        weight={ROUTE_STROKE_WEIGHT} />
+                        weight={ROUTE_STROKE_WEIGHT}
+                        opacity={ROUTE_STROKE_OPACITY} />
                 ))}
                 {locations.map((location) => (
                     <Marker
@@ -144,7 +149,7 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
                         position={[location.latitude, location.longitude]}
                         icon={icon}
                         opacity={selection.getOpacity(location)}
-                        eventHandlers={{ click: () => onLocationClick(location) }}>
+                        eventHandlers={markerEventHandlers.get(location.id)}>
                         {location.label && <Popup>{location.label}</Popup>}
                     </Marker>
                 ))}

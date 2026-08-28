@@ -12,6 +12,9 @@ export const UNSELECTED_PIN_OPACITY = 0.45;
 /** Stroke width, in pixels, of the line connecting the pins of a route. */
 export const ROUTE_STROKE_WEIGHT = 4;
 
+/** Opacity of the line connecting the pins of a route. Fully opaque, so a route reads the same on every provider. */
+export const ROUTE_STROKE_OPACITY = 1;
+
 export interface IMapPinSelection {
     /** Whether the location is part of the dataset selection, for drawing selected pins on top. */
     isSelected: (location: IMapLocation) => boolean;

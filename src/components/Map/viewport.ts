@@ -16,8 +16,11 @@ export interface IMapViewport {
     /** Zoom that belongs to `center`. Providers that fit `bounds` can ignore it. */
     zoom: number;
     /**
-     * Only set when the viewport came from more than one location. Providers that can fit bounds should
-     * prefer them over `center` and `zoom`, keeping `padding` free around them.
+     * As the viewport handed to a provider: only set when it was derived from more than one location, and
+     * providers that can fit bounds should prefer them over `center` and `zoom`, keeping `padding` free around
+     * them. As the viewport a provider reports back (including the `Viewport` output), this is instead
+     * whatever rectangle the map is currently showing, regardless of how many locations produced it - the two
+     * directions do not share the same invariant.
      */
     bounds?: IMapBounds;
     /** Space in pixels to keep between `bounds` and the edges of the map. */

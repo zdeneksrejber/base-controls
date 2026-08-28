@@ -1,16 +1,15 @@
 import { APIProvider, ColorScheme, Map as GoogleMap, MapCameraChangedEvent, Marker, Polyline, useMap } from '@vis.gl/react-google-maps';
 import { useCallback, useEffect, useMemo } from 'react';
 import { IMapProvider, IMapProviderProps } from '../IMapProvider';
-import { ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
+import { ROUTE_STROKE_OPACITY, ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
 import { IMapVendor } from '../vendors';
+import { applyMapViewport } from '../viewportApply';
 import { IMapViewport } from '../../viewport';
 import { getGoogleMapsProviderStyles } from './styles';
 
 export interface IGoogleMapsConfig {
     apiKey: string;
 }
-
-const ROUTE_STROKE_OPACITY = 0.9;
 
 const ApplyViewport = (props: { viewport: IMapViewport }) => {
     const map = useMap();
@@ -19,17 +18,15 @@ const ApplyViewport = (props: { viewport: IMapViewport }) => {
         if (!map) {
             return;
         }
-        const { bounds, center, zoom, padding } = props.viewport;
-        try {
-            if (bounds) {
-                map.fitBounds(bounds, padding);
-                return;
-            }
-            map.setCenter({ lat: center.latitude, lng: center.longitude });
-            map.setZoom(zoom);
-        } catch (error) {
-            console.warn('GoogleMapsProvider: failed to apply the requested viewport:', error);
-        }
+        applyMapViewport(
+            props.viewport,
+            (bounds, padding) => map.fitBounds(bounds, padding),
+            (center, zoom) => {
+                map.setCenter({ lat: center.latitude, lng: center.longitude });
+                map.setZoom(zoom);
+            },
+            (error) => console.warn('GoogleMapsProvider: failed to apply the requested viewport:', error)
+        );
     }, [map, props.viewport]);
 
     return null;
