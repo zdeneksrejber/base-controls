@@ -11,16 +11,15 @@ translating pin clicks into dataset selection. Drawing is delegated to a **provi
 | Mapy.com | `mapy` | `createMapyProvider` | `MapyApiKey` | — |
 | Google Maps | `google` | `createGoogleMapsProvider` | `GoogleApiKey` | `@vis.gl/react-google-maps` |
 
-Every one can be configured from a PCF manifest — an api key, a default vendor, whether the end user may switch
-between them — or built in code and handed to the control directly. HERE and Mapy.com are REST raster tile
-services (plain XYZ tile images), so both are drawn by the same Leaflet renderer as the default and need
-nothing installed beyond a key. Google Maps brings an SDK, which is why it alone stays out of the package
-barrel and is [registered by the host](#letting-a-maker-choose-in-pcf).
+Every one can be configured from a PCF manifest — an api key, a default vendor, whether the end user may
+switch between them — or built in code and handed to the control directly. HERE and Mapy.com are REST raster
+tile services, so both are drawn by the same Leaflet renderer as the default and need nothing installed beyond
+a key. Google Maps brings an SDK, which is why it alone stays out of the package barrel and is
+[registered by the host](#letting-a-maker-choose-in-pcf).
 
 Anything else — Azure Maps, Mapbox, an internal tile server — is a provider you
-[write yourself](#writing-a-provider) against the contract below, plus optionally a
-[vendor descriptor](#adding-a-vendor) so it configures from a manifest just like the four above. Neither
-touches this package.
+[write yourself](#providers) against the contract below, plus optionally a
+[vendor descriptor](#adding-a-vendor) so it configures from a manifest just like the four above.
 
 ---
 
@@ -42,41 +41,16 @@ import { Map } from '@talxis/base-controls';
 />
 ```
 
-### Supplying the provider in code
+### Supplying providers in code
 
-`onGetMapProvider` takes the vendor list over with one provider of your own. Parameters, outputs, selection,
-routes and the viewport behave identically across vendors, so a swap touches nothing else — only the factory
-and its config change:
-
-```tsx
-import { createHereMapsProvider } from '@talxis/base-controls/dist/components/Map/providers/here-maps';
-
-//the decision can be per environment, per tenant or per user — keep it inside the memo
-const mapProvider = useMemo(
-    () => (hereApiKey ? createHereMapsProvider({ apiKey: hereApiKey }) : createLeafletMapProvider()),
-    [hereApiKey]
-);
-
-<Map context={context} parameters={parameters} onGetMapProvider={() => mapProvider} />
-```
-
-**Memoize the provider.** `onGetMapProvider` is called on every render and `createXProvider` returns a new
-component each call, so a fresh identity remounts the map — losing the tiles and whatever the user had panned
-to. Build it once with `useMemo` or a module constant and let the getter return that. A *deliberate* switch
-does remount, since a different vendor is a different map instance, but the control hands the new one the
-viewport the old one last reported, so the user is not pulled back to the pins.
-
-### Letting the end user switch
-
-Hand the control a *list* instead of one provider and it renders a picker over the map, so the customizer
-configures the vendors and the end user chooses between them:
+`onGetMapProviders` takes the vendor list over with providers of your own. Parameters, outputs, selection,
+routes and the viewport behave identically across vendors, so a swap touches nothing else:
 
 ```tsx
 const providers = useMemo(() => [
     { id: 'osm', label: 'OpenStreetMap', provider: createLeafletMapProvider() },
-    { id: 'here', label: 'HERE', provider: createHereMapsProvider({ apiKey: hereApiKey }) },
-    { id: 'google', label: 'Google Maps', provider: createGoogleMapsProvider({ apiKey: googleApiKey }) }
-], [hereApiKey, googleApiKey]);
+    { id: 'here', label: 'HERE', provider: createHereMapsProvider({ apiKey: hereApiKey }) }
+], [hereApiKey]);
 
 <Map
     context={context}
@@ -86,7 +60,10 @@ const providers = useMemo(() => [
 />
 ```
 
-- The picker appears from **two** options up, so a one-entry list renders exactly like a single provider.
+- **The id is the identity of the provider, config included.** The control caches the component under it, so
+  the list may be rebuilt on every render without remounting the map — but a provider whose config changed
+  needs a new id to be picked up.
+- The picker appears from **two** options up, so a one-entry list is how you supply a single provider.
 - `MapProviderId` names the provider the map opens with; the end user's pick comes back as the output of the
   same name. Persist it and feed it back to make it stick. Rewriting the parameter afterwards overrides their
   pick, so a host that does not want that must leave it alone.
@@ -96,10 +73,8 @@ const providers = useMemo(() => [
 - The list *replaces* the manifest-configured vendors. To offer a provider of your own *alongside* them,
   describe it as a [vendor](#adding-a-vendor) instead.
 
-**The id is the identity of the provider, config included.** The control caches the component under it, so the
-list may be rebuilt on every render without remounting the map — but a provider whose config changed needs a
-new id to be picked up. That is the opposite of the `onGetMapProvider` rule, where the *component* is what has
-to stay stable.
+A deliberate switch does remount, since a different vendor is a different map instance, but the control hands
+the new one the viewport the old one last reported, so the user is not pulled back to the pins.
 
 ### Letting a maker choose in PCF
 
@@ -112,15 +87,13 @@ are the whole vendor configuration of a wrapper, and none of them needs vendor-s
 - `LetUserSwitch` (**on by default**) offers that list through the picker. Off, the control draws
   `DefaultVendor` alone, with no picker at all.
 - `DefaultVendor` (**`leaflet` by default**) is the vendor the map opens with. An id with no configured vendor
-  behind it — a key the maker left empty, a vendor nobody registered — falls back to `leaflet` and logs a
-  warning rather than failing silently.
+  behind it falls back to `leaflet` and logs a warning rather than failing silently.
 - Bind the keys to [Environment Variables](https://learn.microsoft.com/power-apps/maker/data-platform/environmentvariables)
   and one compiled control ships to every project unchanged; only the values differ per solution.
 
 Google Maps is the one vendor the wrapper has to name in code. `@vis.gl/react-google-maps` is an optional peer
 dependency, and importing it from inside the control would put it in every consumer's build graph whether they
-use Google Maps or not — a bundler still has to resolve a dynamically imported module's own imports to build
-its chunk, dynamic or not. So the *import* lives in the wrapper while the *key* stays in the manifest:
+use Google Maps or not. So the *import* lives in the wrapper while the *key* stays in the manifest:
 
 ```tsx
 import { googleMapsVendor } from '@talxis/base-controls/dist/components/Map/providers/google-maps';
@@ -136,15 +109,9 @@ const vendors = [googleMapsVendor];
 />
 ```
 
-That is the whole wrapper, for all four vendors: `context.parameters` forwards straight through, since
-everything arrives as an `IStringProperty` or an `ITwoOptionsProperty` already. Drop the import and the
-`onGetMapVendors` prop if a project has no use for Google Maps — the manifest property may stay, it simply
-configures nothing.
-
-Registered this way Google Maps is indistinguishable from a built-in vendor: it appears once `GoogleApiKey` has
-a value, `DefaultVendor` can name it, and the picker lists it beside the rest. That is the difference from
-`onGetMapProvider`, which takes the vendor list over entirely and can only ever offer the one provider it
-returns.
+That is the whole wrapper, for all four vendors: `context.parameters` forwards straight through. Registered
+this way Google Maps is indistinguishable from a built-in vendor — it appears once `GoogleApiKey` has a value,
+`DefaultVendor` can name it, and the picker lists it beside the rest.
 
 > An api key configured as a manifest property is readable by anyone who can open the page. That is normal for
 > browser keys, but only safe while the key is restricted to the origins allowed to use it — which is the
@@ -152,9 +119,8 @@ returns.
 
 ### Adding a vendor
 
-An `IMapVendor` is a descriptor, not a code path in the control — which is what keeps the manifest surface
-extensible. The control walks the vendor list, reads the key each entry *names* off `parameters`, and offers
-the ones that are configured; it knows nothing about any particular vendor.
+An `IMapVendor` is a descriptor, not a code path in the control. The control walks the vendor list, reads the
+key each entry *names* off `parameters`, and offers the ones that are configured.
 
 ```ts
 const azureMapsVendor: IMapVendor = {
@@ -168,9 +134,7 @@ const azureMapsVendor: IMapVendor = {
 ```
 
 Adding `AzureMapsApiKey` to the manifest is then the entire integration, and it is additive: a manifest that
-does not declare the property configures no Azure Maps vendor and behaves exactly as before. That holds for
-anything added later, including vendors shipped by a future version of this package — existing manifests
-neither know nor care about a key they do not set.
+does not declare the property configures no Azure Maps vendor and behaves exactly as before.
 
 An entry reusing a built-in id replaces it in place, which is how a built-in gets relabelled
 (`{ ...googleMapsVendor, label: 'Maps' }`) or reconfigured — an entry with `id: 'here'` and
@@ -184,10 +148,9 @@ from a vendor per id **and api key**, so editing a key rebuilds that vendor's pr
 
 ## API
 
-`interfaces.ts` is the reference — every entry below is documented there in full, in the place an editor shows
-it. What follows is the shape. `parameters` is PCF-shaped throughout (a dataset, an `IProperty`, or a `{ raw }`
-wrapper, the same shapes `Grid` and `GridCellRenderer` use); anything the host supplies as code lives on the
-props instead, matching how `DatasetControl` takes `onGetControlComponent`.
+`interfaces.ts` is the reference — every entry below is documented there, in the place an editor shows it.
+`parameters` is PCF-shaped throughout (a dataset, an `IProperty`, or a `{ raw }` wrapper); anything the host
+supplies as code lives on the props instead, matching how `DatasetControl` takes `onGetControlComponent`.
 
 ### Props — `IMap`
 
@@ -200,8 +163,7 @@ props instead, matching how `DatasetControl` takes `onGetControlComponent`.
 | `onNotifyOutputChanged` | `(outputs: IMapOutputs) => void` | — | Fires on pan, zoom, and provider pick. |
 | `onOverrideComponentProps` | `(props: IMapProviderProps) => IMapProviderProps` | — | Escape hatch to rewrite what the provider receives. Prefer passing your own provider. |
 | `onGetMapVendors` | `() => IMapVendor[]` | — | Vendors on top of the built-in ones — [Adding a vendor](#adding-a-vendor). |
-| `onGetMapProvider` | `() => IMapProvider` | — | One host-built provider. **Takes the vendor list over.** Must be a stable component. |
-| `onGetMapProviders` | `() => IMapProviderOption[]` | — | A host-built list. **Takes the vendor list over**, and wins over `onGetMapProvider` — [Letting the end user switch](#letting-the-end-user-switch). |
+| `onGetMapProviders` | `() => IMapProviderOption[]` | — | A host-built list. **Takes the vendor list over** — [Supplying providers in code](#supplying-providers-in-code). |
 | `onResolveFallbackLocation` | `(signal: AbortSignal) => Promise<IMapCoordinates \| null>` | — | Opt-in — [Fallback location](#fallback-location). |
 
 ### `parameters` — `IMapParameters`
@@ -266,10 +228,7 @@ export type IMapProvider = ComponentType<IMapProviderProps>;
 
 The convention is to expose it through a `createXProvider(config)` factory closing over vendor-specific config
 (api keys, tile urls, style ids). That config never reaches the shared contract, which is why adding a provider
-needs no change to the control or its interfaces — and a provider never learns it can be swapped either, since
-the picker is control chrome and both wrappers around a provider sit outside `IMapProviderProps`. They differ
-only in who builds the provider: an **option** carries one the host built and closed its config over, a
-**vendor** carries the factory instead, so the *control* builds it from an api key the maker configured.
+needs no change to the control or its interfaces.
 
 | | `IMapProviderOption` | `IMapVendor` |
 |-|----------------------|--------------|
@@ -299,8 +258,7 @@ that logic probably belongs in the control so every provider benefits from it.
 ### Viewport
 
 The control derives the viewport from the pins and hands the result over; providers apply it and never compute
-their own. That keeps every provider consistent instead of each one reinventing "center on the single pin, fit
-bounds around several, fall back to something sane when there are none".
+their own.
 
 ```ts
 getMapViewport(coordinates, options?) // -> { center, zoom, bounds?, padding }
@@ -312,7 +270,10 @@ getMapViewport(coordinates, options?) // -> { center, zoom, bounds?, padding }
   derived viewport is unchanged, so a refresh returning the same records does not pull the map back from
   wherever the user panned to.
 - A provider mounted by a provider switch is handed the center and zoom the previous one last reported, so
-  there is nothing extra to implement: apply what you receive and the user keeps their view.
+  there is nothing extra to implement.
+
+Note the asymmetry: the `bounds` a provider *reports back* is whatever rectangle the map is showing, so unlike
+the derived one it is set regardless of how many pins produced it.
 
 ### Layout and sizing
 
@@ -331,7 +292,7 @@ flex: 1;  min-width: 0;  min-height: 0;
 ```
 
 `MAP_PROVIDER_LAYOUT` (`providers/layout`) holds exactly that, as `container` and `map` style fragments a
-provider composes into its own style set rather than restating. Two things matter when embedding the control:
+provider composes into its own style set. Two things matter when embedding the control:
 
 - **The chain has to be unbroken.** A host wrapping the control in an element of its own has to give that
   element the same properties, or the map has nothing to grow into. In Power Apps that includes
@@ -347,10 +308,9 @@ Setting `RouteAttributeName` groups records sharing the same non-empty value of 
 draws each as a single line through `route.locations`.
 
 `onLocationClick` sets the dataset selection, which comes back as `selectedLocationIds` — so selection stays in
-sync with any other control bound to the same dataset. What a selection *looks like* is a control decision, not
-a per-provider one: `useMapPinSelection` (`providers/pinStyle`) turns `selectedLocationIds` into
-`getOpacity(location)` and `isSelected(location)`, so every provider dims the pins outside the selection
-identically and a new one gets it for free.
+sync with any other control bound to the same dataset. What a selection *looks like* is a control decision:
+`useMapPinSelection` (`providers/pinStyle`) turns `selectedLocationIds` into `getOpacity(location)` and
+`isSelected(location)`, so every provider dims the pins outside the selection identically.
 
 ### Fallback location
 
@@ -393,9 +353,10 @@ const mapProvider = createLeafletMapProvider({
 });
 ```
 
-See [Writing a provider](#for-another-raster-tile-service) for the full `ILeafletMapConfig` surface.
+`ILeafletMapConfig` also takes `minZoom`, `maxZoom`, `invertTilesInDarkTheme` and an `overlay` node — the seam
+HERE and Mapy.com are built on. Pass a resolver instead of a config object for tiles that depend on the theme.
 
-> `react-leaflet@3` requires React 17. The control declares React 16.8+ as a peer, so a host still on React 16
+> `react-leaflet@3` requires React 17. The package declares React 16.8+ as a peer, so a host still on React 16
 > has to pass a provider of its own rather than use the default.
 
 ### HERE
@@ -422,9 +383,8 @@ const mapProvider = createHereMapsProvider({ apiKey: '...' });
 | `attribution` | `© <year> HERE` | Required by HERE's terms. Reword or extend, do not remove. |
 
 **This is the one shipped provider with a real dark map.** It follows the control theme by swapping `style` for
-`darkStyle` rather than CSS-inverting the tiles, so a dark theme gets a map HERE drew dark instead of a photo
-negative of a light one. `explore.*`, `lite.*`, `logistics.*` and `topo.*` all have day and night variants;
-`satellite.day` and `dem` do not. The authoritative list for a given key is whatever
+`darkStyle` rather than CSS-inverting the tiles. `explore.*`, `lite.*`, `logistics.*` and `topo.*` all have day
+and night variants; `satellite.day` and `dem` do not. The authoritative list for a given key is whatever
 `GET https://maps.hereapi.com/v3/info` returns — `IHereMapsStyle` mirrors it at the time of writing.
 
 ### Mapy.com
@@ -446,10 +406,8 @@ const mapProvider = createMapyProvider({ apiKey: '...', mapset: 'outdoor' });
 | `retinaTiles` | `true` | Tiles at twice the resolution. Only `basic` and `outdoor` are served that way. |
 | `lang` | `cs` | Tile label language. Only affects zoom 6 and below — country and region names. |
 
-**The provider carries the attribution their licence requires**, so a host cannot forget it: Mapy.com mandate a
-visible, clickable logo at least 30px tall linking to mapy.com, plus a copyright notice linking to their
-copyright page. The logo sits bottom-left over the map — in the variant carrying its own green background, so
-it stays legible on every map set and in either theme — and the notice goes in the Leaflet attribution line.
+**The provider carries the attribution their licence requires**, so a host cannot forget it: a visible,
+clickable logo at least 30px tall linking to mapy.com, plus a copyright notice linking to their copyright page.
 
 They have no dark map set, so a dark control theme filters the tiles the way the OpenStreetMap default does.
 The exception is `aerial`: inverting photography produces a negative rather than a dark map, so it is left
@@ -474,6 +432,4 @@ parameter, exactly like the other three vendors — pass it through `onGetMapVen
 is the factory behind it, for a host that builds the provider itself.
 
 A provider that brings an SDK should follow the same shape — its own entry point, its own optional peer
-dependency — so the barrel stays free of vendor SDKs. One that only needs an api key, like HERE and Mapy.com,
-costs a consumer nothing and is exported from the barrel as well as from its own folder.
-
+dependency — so the barrel stays free of vendor SDKs.

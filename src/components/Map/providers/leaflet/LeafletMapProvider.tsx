@@ -2,17 +2,13 @@ import L from 'leaflet';
 import { ReactNode, useEffect, useMemo } from 'react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { IMapProvider, IMapProviderProps } from '../IMapProvider';
-import { ROUTE_STROKE_OPACITY, ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
-import { applyMapViewport } from '../viewportApply';
+import { ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
 import { IMapViewport } from '../../viewport';
 import { getLeafletMapProviderStyles } from './styles';
 import 'leaflet/dist/leaflet.css';
 
 export interface ILeafletMapConfig {
-    /**
-     * Tile template the map renders. Defaults to the public OpenStreetMap tiles, which come with a usage
-     * policy - production apps should point this at their own tile server.
-     */
+    /** Tile template the map renders. Defaults to the public OpenStreetMap tiles, which have a usage policy. */
     tileLayerUrl?: string;
     /** Attribution shown in the corner. Rendered as HTML, so it can carry the links a licence asks for. */
     attribution?: string;
@@ -20,22 +16,13 @@ export interface ILeafletMapConfig {
     minZoom?: number;
     /** Highest zoom the service serves. Leaflet stops at 18, so deeper services must say so or go blank. */
     maxZoom?: number;
-    /**
-     * Whether a dark theme is produced by CSS inverting the tiles. Defaults to `true`, since most services
-     * ship one light palette. Set `false` for a service with a dark style of its own.
-     */
+    /** Whether a dark theme CSS inverts the tiles. Defaults to `true`; set `false` for a real dark style. */
     invertTilesInDarkTheme?: boolean;
-    /**
-     * Chrome rendered over the map, for what a licence mandates and the attribution line cannot carry, such
-     * as a clickable vendor logo. Positioning is up to the node itself.
-     */
+    /** Chrome rendered over the map, for what a licence mandates and the attribution line cannot carry. */
     overlay?: ReactNode;
 }
 
-/**
- * Builds the config from what the control handed the provider, for a service whose tiles depend on it -
- * a vendor with a dark style of its own picks it off `theme`.
- */
+/** Builds the config from what the control handed the provider, for tiles that depend on it - a dark style, say. */
 export type ILeafletMapConfigResolver = (props: IMapProviderProps) => ILeafletMapConfig;
 
 const DEFAULT_TILE_LAYER_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -57,19 +44,24 @@ const getPinIcon = (color: string) => new L.DivIcon({
     </svg>`
 });
 
-const toLeafletBounds = (viewport: Required<Pick<IMapViewport, 'bounds'>>) =>
-    L.latLngBounds([viewport.bounds.south, viewport.bounds.west], [viewport.bounds.north, viewport.bounds.east]);
+const toLeafletBounds = (bounds: Required<IMapViewport>['bounds']) =>
+    L.latLngBounds([bounds.south, bounds.west], [bounds.north, bounds.east]);
 
 const ApplyViewport = (props: Pick<IMapProviderProps, 'viewport'>) => {
     const map = useMap();
 
     useEffect(() => {
-        applyMapViewport(
-            props.viewport,
-            (bounds, padding) => map.fitBounds(toLeafletBounds({ bounds }), { padding: [padding, padding] }),
-            (center, zoom) => map.setView([center.latitude, center.longitude], zoom),
-            (error) => console.warn('LeafletMapProvider: failed to apply the requested viewport:', error)
-        );
+        const { bounds, center, zoom, padding } = props.viewport;
+        try {
+            //coordinates come off the dataset unvalidated, so a malformed one must not throw out of the effect
+            if (bounds) {
+                map.fitBounds(toLeafletBounds(bounds), { padding: [padding, padding] });
+                return;
+            }
+            map.setView([center.latitude, center.longitude], zoom);
+        } catch (error) {
+            console.warn('LeafletMapProvider: failed to apply the requested viewport:', error);
+        }
     }, [map, props.viewport]);
 
     return null;
@@ -88,6 +80,7 @@ const ReportViewport = (props: Pick<IMapProviderProps, 'viewport' | 'onViewportC
                 east: bounds.getEast(),
                 west: bounds.getWest()
             },
+            //never reported by the map itself, so it is threaded through from what the control asked for
             padding: props.viewport.padding
         });
     };
@@ -101,8 +94,8 @@ const ReportViewport = (props: Pick<IMapProviderProps, 'viewport' | 'onViewportC
 };
 
 /**
- * The Leaflet renderer behind every tile based provider here. Exported so a provider for a raster tile
- * service is only a tile url and whatever chrome its licence asks for, not a second copy of the contract.
+ * The Leaflet renderer behind every tile based provider here, so a provider for a raster tile service is only
+ * a tile url and whatever chrome its licence asks for.
  */
 export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
     const { locations, routes, viewport, selectedLocationIds, theme, onLocationClick, onViewportChange } = props;
@@ -112,8 +105,7 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
     const styles = useMemo(() => getLeafletMapProviderStyles(invertTiles), [invertTiles]);
     const icon = useMemo(() => getPinIcon(theme.palette.themePrimary), [theme.palette.themePrimary]);
     const selection = useMapPinSelection(selectedLocationIds);
-    //keyed per location, so a re-render that leaves locations and onLocationClick untouched (a selection or
-    //viewport-report update) does not give react-leaflet a new eventHandlers identity to rebind every marker for
+    //keyed per location, so a selection or viewport re-render does not hand react-leaflet a new identity to rebind on
     const markerEventHandlers = useMemo(() => {
         const handlers = new Map<string, L.LeafletEventHandlerFnMap>();
         locations.forEach((location) => handlers.set(location.id, { click: () => onLocationClick(location) }));
@@ -140,8 +132,7 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
                         key={route.id}
                         positions={route.locations.map((location) => [location.latitude, location.longitude])}
                         color={theme.palette.themePrimary}
-                        weight={ROUTE_STROKE_WEIGHT}
-                        opacity={ROUTE_STROKE_OPACITY} />
+                        weight={ROUTE_STROKE_WEIGHT} />
                 ))}
                 {locations.map((location) => (
                     <Marker
@@ -160,9 +151,8 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
 };
 
 /**
- * Provider backed by Leaflet and, by default, the public OpenStreetMap tiles - the control's default, and the
- * seam every other raster tile vendor here is built on. Pass a resolver instead of a config for a service
- * whose tiles depend on what the control hands the provider.
+ * Provider backed by Leaflet and, by default, the public OpenStreetMap tiles. Pass a resolver instead of a
+ * config for a service whose tiles depend on what the control hands the provider.
  */
 export const createLeafletMapProvider = (config?: ILeafletMapConfig | ILeafletMapConfigResolver): IMapProvider => {
     return (props: IMapProviderProps) =>

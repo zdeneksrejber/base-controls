@@ -2,30 +2,19 @@ import { useRef } from 'react';
 import deepEqual from 'fast-deep-equal/es6';
 import { IMapProvider, IMapProviderOption } from './IMapProvider';
 
-/** A provider the control is about to offer, before it has a cached component behind it. */
 export interface IMapProviderSource extends Omit<IMapProviderOption, 'provider'> {
-    /**
-     * Identifies the configuration behind `id`, defaulting to `id` itself. A changed key is a different map,
-     * so it rebuilds the provider - which is exactly what an edited api key should do, and what filling in an
-     * unrelated vendor's key should not.
-     */
+    /** Identifies the configuration behind `id`, defaulting to `id`. A changed key rebuilds the provider. */
     cacheKey?: string;
-    /** Builds the provider. Called only when `cacheKey` is one the previous render did not offer. */
     createProvider: () => IMapProvider;
 }
 
 /**
- * Keeps one provider component per cache key for as long as that key keeps being offered, and the resolved
- * option list itself stable while it keeps resolving to the same ids, labels and providers.
+ * Keeps one provider component per cache key, and the resolved list stable while it resolves to the same
+ * thing. A fresh component identity remounts the map, so this is what lets a host rebuild its provider list
+ * every render, and a maker edit one vendor's api key, without the map blinking.
  *
- * A fresh component identity remounts the map, so this is what lets a host rebuild its provider list every
- * render, and a maker edit one vendor's api key, without the map blinking. The cache is rebuilt on every call
- * rather than added to, so a key that stopped being offered does not stay alive in it. The option list is
- * stabilized the same way, so a caller that rebuilds its source list every render does not, on its own,
- * invalidate everything a consumer memoized on the result.
- *
- * Call the returned function once per render with the full list - it resolves, dedupes against the previous
- * result and swaps the cache in one go.
+ * Call once per render with the full list - the cache is rebuilt rather than added to, so a key that stopped
+ * being offered does not stay alive in it.
  */
 export const useMapProviderCache = () => {
     const cacheRef = useRef<{ [cacheKey: string]: IMapProvider }>({});

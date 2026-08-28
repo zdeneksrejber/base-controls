@@ -9,9 +9,7 @@ export type IMapFallbackLocationResolver = (signal: AbortSignal) => Promise<IMap
 const GEOJS_ENDPOINT = 'https://get.geojs.io/v1/ip/geo.json';
 
 /**
- * Guesses the user location from their IP address using the public geojs.io service.
- *
- * Opt in only - pass it as `onResolveFallbackLocation` when the host is allowed to call a third party. The
+ * Guesses the user location from their IP address using the public geojs.io service. Opt in only - the
  * control never calls it on its own, so a host under a CSP or a privacy review makes no surprise requests.
  */
 export const resolveLocationFromIpAddress: IMapFallbackLocationResolver = async (signal) => {

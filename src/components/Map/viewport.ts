@@ -16,33 +16,21 @@ export interface IMapViewport {
     /** Zoom that belongs to `center`. Providers that fit `bounds` can ignore it. */
     zoom: number;
     /**
-     * As the viewport handed to a provider: only set when it was derived from more than one location, and
-     * providers that can fit bounds should prefer them over `center` and `zoom`, keeping `padding` free around
-     * them. As the viewport a provider reports back (including the `Viewport` output), this is instead
-     * whatever rectangle the map is currently showing, regardless of how many locations produced it - the two
-     * directions do not share the same invariant.
+     * Handed to a provider: set only when the viewport was derived from more than one location, and worth
+     * fitting in preference to `center` and `zoom`. Reported back by a provider (and so on the `Viewport`
+     * output): whatever the map is currently showing, whichever way it was derived.
      */
     bounds?: IMapBounds;
-    /** Space in pixels to keep between `bounds` and the edges of the map. */
     padding: number;
 }
 
 export interface IMapViewportOptions {
-    /** Center used when there is no location to derive the viewport from. */
     fallbackCenter?: IMapCoordinates;
-    /** Zoom used together with `fallbackCenter`. */
     fallbackZoom?: number;
-    /**
-     * Zoom used for a single location, since fitting bounds around one point collapses to maximum zoom.
-     * Doubles as the upper bound of the estimated zoom.
-     */
+    /** Zoom for a single location, since fitting bounds around one point collapses to maximum zoom. */
     singleLocationZoom?: number;
-    /**
-     * Zoom used for an approximate location. Deliberately low - such a location can be off by a city or two
-     * and a tight zoom would make that obvious.
-     */
+    /** Zoom for an approximate location. Deliberately low - such a location can be off by a city or two. */
     approximateLocationZoom?: number;
-    /** Space in pixels providers should keep between the bounds and the edges of the map. */
     padding?: number;
 }
 
@@ -56,10 +44,10 @@ export const DEFAULT_MAP_VIEWPORT_OPTIONS: Required<IMapViewportOptions> = {
 };
 
 /**
- * The smallest box containing every coordinate, or `undefined` when there is nothing to contain. Sets that
- * cross the antimeridian are not detected and produce a box spanning the long way around.
+ * The smallest box containing every coordinate. Sets that cross the antimeridian are not detected and
+ * produce a box spanning the long way around.
  */
-export const getMapBounds = (coordinates: IMapCoordinates[]): IMapBounds | undefined => {
+const getMapBounds = (coordinates: IMapCoordinates[]): IMapBounds | undefined => {
     if (coordinates.length === 0) {
         return undefined;
     }
@@ -84,10 +72,7 @@ const getZoomForSpan = (span: number, worldSpan: number, maxZoom: number): numbe
     return Math.max(0, Math.min(maxZoom, Math.floor(Math.log2(worldSpan / span))));
 };
 
-/**
- * Derives the viewport for the given coordinates. The single place the control decides where to look, so
- * every provider stays a thin renderer instead of reimplementing the rules.
- */
+/** The single place the control decides where to look, so every provider stays a thin renderer. */
 export const getMapViewport = (coordinates: IMapCoordinates[], options?: IMapViewportOptions): IMapViewport => {
     const { fallbackCenter, fallbackZoom, singleLocationZoom, padding } = { ...DEFAULT_MAP_VIEWPORT_OPTIONS, ...options };
     if (coordinates.length === 0) {
@@ -115,7 +100,7 @@ export const getMapViewport = (coordinates: IMapCoordinates[], options?: IMapVie
     };
 };
 
-/** Derives the viewport for a roughly known location, for example one resolved from an IP address. */
+/** Viewport for a roughly known location, for example one resolved from an IP address. */
 export const getApproximateMapViewport = (coordinates: IMapCoordinates, options?: IMapViewportOptions): IMapViewport => {
     const { approximateLocationZoom, padding } = { ...DEFAULT_MAP_VIEWPORT_OPTIONS, ...options };
     return {

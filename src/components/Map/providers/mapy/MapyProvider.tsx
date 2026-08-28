@@ -13,10 +13,7 @@ export type IMapyMapset = 'basic' | 'outdoor' | 'winter' | 'aerial' | 'names-ove
 export type IMapyLanguage = 'cs' | 'de' | 'el' | 'en' | 'es' | 'fr' | 'it' | 'nl' | 'pl' | 'pt' | 'ru' | 'sk' | 'tr' | 'uk';
 
 export interface IMapyConfig {
-    /**
-     * Mapy.com api key, from the [Mapy.com developer portal](https://developer.mapy.com/). Sent as a query
-     * parameter on every tile request, so restrict it to the origins allowed to use it.
-     */
+    /** Sent as a query parameter on every tile request, so restrict it to the origins allowed to use it. */
     apiKey: string;
     /** Map set to render. Defaults to `basic`. */
     mapset?: IMapyMapset;
@@ -65,9 +62,8 @@ const MapyLogo = () => {
 };
 
 /**
- * Provider backed by the Mapy.com Map Tiles API. Needs nothing but an api key - the tiles are plain XYZ
- * raster images, so there is no Mapy.com sdk to install, only a tile url on the Leaflet seam. The logo and
- * copyright notice their licence requires are part of the provider, not something the host has to add.
+ * Provider backed by the Mapy.com Map Tiles API - plain XYZ raster images, so an api key is the whole setup.
+ * The logo and copyright notice their licence requires are part of the provider, not the host's to remember.
  */
 export const createMapyProvider = (config: IMapyConfig): IMapProvider => {
     const mapset = config.mapset ?? DEFAULT_MAPSET;

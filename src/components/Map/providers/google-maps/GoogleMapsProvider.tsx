@@ -1,9 +1,8 @@
 import { APIProvider, ColorScheme, Map as GoogleMap, MapCameraChangedEvent, Marker, Polyline, useMap } from '@vis.gl/react-google-maps';
 import { useCallback, useEffect, useMemo } from 'react';
 import { IMapProvider, IMapProviderProps } from '../IMapProvider';
-import { ROUTE_STROKE_OPACITY, ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
+import { ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
 import { IMapVendor } from '../vendors';
-import { applyMapViewport } from '../viewportApply';
 import { IMapViewport } from '../../viewport';
 import { getGoogleMapsProviderStyles } from './styles';
 
@@ -18,15 +17,18 @@ const ApplyViewport = (props: { viewport: IMapViewport }) => {
         if (!map) {
             return;
         }
-        applyMapViewport(
-            props.viewport,
-            (bounds, padding) => map.fitBounds(bounds, padding),
-            (center, zoom) => {
-                map.setCenter({ lat: center.latitude, lng: center.longitude });
-                map.setZoom(zoom);
-            },
-            (error) => console.warn('GoogleMapsProvider: failed to apply the requested viewport:', error)
-        );
+        const { bounds, center, zoom, padding } = props.viewport;
+        try {
+            //coordinates come off the dataset unvalidated, so a malformed one must not throw out of the effect
+            if (bounds) {
+                map.fitBounds(bounds, padding);
+                return;
+            }
+            map.setCenter({ lat: center.latitude, lng: center.longitude });
+            map.setZoom(zoom);
+        } catch (error) {
+            console.warn('GoogleMapsProvider: failed to apply the requested viewport:', error);
+        }
     }, [map, props.viewport]);
 
     return null;
@@ -42,6 +44,7 @@ const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
             center: { latitude: event.detail.center.lat, longitude: event.detail.center.lng },
             zoom: event.detail.zoom,
             bounds: event.detail.bounds,
+            //never reported by the map itself, so it is threaded through from what the control asked for
             padding: viewport.padding
         });
     }, [onViewportChange, viewport.padding]);
@@ -62,7 +65,6 @@ const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
                             key={route.id}
                             path={route.locations.map((location) => ({ lat: location.latitude, lng: location.longitude }))}
                             strokeColor={theme.palette.themePrimary}
-                            strokeOpacity={ROUTE_STROKE_OPACITY}
                             strokeWeight={ROUTE_STROKE_WEIGHT} />
                     ))}
                     {locations.map((location) => (
@@ -85,11 +87,9 @@ export const createGoogleMapsProvider = (config: IGoogleMapsConfig): IMapProvide
 };
 
 /**
- * Google Maps as a vendor the control configures itself, from the `GoogleApiKey` parameter. Pass it through
- * `onGetMapVendors` and it behaves exactly like a built-in vendor.
- *
- * Registering it is the host's job because importing this module is what pulls `@vis.gl/react-google-maps`,
- * an optional peer dependency, into the build. Spread it to adjust: `{ ...googleMapsVendor, label: 'Maps' }`.
+ * Google Maps as a vendor the control configures itself, from the `GoogleApiKey` parameter. Registering it is
+ * the host's job because importing this module is what pulls the optional `@vis.gl/react-google-maps` peer
+ * dependency into the build. Spread it to adjust: `{ ...googleMapsVendor, label: 'Maps' }`.
  */
 export const googleMapsVendor: IMapVendor = {
     id: 'google',

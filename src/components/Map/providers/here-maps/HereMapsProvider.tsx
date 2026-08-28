@@ -32,17 +32,11 @@ export type IHereMapsTileSize = 256 | 512;
 export type IHereMapsPpi = 100 | 200 | 400;
 
 export interface IHereMapsConfig {
-    /**
-     * HERE api key, from a project on the [HERE platform](https://www.here.com/developer). Sent as a query
-     * parameter on every tile request, so restrict it to the origins allowed to use it.
-     */
+    /** Sent as a query parameter on every tile request, so restrict it to the origins allowed to use it. */
     apiKey: string;
     /** Style rendered while the control theme is light. Defaults to `explore.day`. */
     style?: IHereMapsStyle;
-    /**
-     * Style rendered while the control theme is dark. Defaults to `explore.night`. HERE renders the dark map
-     * itself, so its tiles are never CSS inverted.
-     */
+    /** Style rendered while the control theme is dark. Defaults to `explore.night`. */
     darkStyle?: IHereMapsStyle;
     /** Layer of the map to request. Defaults to `base`. */
     resource?: IHereMapsResource;
@@ -50,11 +44,10 @@ export interface IHereMapsConfig {
     format?: IHereMapsFormat;
     /** Edge length of a tile image. Defaults to 512, which keeps the map sharp on a high density display. */
     size?: IHereMapsTileSize;
-    /** Pixels per inch a tile is rendered for. Defaults to the HERE default of 100. */
     ppi?: IHereMapsPpi;
     /** BCP 47 tag the labels use, e.g. `cs-CZ`. Defaults to what HERE picks for the region a tile covers. */
     lang?: string;
-    /** Attribution shown in the corner. Defaults to the HERE notice their terms require - reword, don't remove. */
+    /** Defaults to the HERE notice their terms require - reword, do not remove. */
     attribution?: string;
 }
 
@@ -90,9 +83,8 @@ const getTileLayerUrl = (config: IHereMapsConfig, style: IHereMapsStyle): string
 };
 
 /**
- * Provider backed by the HERE Raster Tile API v3. Needs nothing but an api key - the tiles are plain XYZ
- * raster images, so there is no HERE sdk to install, only a tile url on the Leaflet seam. Dark mode swaps
- * the HERE style rather than filtering the tiles, so it is a real dark map instead of an inverted light one.
+ * Provider backed by the HERE Raster Tile API v3 - plain XYZ raster images, so an api key is the whole setup.
+ * The one shipped provider with a real dark map: it swaps the HERE style rather than filtering the tiles.
  */
 export const createHereMapsProvider = (config: IHereMapsConfig): IMapProvider => {
     return createLeafletMapProvider(({ theme }) => ({
@@ -101,7 +93,6 @@ export const createHereMapsProvider = (config: IHereMapsConfig): IMapProvider =>
             : config.style ?? DEFAULT_STYLE),
         attribution: config.attribution ?? getAttribution(),
         maxZoom: MAX_ZOOM,
-        //HERE has a night style, so the tiles arrive dark instead of being filtered
         invertTilesInDarkTheme: false
     }));
 };

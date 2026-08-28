@@ -46,10 +46,7 @@ const getRouteId = (record: IRecord, attributes: IMapPinAttributes): string | un
     return `${value}`;
 };
 
-/**
- * Reads the pins off the loaded dataset records. A record the coordinates cannot be read from is skipped
- * rather than failing the load, since one malformed row should not blank the map.
- */
+/** Reads the pins off the loaded records. One the coordinates cannot be read from is skipped, not fatal. */
 export const getMapPins = (records: IRecord[], attributes: IMapPinAttributes): IMapPins => {
     const locations: IMapLocation[] = [];
     //a Map, not an object - object keys that look like integers would reorder the routes

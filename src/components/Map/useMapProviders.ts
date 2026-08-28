@@ -5,7 +5,6 @@ import {
     DEFAULT_MAP_PROVIDER,
     DEFAULT_MAP_VENDOR_ID,
     getMapVendors,
-    IMapProvider,
     IMapProviderOption,
     IMapVendor,
     useMapProviderCache,
@@ -13,38 +12,18 @@ import {
 } from "./providers";
 
 export interface IUseMapProviders {
-    /** Read for the vendor configuration and for the pick a host persisted. */
     parameters: IMapParameters;
-    onGetMapProvider?: () => IMapProvider;
     onGetMapProviders?: () => IMapProviderOption[];
     onGetMapVendors?: () => IMapVendor[];
-    /** Called with the id the end user picked, so the control can report it as an output. */
     onPick: (id: string) => void;
 }
 
-export interface IMapProviders {
-    /** Providers offered to the end user, in picker order. The picker renders from two entries up. */
-    options: IMapProviderOption[];
-    /** Id of the option currently drawing the map. */
-    selectedId?: string;
-    /** Component that draws the map. */
-    provider: IMapProvider;
-    /** Hand this to the picker as its `onChange`. */
-    onPickProvider: (id: string) => void;
-}
-
-//never reaches the picker - one option draws none - so it never leaks into the MapProviderId output
-const CODE_PROVIDER_ID = 'code';
-
 /**
- * Resolves which provider draws the map, out of the three ways a host can supply them: a list built in code,
- * a single provider built in code, or the vendors configured in the manifest. The first that yields anything
- * wins, so a host mixing its own providers with manifest configured ones wants `onGetMapVendors`.
- *
- * All three end up as one list, so the picker, the persisted pick and the output do not have to care which
- * of them produced it.
+ * Resolves which provider draws the map: a list the host built in code, or the vendors configured in the
+ * manifest. Both end up as one list, so the picker, the persisted pick and the output do not have to care
+ * which produced it. A host mixing its own providers with manifest configured ones wants `onGetMapVendors`.
  */
-export const useMapProviders = (props: IUseMapProviders): IMapProviders => {
+export const useMapProviders = (props: IUseMapProviders) => {
     const { parameters, onPick } = props;
     const { MapProviderId, LetUserSwitch, DefaultVendor } = parameters;
     //the picker is on and the map opens on the keyless default unless the maker says otherwise
@@ -58,14 +37,15 @@ export const useMapProviders = (props: IUseMapProviders): IMapProviders => {
     const hostOptions = resolveHostOptions((props.onGetMapProviders?.() ?? [])
         .map(({ id, label, provider }) => ({ id, label, createProvider: () => provider })));
 
-    //the manifest vendors only draw the map, and so are only worth warning about, while nothing else took over
     const vendorOptions = useMapVendorOptions({
         vendors: getMapVendors(props.onGetMapVendors?.()),
         getApiKey,
         letUserSwitch,
         defaultVendorId,
-        active: !hostOptions.length && !props.onGetMapProvider
+        active: !hostOptions.length
     });
+    const options = hostOptions.length ? hostOptions : vendorOptions;
+
     //an empty MapProviderId is a field nobody has picked in yet, so it falls through to the maker's default
     const requestedProviderId = MapProviderId?.raw || DefaultVendor?.raw || undefined;
     const [pickedProviderId, setPickedProviderId] = useState(requestedProviderId);
@@ -78,13 +58,6 @@ export const useMapProviders = (props: IUseMapProviders): IMapProviders => {
         requestedProviderIdRef.current = requestedProviderId;
         setPickedProviderId(requestedProviderId);
     }
-
-    //a single code provider is the same list with one entry, uncached - it has no id to key a cache on
-    const options = hostOptions.length
-        ? hostOptions
-        : props.onGetMapProvider
-            ? [{ id: CODE_PROVIDER_ID, provider: props.onGetMapProvider() }]
-            : vendorOptions;
 
     //the picked provider can disappear when the host rebuilds the list, so the first option is the safety net
     const selectedOption = options.find((option) => option.id === pickedProviderId) ?? options[0];

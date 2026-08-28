@@ -28,7 +28,6 @@ export const Map = (props: IMap) => {
 
     const { options, selectedId, provider: MapProvider, onPickProvider } = useMapProviders({
         parameters: props.parameters,
-        onGetMapProvider: props.onGetMapProvider,
         onGetMapProviders: props.onGetMapProviders,
         onGetMapVendors: props.onGetMapVendors,
         onPick: (id) => onNotifyOutputChanged({ MapProviderId: id })
