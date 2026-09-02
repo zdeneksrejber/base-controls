@@ -4,6 +4,7 @@ import { IDataset } from "@talxis/client-libraries";
 import { IMapTranslations } from "./translations";
 import { IMapProviderOption, IMapProviderProps, IMapVendor } from "./providers";
 import { IMapFallbackLocationResolver } from "./fallbackLocation";
+import { IMapClusteringOptions } from "./clustering";
 import { IMapPinLoading } from "./records";
 import { IMapViewport, IMapViewportOptions } from "./viewport";
 
@@ -44,6 +45,15 @@ export interface IMapParameters extends IParameters {
     PinLoading?: Omit<ComponentFramework.PropertyTypes.EnumProperty<IMapPinLoading>, 'type'>;
     /** Records to load before stopping, while `PinLoading` is `all`. Defaults to 50000. */
     MaxRecords?: Omit<IWholeNumberProperty, 'attributes'>;
+    /**
+     * Whether pins that overlap in the current view are drawn as one, carrying the number of records behind
+     * it. Defaults to true - it is what keeps a dataset of thousands readable.
+     */
+    EnableClustering?: Omit<ITwoOptionsProperty, 'attributes'>;
+    /** Overrides the grouping radius, zoom ceiling and how many members a group lists. Code only. */
+    ClusteringOptions?: {
+        raw: IMapClusteringOptions;
+    };
     /** The end user's pick, reported back as the output of the same name. Wins over `DefaultVendor`. */
     MapProviderId?: IStringProperty;
     /** Whether the picker offers every configured vendor, instead of `DefaultVendor` alone. Defaults to true. */

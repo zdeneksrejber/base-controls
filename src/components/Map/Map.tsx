@@ -5,6 +5,7 @@ import { useEventEmitter } from "@hooks/useEventEmitter";
 import { getClassNames } from "@utils";
 import { IMap } from "./interfaces";
 import { getDistinctAttributePaths } from "./attributes";
+import { useMapClusters } from "./useMapClusters";
 import { IMapLocation, IMapProviderProps } from "./providers";
 import { EMPTY_MAP_PINS, getMapPins } from "./pins";
 import { useMapAttributes } from "./useMapAttributes";
@@ -26,6 +27,8 @@ export const Map = (props: IMap) => {
         EnableAttributeLinking,
         PinLoading,
         MaxRecords,
+        EnableClustering,
+        ClusteringOptions,
         ViewportOptions
     } = props.parameters;
     const { className, labels, theme, onNotifyOutputChanged } = useControl('Map', props, mapTranslations);
@@ -67,12 +70,19 @@ export const Map = (props: IMap) => {
         });
     }, [records, latitudeAttribute, longitudeAttribute, routeAttribute]);
 
-    const { viewport, onViewportChange } = useMapViewport({
+    const { viewport, visibleViewport, onViewportChange, onFocusViewport } = useMapViewport({
         locations: pins.locations,
         provider: MapProvider,
         options: ViewportOptions?.raw,
         onResolveFallbackLocation: props.onResolveFallbackLocation,
         onChange: (changedViewport) => onNotifyOutputChanged({ Viewport: changedViewport })
+    });
+
+    const drawnLocations = useMapClusters({
+        locations: pins.locations,
+        enabled: EnableClustering?.raw !== false,
+        visibleViewport,
+        options: ClusteringOptions?.raw
     });
 
     useEffect(() => {
@@ -82,11 +92,20 @@ export const Map = (props: IMap) => {
     useEventEmitter<IDataProviderEventListeners>(dataset, 'onRecordsSelected', (ids: string[]) => setSelectedLocationIds(ids ?? []));
 
     const onLocationClick = useCallback((location: IMapLocation) => {
+        //a group has no record to select, so activating one zooms to where it comes apart instead
+        if (location.cluster) {
+            onFocusViewport({
+                center: { latitude: location.latitude, longitude: location.longitude },
+                zoom: location.cluster.expansionZoom,
+                padding: viewport.padding
+            });
+            return;
+        }
         dataset?.setSelectedRecordIds([location.id]);
-    }, [dataset]);
+    }, [dataset, onFocusViewport, viewport.padding]);
 
     const providerProps = useMemo<IMapProviderProps>(() => ({
-        locations: pins.locations,
+        locations: drawnLocations,
         routes: pins.routes,
         viewport,
         selectedLocationIds,
@@ -95,7 +114,7 @@ export const Map = (props: IMap) => {
         labels,
         onLocationClick,
         onViewportChange
-    }), [pins, viewport, selectedLocationIds, props.context, theme, labels, onLocationClick, onViewportChange]);
+    }), [drawnLocations, pins.routes, viewport, selectedLocationIds, props.context, theme, labels, onLocationClick, onViewportChange]);
 
     const status = isLoading
         ? { message: labels.loadingPins({ count: `${loadedCount}` }), isBusy: true }

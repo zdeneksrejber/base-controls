@@ -11,6 +11,8 @@ export * from './geocoding';
 export * from './directions';
 export * from './polyline';
 export * from './http';
+export * from './clustering';
+export * from './useMapClusters';
 export * from './translations';
 export * from './viewport';
 export * from './fallbackLocation';

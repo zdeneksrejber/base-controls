@@ -5,7 +5,10 @@
     "types": [
       "node",
       "vitest/globals",
-      "@testing-library/jest-dom"
+      "@testing-library/jest-dom",
+      "google.maps",
+      "powerapps-component-framework",
+      "xrm"
     ]
   },
   "include": [

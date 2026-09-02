@@ -2,8 +2,8 @@ import { APIProvider, ColorScheme, Map as GoogleMap, MapCameraChangedEvent, Mark
 import { useCallback, useEffect, useMemo } from 'react';
 import { createGoogleMapsDirectionsService } from './directions';
 import { createGoogleMapsGeocoder } from './geocoder';
-import { IMapProvider, IMapProviderProps } from '../IMapProvider';
-import { ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
+import { IMapLocation, IMapProvider, IMapProviderProps } from '../IMapProvider';
+import { getClusterPinSize, getClusterPinSvg, ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
 import { IMapVendor } from '../vendors';
 import { IMapViewport } from '../../viewport';
 import { getGoogleMapsProviderStyles } from './styles';
@@ -73,15 +73,36 @@ const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
                         <Marker
                             key={location.id}
                             position={{ lat: location.latitude, lng: location.longitude }}
-                            title={location.label}
+                            title={location.cluster ? `${location.cluster.count}` : location.label}
+                            icon={getClusterIcon(location, theme.palette.themePrimary, theme.palette.white)}
                             opacity={selection.getOpacity(location)}
-                            zIndex={selection.isSelected(location) ? 1 : undefined}
+                            zIndex={location.cluster ? 1000 + location.cluster.count : selection.isSelected(location) ? 1 : undefined}
                             onClick={() => onLocationClick(location)} />
                     ))}
                 </GoogleMap>
             </div>
         </APIProvider>
     );
+};
+
+/**
+ * The icon a pin standing for a group is drawn with, as a data url so no image asset is needed.
+ *
+ * @param location Pin to draw.
+ * @param color Fill colour, normally the host theme's primary.
+ * @param textColor Colour of the count.
+ * @returns A Google Maps icon, or `undefined` for a pin standing for a single record, which keeps the default.
+ */
+const getClusterIcon = (location: IMapLocation, color: string, textColor: string): google.maps.Icon | undefined => {
+    if (!location.cluster) {
+        return undefined;
+    }
+    const size = getClusterPinSize(location.cluster.count);
+    return {
+        url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(getClusterPinSvg(location.cluster.count, color, textColor))}`,
+        scaledSize: new google.maps.Size(size, size),
+        anchor: new google.maps.Point(size / 2, size / 2)
+    };
 };
 
 export const createGoogleMapsProvider = (config: IGoogleMapsConfig): IMapProvider => {

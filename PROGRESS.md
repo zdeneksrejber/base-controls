@@ -13,7 +13,7 @@ delivery log.
 - [ ] **D2** Filtering by `IRecord` attributes
 - [ ] **D3** Full text search by address, using the entity's quick find query
 - [x] **D4** Paging — display all records, not only the current dataset page
-- [ ] **D5** Handle datasets of thousands of pins
+- [x] **D5** Handle datasets of thousands of pins
 - [x] **D6** Resolve any bound attribute through expands, using dot notation
 
 ### Interaction
@@ -24,7 +24,8 @@ delivery log.
 ### Pins
 - [ ] **P1** Custom icons — colour / URL / web resource / custom renderer, chosen by conditional rules
 - [ ] **P2** Popup card on pin click, localized, with `ExecuteFunction()` buttons, one card at a time
-- [ ] **P3** Automated group-by on pin overlap in the current viewport, with a count and a grouped card
+- [~] **P3** Automated group-by on pin overlap in the current viewport, with a count and a grouped card —
+  *grouping and the count are done; the grouped card lands with P2*
 
 ### Pin connections
 - [ ] **C1** Connect a group of pins into a line — ordered, grouped and coloured by attributes
@@ -101,3 +102,11 @@ introduced by V2.
 The renderer now observes its container, re-measures on every change, and holds off applying a viewport until
 the map has a real size. `isFiniteMapViewport` guards both directions, and reading the viewport back is
 wrapped because an unlaid-out map throws rather than answering.
+
+### Phase 3 — D5 and the grouping half of P3
+- `clustering.ts` wraps `supercluster`: one index per set of pins, queried per viewport, so panning a large
+  dataset costs a lookup rather than a rebuild and the provider only ever receives the pins in view. This is
+  the same algorithm the legacy PCF used, but in the control, so all four vendors group identically.
+- A grouped pin carries the exact count and the ids behind it; clicking one zooms to where it comes apart.
+- `EnableClustering` (on by default) and `ClusteringOptions` control it.
+- Verified in Storybook: 5 000 records draw as 22 pins, re-group to 75 on pan, and the viewport is reported.

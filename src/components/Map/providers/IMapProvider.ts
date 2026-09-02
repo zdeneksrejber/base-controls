@@ -1,16 +1,22 @@
 import { ComponentType } from 'react';
 import { IContext } from '@interfaces';
 import { ITheme } from '@legacy';
+import { IMapClusterInfo } from '../clustering';
 import { IMapDirections } from '../directions';
 import { IMapGeocoder } from '../geocoding';
 import { IMapCoordinates, IMapViewport } from '../viewport';
 import { IMapLabels } from '../translations';
 
 export interface IMapLocation extends IMapCoordinates {
-    /** Id of the dataset record the pin was built from. */
+    /** Id of the dataset record the pin was built from, or `cluster-<n>` for a pin standing for several. */
     id: string;
     /** Primary name of that record, for tooltips and popups instead of a raw record id. */
     label?: string;
+    /**
+     * The group this pin stands for, set only when the control merged several overlapping records into it.
+     * A provider draws such a pin with its `count` on it.
+     */
+    cluster?: IMapClusterInfo;
 }
 
 export interface IMapRoute {

@@ -1,8 +1,16 @@
 import L from 'leaflet';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { IMapProvider, IMapProviderProps } from '../IMapProvider';
-import { ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
+import { IMapLocation, IMapProvider, IMapProviderProps } from '../IMapProvider';
+import {
+    getClusterPinSize,
+    getClusterPinSvg,
+    getPinSvg,
+    PIN_HEIGHT,
+    PIN_WIDTH,
+    ROUTE_STROKE_WEIGHT,
+    useMapPinSelection
+} from '../pinStyle';
 import { isFiniteMapViewport, IMapViewport } from '../../viewport';
 import { getLeafletMapProviderStyles } from './styles';
 import 'leaflet/dist/leaflet.css';
@@ -28,21 +36,26 @@ export type ILeafletMapConfigResolver = (props: IMapProviderProps) => ILeafletMa
 const DEFAULT_TILE_LAYER_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const DEFAULT_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
-const PIN_SIZE: L.PointExpression = [24, 32];
-const PIN_ANCHOR: L.PointExpression = [12, 32];
-const PIN_POPUP_ANCHOR: L.PointExpression = [0, -30];
-
-//inline, so the provider needs no image assets and can take its color from the theme
+//inline, so the provider needs no image assets and can take its colour from the theme
 const getPinIcon = (color: string) => new L.DivIcon({
     className: '',
-    iconSize: PIN_SIZE,
-    iconAnchor: PIN_ANCHOR,
-    popupAnchor: PIN_POPUP_ANCHOR,
-    html: `<svg width="24" height="32" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 0a12 12 0 0 0-12 12c0 8.5 12 20 12 20s12-11.5 12-20A12 12 0 0 0 12 0z" fill="${color}" stroke="#ffffff" stroke-width="1.5" />
-        <circle cx="12" cy="12" r="4.5" fill="#ffffff" />
-    </svg>`
+    iconSize: [PIN_WIDTH, PIN_HEIGHT],
+    iconAnchor: [PIN_WIDTH / 2, PIN_HEIGHT],
+    popupAnchor: [0, -(PIN_HEIGHT - 2)],
+    html: getPinSvg(color)
 });
+
+/** A pin standing for a group, anchored at its centre because a circle has no tip to point with. */
+const getClusterIcon = (count: number, color: string, textColor: string) => {
+    const size = getClusterPinSize(count);
+    return new L.DivIcon({
+        className: '',
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+        popupAnchor: [0, -(size / 2)],
+        html: getClusterPinSvg(count, color, textColor)
+    });
+};
 
 const toLeafletBounds = (bounds: Required<IMapViewport>['bounds']) =>
     L.latLngBounds([bounds.south, bounds.west], [bounds.north, bounds.east]);
@@ -152,6 +165,21 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
     const invertTiles = !!theme.isInverted && (props.invertTilesInDarkTheme ?? true);
     const styles = useMemo(() => getLeafletMapProviderStyles(invertTiles), [invertTiles]);
     const icon = useMemo(() => getPinIcon(theme.palette.themePrimary), [theme.palette.themePrimary]);
+    //one icon per group size, so panning a clustered map does not build a new icon per pin per frame
+    const clusterIcons = useMemo(() => new Map<number, L.DivIcon>(), [theme.palette.themePrimary, theme.palette.white]);
+    const getIcon = (location: IMapLocation) => {
+        if (!location.cluster) {
+            return icon;
+        }
+        const { count } = location.cluster;
+        const cached = clusterIcons.get(count);
+        if (cached) {
+            return cached;
+        }
+        const built = getClusterIcon(count, theme.palette.themePrimary, theme.palette.white);
+        clusterIcons.set(count, built);
+        return built;
+    };
     const selection = useMapPinSelection(selectedLocationIds);
     //keyed per location, so a selection or viewport re-render does not hand react-leaflet a new identity to rebind on
     const markerEventHandlers = useMemo(() => {
@@ -186,10 +214,10 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
                     <Marker
                         key={location.id}
                         position={[location.latitude, location.longitude]}
-                        icon={icon}
+                        icon={getIcon(location)}
                         opacity={selection.getOpacity(location)}
                         eventHandlers={markerEventHandlers.get(location.id)}>
-                        {location.label && <Popup>{location.label}</Popup>}
+                        {location.label && !location.cluster && <Popup>{location.label}</Popup>}
                     </Marker>
                 ))}
             </MapContainer>

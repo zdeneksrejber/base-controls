@@ -69,16 +69,30 @@ export const useMapViewport = (props: IUseMapViewport) => {
     const appliedProviderRef = useRef(provider);
     const viewportRef = useRef(derivedViewport);
     const reportedViewportRef = useRef<IMapViewport>();
+    //what the map is showing right now, as state - clustering and anything else viewport driven needs to
+    //re-run on a pan, which a ref alone would not trigger
+    const [visibleViewport, setVisibleViewport] = useState<IMapViewport>();
+
+    //an explicit request - zooming into a cluster, say - held as a ref plus a counter, so applying it once
+    //is distinguishable from applying the same viewport again
+    const focusRef = useRef<IMapViewport>();
+    const [focusVersion, setFocusVersion] = useState(0);
+    const appliedFocusRef = useRef(focusVersion);
 
     const providerChanged = appliedProviderRef.current !== provider;
     appliedProviderRef.current = provider;
     const derivedChanged = !deepEqual(derivedViewportRef.current, derivedViewport);
     derivedViewportRef.current = derivedViewport;
+    const focusRequested = focusVersion !== appliedFocusRef.current;
 
-    //new records outrank a provider switch's handoff, reloading the same records is neither - the precedence
-    //is explicit here rather than left to the order two updates happen to run in
+    //new records outrank an explicit focus, which outranks a provider switch's handoff; reloading the same
+    //records is none of them - the precedence is explicit here rather than left to the order updates run in
     if (derivedChanged) {
         viewportRef.current = derivedViewport;
+        appliedFocusRef.current = focusVersion;
+    } else if (focusRequested && focusRef.current) {
+        appliedFocusRef.current = focusVersion;
+        viewportRef.current = focusRef.current;
     } else if (providerChanged && reportedViewportRef.current) {
         //a new provider is a fresh map, so hand it the view the user was on rather than the pins - bounds are
         //left out on purpose, fitting them keeps the padding free and zooms out a notch per switch
@@ -91,8 +105,21 @@ export const useMapViewport = (props: IUseMapViewport) => {
             return;
         }
         reportedViewportRef.current = changedViewport;
+        setVisibleViewport(changedViewport);
         onChangeRef.current(changedViewport);
     }, []);
 
-    return { viewport: viewportRef.current, onViewportChange };
+    /** Points the map somewhere of the control's choosing, until the pins change and take over again. */
+    const onFocusViewport = useCallback((focused: IMapViewport) => {
+        focusRef.current = focused;
+        setFocusVersion((version) => version + 1);
+    }, []);
+
+    return {
+        viewport: viewportRef.current,
+        //before the map has reported anything, what it was asked to show is the best guess at what it shows
+        visibleViewport: visibleViewport ?? viewportRef.current,
+        onViewportChange,
+        onFocusViewport
+    };
 };
