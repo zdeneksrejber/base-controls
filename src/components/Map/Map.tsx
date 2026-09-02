@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { IDataProviderEventListeners } from "@talxis/client-libraries";
+import { IDataProviderEventListeners, IRecord } from "@talxis/client-libraries";
 import { useControl } from "@hooks";
 import { useEventEmitter } from "@hooks/useEventEmitter";
 import { getClassNames } from "@utils";
 import { IMap } from "./interfaces";
 import { getDistinctAttributePaths } from "./attributes";
 import { getMapLanguageTag } from "./language";
+import { getMapPinAppearance, parseMapPinRules } from "./pinAppearance";
+import { useMapClientApi } from "./clientApi";
+import { getMapWebResourceUrl } from "./webResource";
 import { IMapLocation, IMapProviderProps } from "./providers";
 import { EMPTY_MAP_PINS, getMapPins, IMapFallbackCoordinates } from "./pins";
 import { useGeocodedLocations } from "./useGeocodedLocations";
@@ -39,6 +42,9 @@ export const Map = (props: IMap) => {
         EnableAttributeLinking,
         PinLoading,
         MaxRecords,
+        PinIcons,
+        ClientApiWebresourceName,
+        ClientApiFunctionName,
         EnableClustering,
         ClusteringOptions,
         FilterAttributeNames,
@@ -82,6 +88,22 @@ export const Map = (props: IMap) => {
         maxRecords: MaxRecords?.raw ?? undefined
     });
 
+    const clientApi = useMapClientApi({
+        webResourceName: ClientApiWebresourceName?.raw ?? undefined,
+        functionName: ClientApiFunctionName?.raw ?? undefined,
+        dataset
+    });
+
+    const pinRules = useMemo(() => parseMapPinRules(PinIcons?.raw), [PinIcons?.raw]);
+    const onResolvePin = props.onResolvePin;
+    const clientApiResolvePin = clientApi.resolvePin;
+    //code first, then whatever the Client API registered, then the rules a maker typed into the manifest
+    const resolvePinAppearance = useCallback((record: IRecord) =>
+        onResolvePin?.(record)
+        ?? clientApiResolvePin?.(record)
+        ?? getMapPinAppearance(record, pinRules, getMapWebResourceUrl),
+    [onResolvePin, clientApiResolvePin, pinRules]);
+
     const filtering = useMapFiltering({
         dataset,
         records: loadedRecords,
@@ -96,11 +118,15 @@ export const Map = (props: IMap) => {
             return EMPTY_MAP_PINS;
         }
         return getMapPins(records, {
-            latitude: latitudeAttribute,
-            longitude: longitudeAttribute,
-            route: routeAttribute ?? undefined
-        }, fallbackCoordinates);
-    }, [records, latitudeAttribute, longitudeAttribute, routeAttribute]);
+            attributes: {
+                latitude: latitudeAttribute,
+                longitude: longitudeAttribute,
+                route: routeAttribute ?? undefined
+            },
+            fallbackCoordinates,
+            getAppearance: resolvePinAppearance
+        });
+    }, [records, latitudeAttribute, longitudeAttribute, routeAttribute, resolvePinAppearance]);
 
     const unplacedRecords = useMemo(() => readPins().unplacedRecords, [readPins]);
 

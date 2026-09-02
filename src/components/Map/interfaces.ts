@@ -4,6 +4,7 @@ import { IDataset } from "@talxis/client-libraries";
 import { IMapTranslations } from "./translations";
 import { IMapProviderOption, IMapProviderProps, IMapVendor } from "./providers";
 import { IMapFallbackLocationResolver } from "./fallbackLocation";
+import { IMapPinResolver } from "./clientApi";
 import { IMapClusteringOptions } from "./clustering";
 import { IMapFilterMode } from "./mapFilters";
 import { IMapPinLoading } from "./records";
@@ -25,6 +26,11 @@ export interface IMap extends IControl<IMapParameters, IMapOutputs, IMapTranslat
      * `resolveLocationFromIpAddress` to opt into the third party call.
      */
     onResolveFallbackLocation?: IMapFallbackLocationResolver;
+    /**
+     * Works out how a record's pin looks, in code. Takes precedence over the Client API web resource and the
+     * `PinIcons` rules, and returning nothing for a record falls through to them.
+     */
+    onResolvePin?: IMapPinResolver;
 }
 
 export interface IMapParameters extends IParameters {
@@ -46,6 +52,19 @@ export interface IMapParameters extends IParameters {
     PinLoading?: Omit<ComponentFramework.PropertyTypes.EnumProperty<IMapPinLoading>, 'type'>;
     /** Records to load before stopping, while `PinLoading` is `all`. Defaults to 50000. */
     MaxRecords?: Omit<IWholeNumberProperty, 'attributes'>;
+    /**
+     * Pin rules as a JSON array, in the shape the legacy MapPicker used. Each entry is an appearance -
+     * `color`, `url`, `webResourceName`, `svg` - plus the `attributeName` and `value` a record must match.
+     * The first matching rule wins, so a rule with no `attributeName` is the fallback and belongs last.
+     */
+    PinIcons?: IStringProperty;
+    /**
+     * Web resource holding the Client API function, for rules configuration cannot express. Called once with
+     * the dataset and the registration methods, exactly as the dataset control's own Client API is.
+     */
+    ClientApiWebresourceName?: IStringProperty;
+    /** Function inside that web resource. Both are needed for the Client API to run. */
+    ClientApiFunctionName?: IStringProperty;
     /**
      * Whether pins that overlap in the current view are drawn as one, carrying the number of records behind
      * it. Defaults to true - it is what keeps a dataset of thousands readable.

@@ -3,6 +3,7 @@ import { getMapPins } from './pins';
 import { createFakeRecord } from './testing/records';
 
 const attributes = { latitude: 'lat', longitude: 'lng' };
+const options = { attributes };
 
 describe('getMapPins', () => {
     it('reads a pin per record, in dataset order', () => {
@@ -10,7 +11,7 @@ describe('getMapPins', () => {
             createFakeRecord({ id: 'a', name: 'Prague', rawData: { lat: 50.08, lng: 14.43 } }),
             createFakeRecord({ id: 'b', name: 'Brno', rawData: { lat: 49.19, lng: 16.61 } })
         ];
-        expect(getMapPins(records, attributes).locations).toEqual([
+        expect(getMapPins(records, options).locations).toEqual([
             { id: 'a', latitude: 50.08, longitude: 14.43, label: 'Prague' },
             { id: 'b', latitude: 49.19, longitude: 16.61, label: 'Brno' }
         ]);
@@ -25,8 +26,10 @@ describe('getMapPins', () => {
             })
         ];
         const pins = getMapPins(records, {
-            latitude: 'cds_addressid.cds_latitude',
-            longitude: 'cds_addressid.cds_longitude'
+            attributes: {
+                latitude: 'cds_addressid.cds_latitude',
+                longitude: 'cds_addressid.cds_longitude'
+            }
         });
         expect(pins.locations).toEqual([{ id: 'a', latitude: 50.08, longitude: 14.43, label: undefined }]);
     });
@@ -36,7 +39,7 @@ describe('getMapPins', () => {
             createFakeRecord({ id: 'placed', rawData: { lat: 50.08, lng: 14.43 } }),
             createFakeRecord({ id: 'unplaced', rawData: { lat: null, lng: null, address: 'Praha' } })
         ];
-        const pins = getMapPins(records, attributes);
+        const pins = getMapPins(records, options);
 
         expect(pins.locations.map((location) => location.id)).toEqual(['placed']);
         expect(pins.unplacedRecords.map((record) => record.getRecordId())).toEqual(['unplaced']);
@@ -45,7 +48,10 @@ describe('getMapPins', () => {
     it('places a record from coordinates resolved elsewhere when it carries none', () => {
         const records = [createFakeRecord({ id: 'geocoded', rawData: { lat: null, lng: null } })];
 
-        const pins = getMapPins(records, attributes, { geocoded: { latitude: 49.19, longitude: 16.61 } });
+        const pins = getMapPins(records, {
+            attributes,
+            fallbackCoordinates: { geocoded: { latitude: 49.19, longitude: 16.61 } }
+        });
 
         expect(pins.locations).toEqual([{ id: 'geocoded', latitude: 49.19, longitude: 16.61, label: undefined }]);
         expect(pins.unplacedRecords).toEqual([]);
@@ -54,7 +60,10 @@ describe('getMapPins', () => {
     it('prefers the record own coordinates over ones resolved elsewhere', () => {
         const records = [createFakeRecord({ id: 'a', rawData: { lat: 50.08, lng: 14.43 } })];
 
-        const pins = getMapPins(records, attributes, { a: { latitude: 0, longitude: 0 } });
+        const pins = getMapPins(records, {
+            attributes,
+            fallbackCoordinates: { a: { latitude: 0, longitude: 0 } }
+        });
 
         expect(pins.locations[0]).toMatchObject({ latitude: 50.08, longitude: 14.43 });
     });
@@ -65,8 +74,9 @@ describe('getMapPins', () => {
             createFakeRecord({ id: 'b', rawData: { lat: null, lng: null, trip: 'north' } })
         ];
 
-        const routes = getMapPins(records, { ...attributes, route: 'trip' }, {
-            b: { latitude: 2, longitude: 2 }
+        const routes = getMapPins(records, {
+            attributes: { ...attributes, route: 'trip' },
+            fallbackCoordinates: { b: { latitude: 2, longitude: 2 } }
         }).routes;
 
         expect(routes).toHaveLength(1);
@@ -79,7 +89,7 @@ describe('getMapPins', () => {
             createFakeRecord({ id: 'b', rawData: { lat: null, lng: 14.43 } }),
             createFakeRecord({ id: 'c', rawData: { lat: 'nowhere', lng: 14.43 } })
         ];
-        expect(getMapPins(records, attributes).locations.map((location) => location.id)).toEqual(['a']);
+        expect(getMapPins(records, options).locations.map((location) => location.id)).toEqual(['a']);
     });
 
     it('does not let one unreadable record stop the rest', () => {
@@ -88,7 +98,7 @@ describe('getMapPins', () => {
         broken.getRecordId = () => { throw new Error('gone'); };
         const records = [broken, createFakeRecord({ id: 'ok', rawData: { lat: 50.08, lng: 14.43 } })];
 
-        expect(getMapPins(records, attributes).locations.map((location) => location.id)).toEqual(['ok']);
+        expect(getMapPins(records, options).locations.map((location) => location.id)).toEqual(['ok']);
         expect(warn).toHaveBeenCalledOnce();
     });
 
@@ -98,7 +108,7 @@ describe('getMapPins', () => {
             createFakeRecord({ id: 'b', rawData: { lat: 2, lng: 2, trip: 'south' } }),
             createFakeRecord({ id: 'c', rawData: { lat: 3, lng: 3, trip: 'north' } })
         ];
-        const routes = getMapPins(records, { ...attributes, route: 'trip' }).routes;
+        const routes = getMapPins(records, { attributes: { ...attributes, route: 'trip' } }).routes;
         expect(routes).toHaveLength(1);
         expect(routes[0].id).toBe('north');
         expect(routes[0].locations.map((location) => location.id)).toEqual(['a', 'c']);
@@ -109,7 +119,7 @@ describe('getMapPins', () => {
             createFakeRecord({ id: 'a', rawData: { lat: 1, lng: 1, trip: 'lonely' } }),
             createFakeRecord({ id: 'b', rawData: { lat: 2, lng: 2, trip: '' } })
         ];
-        expect(getMapPins(records, { ...attributes, route: 'trip' }).routes).toEqual([]);
+        expect(getMapPins(records, { attributes: { ...attributes, route: 'trip' } }).routes).toEqual([]);
     });
 
     it('draws no routes when no route attribute is configured', () => {
@@ -117,6 +127,6 @@ describe('getMapPins', () => {
             createFakeRecord({ id: 'a', rawData: { lat: 1, lng: 1, trip: 'north' } }),
             createFakeRecord({ id: 'b', rawData: { lat: 2, lng: 2, trip: 'north' } })
         ];
-        expect(getMapPins(records, attributes).routes).toEqual([]);
+        expect(getMapPins(records, options).routes).toEqual([]);
     });
 });

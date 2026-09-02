@@ -1,5 +1,6 @@
 import { IRecord } from '@talxis/client-libraries';
 import { getRecordCoordinate, getRecordValue } from './attributes';
+import { IMapPinAppearance, isEmptyPinAppearance } from './pinAppearance';
 import { IMapLocation, IMapRoute } from './providers';
 import { IMapCoordinates } from './viewport';
 
@@ -25,21 +26,25 @@ export interface IMapFallbackCoordinates {
     [recordId: string]: IMapCoordinates | undefined;
 }
 
+export interface IMapPinOptions {
+    attributes: IMapPinAttributes;
+    /** Coordinates the address fallback resolved, used for records that carry none of their own. */
+    fallbackCoordinates?: IMapFallbackCoordinates;
+    /** Works out how a record's pin should look. Returning nothing draws the shipped pin. */
+    getAppearance?: (record: IRecord) => IMapPinAppearance | undefined;
+}
+
 export const EMPTY_MAP_PINS: IMapPins = { locations: [], routes: [], unplacedRecords: [] };
 
 /**
  * Reads one record's pin.
  *
  * @param record Record to read.
- * @param attributes Attribute paths the coordinates are held under.
- * @param fallbackCoordinates Coordinates resolved elsewhere, used when the record carries none.
+ * @param options Attribute paths, fallback coordinates and the appearance resolver.
  * @returns The location, or `undefined` when the record cannot be placed at all.
  */
-const getLocation = (
-    record: IRecord,
-    attributes: IMapPinAttributes,
-    fallbackCoordinates?: IMapFallbackCoordinates
-): IMapLocation | undefined => {
+const getLocation = (record: IRecord, options: IMapPinOptions): IMapLocation | undefined => {
+    const { attributes, fallbackCoordinates, getAppearance } = options;
     const id = record.getRecordId();
     let latitude = getRecordCoordinate(record, attributes.latitude);
     let longitude = getRecordCoordinate(record, attributes.longitude);
@@ -52,11 +57,14 @@ const getLocation = (
         longitude = fallback.longitude;
     }
     const name = record.getNamedReference()?.name;
+    const pin = getAppearance?.(record);
     return {
         id,
         latitude,
         longitude,
-        label: typeof name === 'string' ? name : undefined
+        label: typeof name === 'string' ? name : undefined,
+        //an appearance that changes nothing is dropped, so it does not weigh on every location object
+        ...(isEmptyPinAppearance(pin) ? {} : { pin })
     };
 };
 
@@ -82,28 +90,23 @@ const getRouteId = (record: IRecord, attributes: IMapPinAttributes): string | un
  * Reads the pins off the loaded records.
  *
  * @param records Records to draw.
- * @param attributes Attribute paths the coordinates and the route grouping are held under.
- * @param fallbackCoordinates Coordinates the address fallback resolved, keyed by record id.
+ * @param options Attribute paths, fallback coordinates and the appearance resolver.
  * @returns The locations in dataset order, the routes of two pins or more, and the records left unplaced.
  */
-export const getMapPins = (
-    records: IRecord[],
-    attributes: IMapPinAttributes,
-    fallbackCoordinates?: IMapFallbackCoordinates
-): IMapPins => {
+export const getMapPins = (records: IRecord[], options: IMapPinOptions): IMapPins => {
     const locations: IMapLocation[] = [];
     const unplacedRecords: IRecord[] = [];
     //a Map, not an object - object keys that look like integers would reorder the routes
     const routeLocations = new Map<string, IMapLocation[]>();
     records.forEach((record, index) => {
         try {
-            const location = getLocation(record, attributes, fallbackCoordinates);
+            const location = getLocation(record, options);
             if (!location) {
                 unplacedRecords.push(record);
                 return;
             }
             locations.push(location);
-            const routeId = getRouteId(record, attributes);
+            const routeId = getRouteId(record, options.attributes);
             if (!routeId) {
                 return;
             }

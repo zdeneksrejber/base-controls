@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useMemo, useState } from 'react'
 import type { IDataProviderEventListeners, IDataset } from '@talxis/client-libraries'
-import { IMapOutputs, IMapParameters, IMapViewport, Map, resolveLocationFromIpAddress } from '@talxis/base-controls/components/Map'
+import { IMap, IMapOutputs, IMapParameters, IMapViewport, Map, resolveLocationFromIpAddress } from '@talxis/base-controls/components/Map'
 import { googleMapsVendor } from '@talxis/base-controls/components/Map/providers/google-maps'
 import { useEventEmitter } from '@talxis/base-controls/hooks'
 import { usePcfContext } from '@talxis/base-controls/utils'
@@ -19,6 +19,8 @@ export interface IMapDemoProps {
     showReadout?: boolean
     /** Extra readout of the story's own. */
     children?: ReactNode
+    /** Code hooks the story demonstrates, passed straight through to the control. */
+    onResolvePin?: IMap['onResolvePin']
 }
 
 const formatViewport = (viewport: IMapViewport) =>
@@ -55,6 +57,7 @@ export const MapDemo = (props: IMapDemoProps) => {
                         ...props.parameters
                     } as IMapParameters}
                     onGetMapVendors={onGetMapVendors}
+                    onResolvePin={props.onResolvePin}
                     onResolveFallbackLocation={resolveLocationFromIpAddress}
                     onNotifyOutputChanged={(changed: IMapOutputs) => {
                         setOutputs((current) => ({ ...current, ...changed }))

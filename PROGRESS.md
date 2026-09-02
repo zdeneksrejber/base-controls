@@ -22,7 +22,7 @@ delivery log.
   component mapping, deletion and `prefillUserLocation`
 
 ### Pins
-- [ ] **P1** Custom icons — colour / URL / web resource / custom renderer, chosen by conditional rules
+- [x] **P1** Custom icons — colour / URL / web resource / custom renderer, chosen by conditional rules
 - [ ] **P2** Popup card on pin click, localized, with `ExecuteFunction()` buttons, one card at a time
 - [~] **P3** Automated group-by on pin overlap in the current viewport, with a count and a grouped card —
   *grouping and the count are done; the grouped card lands with P2*
@@ -147,3 +147,17 @@ wrapped because an unlaid-out map throws rather than answering.
   follows - at the cost of needing a provider that implements `In` for those attributes, which the in-memory
   provider used by the demos does not.
 - Verified in Storybook: the panel offers store 9 / service 4 / depot 2, and picking depot leaves two pins.
+
+### Phase 4 — P1, custom pins
+- Three ways to decide how a pin looks, tried in that order: the `onResolvePin` prop (code), whatever a
+  **Client API web resource** registered, and the `PinIcons` JSON rules (configuration).
+- `PinIcons` keeps the legacy MapPicker's shape - an appearance plus the `attributeName` and `value` a record
+  must match, first match wins, a rule with no attribute as the fallback - so an existing configuration
+  carries over. The attribute is read through the same dot-notation resolver as every other binding.
+- An appearance is a colour, an image `url`, a `webResourceName` the host resolves, or `svg` markup computed
+  per record - which is the custom renderer, and covers the dynamic chart pin the issue points at.
+- `ClientApiWebresourceName` / `ClientApiFunctionName` mirror the dataset control's own Client API, so a
+  customizer writes the same kind of web resource for both.
+- Both renderers cache icons per appearance, so panning a large map does not rebuild one per pin per frame.
+- Verified in Storybook: depots red, service points green, everything else blue; and a second story draws
+  every site as a capacity donut through the code hook.

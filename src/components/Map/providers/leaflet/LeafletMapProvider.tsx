@@ -5,7 +5,9 @@ import { IMapLocation, IMapProvider, IMapProviderProps } from '../IMapProvider';
 import {
     getClusterPinSize,
     getClusterPinSvg,
-    getPinSvg,
+    getPinImageMarkup,
+    getPinMarkup,
+    getPinSize,
     PIN_HEIGHT,
     PIN_WIDTH,
     ROUTE_STROKE_WEIGHT,
@@ -36,14 +38,28 @@ export type ILeafletMapConfigResolver = (props: IMapProviderProps) => ILeafletMa
 const DEFAULT_TILE_LAYER_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const DEFAULT_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
-//inline, so the provider needs no image assets and can take its colour from the theme
-const getPinIcon = (color: string) => new L.DivIcon({
-    className: '',
-    iconSize: [PIN_WIDTH, PIN_HEIGHT],
-    iconAnchor: [PIN_WIDTH / 2, PIN_HEIGHT],
-    popupAnchor: [0, -(PIN_HEIGHT - 2)],
-    html: getPinSvg(color)
-});
+/**
+ * The icon one pin is drawn with.
+ *
+ * Everything is a `DivIcon`, image included, so the provider needs no image assets of its own and a custom
+ * appearance is drawn exactly the same way as the shipped one.
+ *
+ * @param location Pin to draw.
+ * @param defaultColor Colour the shipped pin takes.
+ * @returns The Leaflet icon.
+ */
+const getPinIcon = (location: IMapLocation, defaultColor: string) => {
+    const size = getPinSize(location.pin);
+    const markup = getPinMarkup(location.pin, defaultColor);
+    return new L.DivIcon({
+        className: '',
+        iconSize: [size.width, size.height],
+        //the shipped shape points at its position, anything else is centred on it
+        iconAnchor: location.pin?.svg || location.pin?.url ? [size.width / 2, size.height / 2] : [size.width / 2, size.height],
+        popupAnchor: [0, -(size.height / 2)],
+        html: markup ?? getPinImageMarkup(location.pin!.url as string, size)
+    });
+};
 
 /** A pin standing for a group, anchored at its centre because a circle has no tip to point with. */
 const getClusterIcon = (count: number, color: string, textColor: string) => {
@@ -164,20 +180,20 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
     const attribution = props.attribution ?? DEFAULT_ATTRIBUTION;
     const invertTiles = !!theme.isInverted && (props.invertTilesInDarkTheme ?? true);
     const styles = useMemo(() => getLeafletMapProviderStyles(invertTiles), [invertTiles]);
-    const icon = useMemo(() => getPinIcon(theme.palette.themePrimary), [theme.palette.themePrimary]);
-    //one icon per group size, so panning a clustered map does not build a new icon per pin per frame
-    const clusterIcons = useMemo(() => new Map<number, L.DivIcon>(), [theme.palette.themePrimary, theme.palette.white]);
+    //icons are cached per appearance and per group size, so panning does not rebuild one per pin per frame
+    const iconCache = useMemo(() => new Map<string, L.DivIcon>(), [theme.palette.themePrimary, theme.palette.white]);
     const getIcon = (location: IMapLocation) => {
-        if (!location.cluster) {
-            return icon;
-        }
-        const { count } = location.cluster;
-        const cached = clusterIcons.get(count);
+        const key = location.cluster
+            ? `cluster|${location.cluster.count}`
+            : `pin|${location.pin?.color ?? ''}|${location.pin?.url ?? ''}|${location.pin?.svg ?? ''}|${location.pin?.width ?? ''}x${location.pin?.height ?? ''}`;
+        const cached = iconCache.get(key);
         if (cached) {
             return cached;
         }
-        const built = getClusterIcon(count, theme.palette.themePrimary, theme.palette.white);
-        clusterIcons.set(count, built);
+        const built = location.cluster
+            ? getClusterIcon(location.cluster.count, theme.palette.themePrimary, theme.palette.white)
+            : getPinIcon(location, theme.palette.themePrimary);
+        iconCache.set(key, built);
         return built;
     };
     const selection = useMapPinSelection(selectedLocationIds);
@@ -215,6 +231,7 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
                         key={location.id}
                         position={[location.latitude, location.longitude]}
                         icon={getIcon(location)}
+                        title={location.pin?.title ?? location.label}
                         opacity={selection.getOpacity(location)}
                         eventHandlers={markerEventHandlers.get(location.id)}>
                         {location.label && !location.cluster && <Popup>{location.label}</Popup>}

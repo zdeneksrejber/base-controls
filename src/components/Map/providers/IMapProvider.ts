@@ -2,6 +2,7 @@ import { ComponentType } from 'react';
 import { IContext } from '@interfaces';
 import { ITheme } from '@legacy';
 import { IMapClusterInfo } from '../clustering';
+import { IMapPinAppearance } from '../pinAppearance';
 import { IMapDirections } from '../directions';
 import { IMapGeocoder } from '../geocoding';
 import { IMapCoordinates, IMapViewport } from '../viewport';
@@ -17,6 +18,11 @@ export interface IMapLocation extends IMapCoordinates {
      * A provider draws such a pin with its `count` on it.
      */
     cluster?: IMapClusterInfo;
+    /**
+     * How to draw this pin, when the control worked out something other than the default. Absent means the
+     * shipped pin in the theme's primary colour.
+     */
+    pin?: IMapPinAppearance;
 }
 
 export interface IMapRoute {

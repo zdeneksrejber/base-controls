@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { IMapPinAppearance } from '../pinAppearance';
 import { IMapLocation } from './IMapProvider';
 
 /** Stroke width, in pixels, of the line connecting the pins of a route. */
@@ -98,3 +99,51 @@ export const useMapPinSelection = (selectedLocationIds: string[]) => {
 
     return { isSelected, getOpacity };
 };
+
+/** Size a pin is drawn at, taking whatever its appearance asked for and falling back to the shipped size. */
+export interface IMapPinSize {
+    width: number;
+    height: number;
+}
+
+/**
+ * The size a pin is drawn at.
+ *
+ * @param appearance Appearance the control resolved, if any.
+ * @param fallback Size to use when the appearance says nothing.
+ * @returns The width and height in pixels.
+ */
+export const getPinSize = (appearance?: IMapPinAppearance, fallback: IMapPinSize = { width: PIN_WIDTH, height: PIN_HEIGHT }): IMapPinSize => ({
+    width: appearance?.width ?? fallback.width,
+    height: appearance?.height ?? fallback.height
+});
+
+/**
+ * The markup a pin is drawn from, given what the control resolved for it.
+ *
+ * Custom markup wins over an image, an image over a colour, and a colour over the theme - which is the order
+ * of how specific each one is about the record it stands for.
+ *
+ * @param appearance Appearance the control resolved, if any.
+ * @param defaultColor Colour the shipped pin takes when nothing else says otherwise.
+ * @returns The markup, or `undefined` when the pin is an image the caller should draw instead.
+ */
+export const getPinMarkup = (appearance: IMapPinAppearance | undefined, defaultColor: string): string | undefined => {
+    if (appearance?.svg) {
+        return appearance.svg;
+    }
+    if (appearance?.url) {
+        return undefined;
+    }
+    return getPinSvg(appearance?.color ?? defaultColor);
+};
+
+/**
+ * A pin image as markup, so a renderer that only takes HTML can draw one.
+ *
+ * @param url Image url.
+ * @param size Size to draw it at.
+ * @returns An `img` element sized to the pin.
+ */
+export const getPinImageMarkup = (url: string, size: IMapPinSize): string =>
+    `<img src="${url}" width="${size.width}" height="${size.height}" alt="" style="display:block" />`;

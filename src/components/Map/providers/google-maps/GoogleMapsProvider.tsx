@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { createGoogleMapsDirectionsService } from './directions';
 import { createGoogleMapsGeocoder } from './geocoder';
 import { IMapLocation, IMapProvider, IMapProviderProps } from '../IMapProvider';
-import { getClusterPinSize, getClusterPinSvg, ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
+import { getClusterPinSize, getClusterPinSvg, getPinSize, getPinSvg, ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
 import { IMapVendor } from '../vendors';
 import { IMapViewport } from '../../viewport';
 import { getGoogleMapsProviderStyles } from './styles';
@@ -73,8 +73,8 @@ const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
                         <Marker
                             key={location.id}
                             position={{ lat: location.latitude, lng: location.longitude }}
-                            title={location.cluster ? `${location.cluster.count}` : location.label}
-                            icon={getClusterIcon(location, theme.palette.themePrimary, theme.palette.white)}
+                            title={location.cluster ? `${location.cluster.count}` : location.pin?.title ?? location.label}
+                            icon={getPinIcon(location, theme.palette.themePrimary, theme.palette.white)}
                             opacity={selection.getOpacity(location)}
                             zIndex={location.cluster ? 1000 + location.cluster.count : selection.isSelected(location) ? 1 : undefined}
                             onClick={() => onLocationClick(location)} />
@@ -85,23 +85,36 @@ const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
     );
 };
 
+/** Wraps markup as a data url, so a Google marker can draw it without an image asset. */
+const toDataUrl = (svg: string) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+
 /**
- * The icon a pin standing for a group is drawn with, as a data url so no image asset is needed.
+ * The icon one pin is drawn with.
  *
  * @param location Pin to draw.
  * @param color Fill colour, normally the host theme's primary.
- * @param textColor Colour of the count.
- * @returns A Google Maps icon, or `undefined` for a pin standing for a single record, which keeps the default.
+ * @param textColor Colour of a group pin's count.
+ * @returns A Google Maps icon, or `undefined` to keep Google's own default pin.
  */
-const getClusterIcon = (location: IMapLocation, color: string, textColor: string): google.maps.Icon | undefined => {
-    if (!location.cluster) {
+const getPinIcon = (location: IMapLocation, color: string, textColor: string): google.maps.Icon | undefined => {
+    if (location.cluster) {
+        const size = getClusterPinSize(location.cluster.count);
+        return {
+            url: toDataUrl(getClusterPinSvg(location.cluster.count, color, textColor)),
+            scaledSize: new google.maps.Size(size, size),
+            anchor: new google.maps.Point(size / 2, size / 2)
+        };
+    }
+    if (!location.pin?.color && !location.pin?.url && !location.pin?.svg) {
         return undefined;
     }
-    const size = getClusterPinSize(location.cluster.count);
+    const size = getPinSize(location.pin);
+    //an image or custom markup is centred on the position, the shipped shape points at it
+    const isCentred = !!(location.pin.url || location.pin.svg);
     return {
-        url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(getClusterPinSvg(location.cluster.count, color, textColor))}`,
-        scaledSize: new google.maps.Size(size, size),
-        anchor: new google.maps.Point(size / 2, size / 2)
+        url: location.pin.url ?? toDataUrl(location.pin.svg ?? getPinSvg(location.pin.color as string)),
+        scaledSize: new google.maps.Size(size.width, size.height),
+        anchor: new google.maps.Point(size.width / 2, isCentred ? size.height / 2 : size.height)
     };
 };
 
