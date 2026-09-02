@@ -5,14 +5,16 @@ import { useEventEmitter } from "@hooks/useEventEmitter";
 import { getClassNames } from "@utils";
 import { IMap } from "./interfaces";
 import { getDistinctAttributePaths } from "./attributes";
-import { useMapAttributes } from "./useMapAttributes";
 import { IMapLocation, IMapProviderProps } from "./providers";
-import { EMPTY_MAP_PINS, getMapPins, IMapPins } from "./pins";
+import { EMPTY_MAP_PINS, getMapPins } from "./pins";
+import { useMapAttributes } from "./useMapAttributes";
 import { useMapProviders } from "./useMapProviders";
+import { useMapRecords } from "./useMapRecords";
 import { useMapViewport } from "./useMapViewport";
 import { mapTranslations } from "./translations";
 import { getMapStyles } from "./styles";
 import { MapProviderPicker } from "./map-provider-picker";
+import { MapStatus } from "./map-status";
 
 export const Map = (props: IMap) => {
     const onOverrideComponentProps = props.onOverrideComponentProps ?? ((providerProps) => providerProps);
@@ -22,11 +24,12 @@ export const Map = (props: IMap) => {
         LongitudeAttributeName,
         RouteAttributeName,
         EnableAttributeLinking,
+        PinLoading,
+        MaxRecords,
         ViewportOptions
     } = props.parameters;
     const { className, labels, theme, onNotifyOutputChanged } = useControl('Map', props, mapTranslations);
     const styles = useMemo(() => getMapStyles(), []);
-    const [pins, setPins] = useState<IMapPins>(EMPTY_MAP_PINS);
     const [selectedLocationIds, setSelectedLocationIds] = useState<string[]>([]);
 
     const { options, selectedId, provider: MapProvider, onPickProvider } = useMapProviders({
@@ -34,14 +37,6 @@ export const Map = (props: IMap) => {
         onGetMapProviders: props.onGetMapProviders,
         onGetMapVendors: props.onGetMapVendors,
         onPick: (id) => onNotifyOutputChanged({ MapProviderId: id })
-    });
-
-    const { viewport, onViewportChange } = useMapViewport({
-        locations: pins.locations,
-        provider: MapProvider,
-        options: ViewportOptions?.raw,
-        onResolveFallbackLocation: props.onResolveFallbackLocation,
-        onChange: (changedViewport) => onNotifyOutputChanged({ Viewport: changedViewport })
     });
 
     //raw values as the dependency, so a host has to memoize nothing to keep the pins stable
@@ -55,27 +50,36 @@ export const Map = (props: IMap) => {
     );
     useMapAttributes({ dataset, paths: attributePaths, enabled: EnableAttributeLinking?.raw !== false });
 
-    const loadPins = useCallback(() => {
-        if (!dataset || !latitudeAttribute || !longitudeAttribute) {
-            setPins(EMPTY_MAP_PINS);
-            setSelectedLocationIds([]);
-            return;
+    const { records, isLoading, loadedCount, isTruncated } = useMapRecords({
+        dataset,
+        loading: PinLoading?.raw === 'all' ? 'all' : 'page',
+        maxRecords: MaxRecords?.raw ?? undefined
+    });
+
+    const pins = useMemo(() => {
+        if (!latitudeAttribute || !longitudeAttribute) {
+            return EMPTY_MAP_PINS;
         }
-        setPins(getMapPins(dataset.getRecords(), {
+        return getMapPins(records, {
             latitude: latitudeAttribute,
             longitude: longitudeAttribute,
             route: routeAttribute ?? undefined
-        }));
-        setSelectedLocationIds(dataset.getSelectedRecordIds());
-    }, [dataset, latitudeAttribute, longitudeAttribute, routeAttribute]);
+        });
+    }, [records, latitudeAttribute, longitudeAttribute, routeAttribute]);
 
-    //loading is the DatasetControl's job, this only syncs the already loaded records into local state
+    const { viewport, onViewportChange } = useMapViewport({
+        locations: pins.locations,
+        provider: MapProvider,
+        options: ViewportOptions?.raw,
+        onResolveFallbackLocation: props.onResolveFallbackLocation,
+        onChange: (changedViewport) => onNotifyOutputChanged({ Viewport: changedViewport })
+    });
+
     useEffect(() => {
-        loadPins();
-    }, [loadPins]);
+        setSelectedLocationIds(dataset?.getSelectedRecordIds() ?? []);
+    }, [dataset, records]);
 
-    useEventEmitter<IDataProviderEventListeners>(dataset, 'onNewDataLoaded', loadPins);
-    useEventEmitter<IDataProviderEventListeners>(dataset, 'onRecordsSelected', (selectedRecordIds: string[]) => setSelectedLocationIds(selectedRecordIds ?? []));
+    useEventEmitter<IDataProviderEventListeners>(dataset, 'onRecordsSelected', (ids: string[]) => setSelectedLocationIds(ids ?? []));
 
     const onLocationClick = useCallback((location: IMapLocation) => {
         dataset?.setSelectedRecordIds([location.id]);
@@ -93,9 +97,16 @@ export const Map = (props: IMap) => {
         onViewportChange
     }), [pins, viewport, selectedLocationIds, props.context, theme, labels, onLocationClick, onViewportChange]);
 
+    const status = isLoading
+        ? { message: labels.loadingPins({ count: `${loadedCount}` }), isBusy: true }
+        : isTruncated
+            ? { message: labels.pinsTruncated({ count: `${records.length}` }), isWarning: true }
+            : {};
+
     return (
         <div className={getClassNames([className, styles.root])}>
             <MapProvider {...onOverrideComponentProps(providerProps)} />
+            <MapStatus {...status} theme={theme} />
             {options.length > 1 &&
                 <MapProviderPicker
                     options={options}

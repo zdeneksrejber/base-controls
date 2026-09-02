@@ -12,7 +12,7 @@ delivery log.
 - [ ] **D1** Full address geo-coding as fallback when coordinates are not available
 - [ ] **D2** Filtering by `IRecord` attributes
 - [ ] **D3** Full text search by address, using the entity's quick find query
-- [ ] **D4** Paging — display all records, not only the current dataset page
+- [x] **D4** Paging — display all records, not only the current dataset page
 - [ ] **D5** Handle datasets of thousands of pins
 - [x] **D6** Resolve any bound attribute through expands, using dot notation
 
@@ -83,3 +83,10 @@ road-snapping is implemented but cannot be demonstrated until `routes.googleapis
   HERE route and Google's own reference vector.
 - Geocoding is cached and de-duplicated per lookup, and Nominatim is held to its one-call-a-second policy.
 - `npm run test:live` calls the real services with keys from the environment; excluded from `npm test`.
+
+### Phase 3 — D4, every page
+- `PinLoading: 'all'` drains every page of the view before drawing, on a **clone** of the data provider, so
+  the bound dataset and any pagination chrome around it are left exactly as they were.
+- `MaxRecords` caps the load (50 000 by default) so an unscoped view cannot hang the browser, and the control
+  says when it stopped short rather than silently drawing a subset.
+- A status pill over the map reports progress while loading and the truncation warning afterwards.

@@ -5,6 +5,14 @@ export const mapTranslations = {
     mapProvider: {
         1033: "Map provider",
         1029: "Poskytovatel mapy"
+    },
+    loadingPins: {
+        1033: "Loading pins... {{count}}",
+        1029: "Načítání bodů... {{count}}"
+    },
+    pinsTruncated: {
+        1033: "Showing the first {{count}} pins of this view.",
+        1029: "Zobrazeno prvních {{count}} bodů tohoto pohledu."
     }
 };
 

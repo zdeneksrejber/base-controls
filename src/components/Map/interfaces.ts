@@ -1,9 +1,10 @@
-import { IParameters, IStringProperty, ITwoOptionsProperty } from "@interfaces";
+import { IParameters, IStringProperty, ITwoOptionsProperty, IWholeNumberProperty } from "@interfaces";
 import { IControl, IOutputs } from "@interfaces/context";
 import { IDataset } from "@talxis/client-libraries";
 import { IMapTranslations } from "./translations";
 import { IMapProviderOption, IMapProviderProps, IMapVendor } from "./providers";
 import { IMapFallbackLocationResolver } from "./fallbackLocation";
+import { IMapPinLoading } from "./records";
 import { IMapViewport, IMapViewportOptions } from "./viewport";
 
 export interface IMap extends IControl<IMapParameters, IMapOutputs, IMapTranslations, IMapProviderProps> {
@@ -36,6 +37,13 @@ export interface IMapParameters extends IParameters {
      * dataset does not already carry them. Defaults to true; the added column is hidden.
      */
     EnableAttributeLinking?: Omit<ITwoOptionsProperty, 'attributes'>;
+    /**
+     * Which records to draw: `page` draws the page the host loaded, `all` draws every page of the view.
+     * Defaults to `page`.
+     */
+    PinLoading?: Omit<ComponentFramework.PropertyTypes.EnumProperty<IMapPinLoading>, 'type'>;
+    /** Records to load before stopping, while `PinLoading` is `all`. Defaults to 50000. */
+    MaxRecords?: Omit<IWholeNumberProperty, 'attributes'>;
     /** The end user's pick, reported back as the output of the same name. Wins over `DefaultVendor`. */
     MapProviderId?: IStringProperty;
     /** Whether the picker offers every configured vendor, instead of `DefaultVendor` alone. Defaults to true. */
