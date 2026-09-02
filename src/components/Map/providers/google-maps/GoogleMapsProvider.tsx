@@ -1,5 +1,7 @@
 import { APIProvider, ColorScheme, Map as GoogleMap, MapCameraChangedEvent, Marker, Polyline, useMap } from '@vis.gl/react-google-maps';
 import { useCallback, useEffect, useMemo } from 'react';
+import { createGoogleMapsDirectionsService } from './directions';
+import { createGoogleMapsGeocoder } from './geocoder';
 import { IMapProvider, IMapProviderProps } from '../IMapProvider';
 import { ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
 import { IMapVendor } from '../vendors';
@@ -95,5 +97,7 @@ export const googleMapsVendor: IMapVendor = {
     id: 'google',
     label: 'Google Maps',
     apiKeyParameterName: 'GoogleApiKey',
-    createProvider: (apiKey) => createGoogleMapsProvider({ apiKey })
+    createProvider: (apiKey) => createGoogleMapsProvider({ apiKey }),
+    createGeocoder: createGoogleMapsGeocoder,
+    createDirections: createGoogleMapsDirectionsService
 };

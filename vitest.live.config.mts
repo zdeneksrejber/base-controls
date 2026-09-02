@@ -3,6 +3,7 @@ import { defineConfig } from 'vitest/config';
 
 const src = (relativePath: string) => path.resolve(import.meta.dirname, 'src', relativePath);
 
+/** Runs only the tests that call real services. See `npm run test:live`. */
 export default defineConfig({
     resolve: {
         alias: [
@@ -22,9 +23,7 @@ export default defineConfig({
     test: {
         environment: 'jsdom',
         setupFiles: ['./vitest.setup.ts'],
-        include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-        //the live suite spends api quota, so it needs asking for by name
-        exclude: ['**/node_modules/**', 'src/**/*.live.test.ts'],
+        include: ['src/**/*.live.test.ts'],
         restoreMocks: true
     }
 });

@@ -1,6 +1,8 @@
 import { ComponentType } from 'react';
 import { IContext } from '@interfaces';
 import { ITheme } from '@legacy';
+import { IMapDirections } from '../directions';
+import { IMapGeocoder } from '../geocoding';
 import { IMapCoordinates, IMapViewport } from '../viewport';
 import { IMapLabels } from '../translations';
 
@@ -57,4 +59,8 @@ export interface IMapProviderOption {
     /** Shown in the picker, falling back to `id`. */
     label?: string;
     provider: IMapProvider;
+    /** Turns addresses into coordinates and back. Omit for a provider with no geocoding service. */
+    geocoder?: IMapGeocoder;
+    /** Snaps routes to the road network. Omit for a provider with no directions service. */
+    directions?: IMapDirections;
 }

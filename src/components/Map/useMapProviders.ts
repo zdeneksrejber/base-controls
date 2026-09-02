@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { IStringProperty } from "@interfaces";
 import { IMapParameters } from "./interfaces";
+import { getMapDirections, getMapGeocoder } from "./providers/geoServices";
 import {
     DEFAULT_MAP_PROVIDER,
     DEFAULT_MAP_VENDOR_ID,
@@ -35,7 +36,13 @@ export const useMapProviders = (props: IUseMapProviders) => {
     //cached by id, so a host may rebuild the list every render - only a new id remounts the map
     const resolveHostOptions = useMapProviderCache();
     const hostOptions = resolveHostOptions((props.onGetMapProviders?.() ?? [])
-        .map(({ id, label, provider }) => ({ id, label, createProvider: () => provider })));
+        .map(({ id, label, provider, geocoder, directions }) => ({
+            id,
+            label,
+            createProvider: () => provider,
+            createGeocoder: geocoder && (() => geocoder),
+            createDirections: directions && (() => directions)
+        })));
 
     const vendorOptions = useMapVendorOptions({
         vendors: getMapVendors(props.onGetMapVendors?.()),
@@ -72,6 +79,8 @@ export const useMapProviders = (props: IUseMapProviders) => {
         selectedId: selectedOption?.id,
         //only reachable when a host overrode the keyless Leaflet vendor away and configured nothing instead
         provider: selectedOption?.provider ?? DEFAULT_MAP_PROVIDER,
+        geocoder: getMapGeocoder(options, selectedOption?.id),
+        directions: getMapDirections(options, selectedOption?.id),
         onPickProvider
     };
 };

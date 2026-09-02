@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
+import { IMapDirections } from '../directions';
+import { IMapGeocoder } from '../geocoding';
 import { IMapProvider, IMapProviderOption } from './IMapProvider';
 import { useMapProviderCache } from './providerCache';
-import { createLeafletMapProvider } from './leaflet';
-import { createHereMapsProvider } from './here-maps';
-import { createMapyProvider } from './mapy';
+import { createLeafletMapProvider, createNominatimGeocoder, createOsrmDirections } from './leaflet';
+import { createHereMapsProvider, createHereMapsGeocoder, createHereMapsDirectionsService } from './here-maps';
+import { createMapyProvider, createMapyGeocoder, createMapyDirectionsService } from './mapy';
 
 /**
  * A map vendor the control can build a provider for on its own, from an api key configured in the manifest -
@@ -19,6 +21,16 @@ export interface IMapVendor {
     apiKeyParameterName?: string;
     /** Builds the provider. Cached per vendor and api key, so it reruns only on a key change. */
     createProvider: (apiKey: string) => IMapProvider;
+    /**
+     * Builds the vendor's geocoding service, used for the address fallback, the address search and the
+     * reverse geocoding behind pin editing. Omit for a vendor that has none.
+     */
+    createGeocoder?: (apiKey: string) => IMapGeocoder;
+    /**
+     * Builds the vendor's directions service, used to snap a route to the road network. Omit for a vendor
+     * that has none.
+     */
+    createDirections?: (apiKey: string) => IMapDirections;
 }
 
 /** Vendor the map opens with while `DefaultVendor` is empty. Keyless, so it is always configured. */
@@ -36,19 +48,25 @@ const BUILT_IN_MAP_VENDORS: IMapVendor[] = [
     {
         id: DEFAULT_MAP_VENDOR_ID,
         label: 'OpenStreetMap',
-        createProvider: () => DEFAULT_MAP_PROVIDER
+        createProvider: () => DEFAULT_MAP_PROVIDER,
+        createGeocoder: () => createNominatimGeocoder(),
+        createDirections: () => createOsrmDirections()
     },
     {
         id: 'here',
         label: 'HERE',
         apiKeyParameterName: 'HereApiKey',
-        createProvider: (apiKey) => createHereMapsProvider({ apiKey })
+        createProvider: (apiKey) => createHereMapsProvider({ apiKey }),
+        createGeocoder: createHereMapsGeocoder,
+        createDirections: createHereMapsDirectionsService
     },
     {
         id: 'mapy',
         label: 'Mapy.com',
         apiKeyParameterName: 'MapyApiKey',
-        createProvider: (apiKey) => createMapyProvider({ apiKey })
+        createProvider: (apiKey) => createMapyProvider({ apiKey }),
+        createGeocoder: createMapyGeocoder,
+        createDirections: createMapyDirectionsService
     }
 ];
 
@@ -92,7 +110,9 @@ export const useMapVendorOptions = (options: IMapVendorOptions): IMapProviderOpt
             id: vendor.id,
             label: vendor.label,
             cacheKey: `${vendor.id}|${apiKey}`,
-            createProvider: () => vendor.createProvider(apiKey)
+            createProvider: () => vendor.createProvider(apiKey),
+            createGeocoder: vendor.createGeocoder && (() => vendor.createGeocoder!(apiKey)),
+            createDirections: vendor.createDirections && (() => vendor.createDirections!(apiKey))
         })));
 
     const picked = configured.find((option) => option.id === defaultVendorId);

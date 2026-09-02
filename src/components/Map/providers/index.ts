@@ -1,3 +1,4 @@
+export * from './geoServices';
 export * from './IMapProvider';
 export * from './layout';
 export * from './pinStyle';

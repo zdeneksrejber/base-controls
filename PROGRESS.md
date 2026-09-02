@@ -14,7 +14,7 @@ delivery log.
 - [ ] **D3** Full text search by address, using the entity's quick find query
 - [ ] **D4** Paging — display all records, not only the current dataset page
 - [ ] **D5** Handle datasets of thousands of pins
-- [ ] **D6** Resolve any bound attribute through expands, using dot notation
+- [x] **D6** Resolve any bound attribute through expands, using dot notation
 
 ### Interaction
 - [ ] **I1** Update coordinates by dragging a pin (default: disabled)
@@ -34,8 +34,9 @@ delivery log.
 - [ ] **L1** Render simple HTML as a legend, loadable from a web resource, sanitized
 
 ### Map provider
-- [ ] **M1** Switch between Google Maps, OpenStreetMap, Mapy.com and Here.com, with provider-agnostic
-  geo-coding, reverse geo-coding and directions
+- [x] **M1** Switch between Google Maps, OpenStreetMap, Mapy.com and Here.com, with provider-agnostic
+  geo-coding, reverse geo-coding and directions — *provider switching already shipped; this adds the two
+  geo service contracts and eight implementations, all verified against the live APIs*
 - [ ] **M2** Hide/Show POI (default: hidden)
 
 ## Provider capability matrix
@@ -64,3 +65,21 @@ road-snapping is implemented but cannot be demonstrated until `routes.googleapis
 - Bumped the `@types/node` devDependency from 17 to 22 — Vitest requires ≥18, and CI already runs Node 24.
 - Map provider api keys for the Storybook demo now come from a gitignored `storybook/.env.local`
   (`.env.local.example` is committed as the template).
+
+### Phase 1 — D6, attribute paths
+- `attributes.ts` resolves `cds_addressid.cds_latitude` for every attribute-named parameter. The registered
+  column is preferred so value expressions still apply, with a raw data walk behind it that handles both the
+  flat aliased key Dataverse returns and a nested expanded object.
+- `linking.ts` adds the link entity and the aliased column when the dataset does not already carry them,
+  hidden so a sibling control does not start showing them. `EnableAttributeLinking` turns that off.
+
+### Phase 2 — M1, geo services
+- `IMapGeocoder` and `IMapDirections` are separate, optional vendor capabilities: `IMapVendor` gained
+  `createGeocoder` and `createDirections`, and a provider that has neither still renders.
+- Eight implementations, each next to the renderer it belongs to: Google Geocoding + Routes, HERE Geocoding
+  and Search + Routing v8, Mapy.com geocode/rgeocode + routing, Nominatim + OSRM for OpenStreetMap.
+- A provider without a service borrows one from another configured vendor rather than losing the feature.
+- `polyline.ts` decodes both encodings — Google's and HERE's flexible polyline — verified against a live
+  HERE route and Google's own reference vector.
+- Geocoding is cached and de-duplicated per lookup, and Nominatim is held to its one-call-a-second policy.
+- `npm run test:live` calls the real services with keys from the environment; excluded from `npm test`.

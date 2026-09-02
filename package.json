@@ -67,7 +67,8 @@
     "storybook": "npm --prefix ./storybook run storybook",
     "build-storybook": "npm --prefix ./storybook run build-storybook",
     "test": "tsc -p tsconfig.test.json --noEmit && vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:live": "vitest run --config vitest.live.config.mts"
   },
   "browserslist": {
     "production": [
