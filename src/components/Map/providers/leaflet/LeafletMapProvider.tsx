@@ -1,9 +1,9 @@
 import L from 'leaflet';
-import { ReactNode, useEffect, useMemo } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { IMapProvider, IMapProviderProps } from '../IMapProvider';
 import { ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
-import { IMapViewport } from '../../viewport';
+import { isFiniteMapViewport, IMapViewport } from '../../viewport';
 import { getLeafletMapProviderStyles } from './styles';
 import 'leaflet/dist/leaflet.css';
 
@@ -47,13 +47,51 @@ const getPinIcon = (color: string) => new L.DivIcon({
 const toLeafletBounds = (bounds: Required<IMapViewport>['bounds']) =>
     L.latLngBounds([bounds.south, bounds.west], [bounds.north, bounds.east]);
 
+/**
+ * Keeps Leaflet's cached container size in step with the element.
+ *
+ * Leaflet measures its container once, at creation, and afterwards only when the window resizes. A map built
+ * inside an element the browser has not laid out yet - a hidden tab, a docs page, a control that mounts
+ * before its host sizes it - therefore caches a zero size, and every coordinate it computes from that is
+ * `NaN` for the rest of its life. Observing the element and re-measuring is what makes the map recoverable.
+ *
+ * @param map Map to keep measured.
+ * @returns Whether the map currently has a usable size, so the caller can hold off on applying a viewport.
+ */
+const useMeasuredMap = (map: L.Map): boolean => {
+    const hasUsableSize = () => {
+        const size = map.getSize();
+        return size.x > 0 && size.y > 0;
+    };
+    const [hasSize, setHasSize] = useState(hasUsableSize);
+
+    useEffect(() => {
+        const measure = () => {
+            map.invalidateSize({ animate: false });
+            setHasSize(hasUsableSize());
+        };
+        const observer = new ResizeObserver(measure);
+        observer.observe(map.getContainer());
+        measure();
+        return () => observer.disconnect();
+        //hasUsableSize closes over map alone, and re-running on every render would thrash the observer
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [map]);
+
+    return hasSize;
+};
+
 const ApplyViewport = (props: Pick<IMapProviderProps, 'viewport'>) => {
     const map = useMap();
+    const hasSize = useMeasuredMap(map);
 
     useEffect(() => {
         const { bounds, center, zoom, padding } = props.viewport;
+        //fitting bounds inside a map of no width divides by zero, which poisons the map with NaN for good
+        if (!hasSize || !isFiniteMapViewport(props.viewport)) {
+            return;
+        }
         try {
-            //coordinates come off the dataset unvalidated, so a malformed one must not throw out of the effect
             if (bounds) {
                 map.fitBounds(toLeafletBounds(bounds), { padding: [padding, padding] });
                 return;
@@ -62,27 +100,37 @@ const ApplyViewport = (props: Pick<IMapProviderProps, 'viewport'>) => {
         } catch (error) {
             console.warn('LeafletMapProvider: failed to apply the requested viewport:', error);
         }
-    }, [map, props.viewport]);
+    }, [map, props.viewport, hasSize]);
 
     return null;
 };
 
 const ReportViewport = (props: Pick<IMapProviderProps, 'viewport' | 'onViewportChange'>) => {
     const report = (map: L.Map) => {
-        const center = map.getCenter();
-        const bounds = map.getBounds();
-        props.onViewportChange({
-            center: { latitude: center.lat, longitude: center.lng },
-            zoom: map.getZoom(),
-            bounds: {
-                north: bounds.getNorth(),
-                south: bounds.getSouth(),
-                east: bounds.getEast(),
-                west: bounds.getWest()
-            },
-            //never reported by the map itself, so it is threaded through from what the control asked for
-            padding: props.viewport.padding
-        });
+        let reported: IMapViewport;
+        try {
+            const center = map.getCenter();
+            const bounds = map.getBounds();
+            reported = {
+                center: { latitude: center.lat, longitude: center.lng },
+                zoom: map.getZoom(),
+                bounds: {
+                    north: bounds.getNorth(),
+                    south: bounds.getSouth(),
+                    east: bounds.getEast(),
+                    west: bounds.getWest()
+                },
+                //never reported by the map itself, so it is threaded through from what the control asked for
+                padding: props.viewport.padding
+            };
+        } catch (error) {
+            //a map the browser has not laid out throws instead of answering, and has nothing to report anyway
+            return;
+        }
+        //the same map can also answer with NaN, which must not reach the output or the next provider
+        if (isFiniteMapViewport(reported)) {
+            props.onViewportChange(reported);
+        }
     };
 
     useMapEvents({

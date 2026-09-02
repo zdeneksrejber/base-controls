@@ -109,3 +109,25 @@ export const getApproximateMapViewport = (coordinates: IMapCoordinates, options?
         padding
     };
 };
+
+/**
+ * Whether a viewport is safe to hand to a map.
+ *
+ * Coordinates reach the control off an unvalidated dataset, and a map asked to look at a value that is not a
+ * number answers with an invalid state it never recovers from - so both directions are checked here.
+ *
+ * @param viewport Viewport to check.
+ * @returns `true` when every number in it is finite.
+ */
+export const isFiniteMapViewport = (viewport: IMapViewport): boolean => {
+    const { center, zoom, bounds } = viewport;
+    return Number.isFinite(center?.latitude)
+        && Number.isFinite(center?.longitude)
+        && Number.isFinite(zoom)
+        && (!bounds || (
+            Number.isFinite(bounds.north)
+            && Number.isFinite(bounds.south)
+            && Number.isFinite(bounds.east)
+            && Number.isFinite(bounds.west)
+        ));
+};

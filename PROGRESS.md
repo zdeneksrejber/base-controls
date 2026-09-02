@@ -90,3 +90,14 @@ road-snapping is implemented but cannot be demonstrated until `routes.googleapis
 - `MaxRecords` caps the load (50 000 by default) so an unscoped view cannot hang the browser, and the control
   says when it stopped short rather than silently drawing a subset.
 - A status pill over the map reports progress while loading and the truncation warning afterwards.
+
+### Fix found while verifying — Leaflet measured a container that was not laid out yet
+Every Leaflet backed provider (OpenStreetMap, HERE, Mapy.com) drew a blank grey map with no tiles, in
+Storybook and in any host that mounts the control before sizing it. Leaflet measures its container once at
+creation and afterwards only on a window resize; mounted at zero width it cached that, `fitBounds` divided by
+it, and the map held `NaN` coordinates for the rest of its life. Present since the provider work landed, not
+introduced by V2.
+
+The renderer now observes its container, re-measures on every change, and holds off applying a viewport until
+the map has a real size. `isFiniteMapViewport` guards both directions, and reading the viewport back is
+wrapped because an unlaid-out map throws rather than answering.
