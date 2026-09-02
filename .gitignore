@@ -13,3 +13,7 @@ storybook/node_modules
 storybook/storybook-static
 
 .chrome-profile
+
+storybook/.env.local
+.env.local
+coverage
