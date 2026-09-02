@@ -61,6 +61,16 @@ export interface IMapParameters extends IParameters {
     FullAddressAttributeName?: IStringProperty;
     /** Addresses to geo-code before stopping, per set of records. Defaults to 250. */
     MaxGeocodingRequests?: Omit<IWholeNumberProperty, 'attributes'>;
+    /**
+     * Whether the map hosts its own search box. Off by default, because a map inside `DatasetControl`
+     * already has quick find in that control's header and two boxes would be one too many.
+     */
+    EnableSearch?: Omit<ITwoOptionsProperty, 'attributes'>;
+    /**
+     * Whether that box also offers places from the geo-coding service, which move the map without filtering
+     * the records. Defaults to true, and has no effect unless `EnableSearch` is on.
+     */
+    EnableAddressSearch?: Omit<ITwoOptionsProperty, 'attributes'>;
     /** The end user's pick, reported back as the output of the same name. Wins over `DefaultVendor`. */
     MapProviderId?: IStringProperty;
     /** Whether the picker offers every configured vendor, instead of `DefaultVendor` alone. Defaults to true. */

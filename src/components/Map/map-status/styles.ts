@@ -3,11 +3,6 @@ import { ITheme, mergeStyleSets } from '@fluentui/react';
 export const getMapStatusStyles = (theme: ITheme) => {
     return mergeStyleSets({
         root: {
-            position: 'absolute',
-            top: 8,
-            left: 8,
-            //above the map's own panes, below the provider picker
-            zIndex: 900,
             display: 'flex',
             alignItems: 'center',
             gap: 8,
@@ -17,7 +12,7 @@ export const getMapStatusStyles = (theme: ITheme) => {
             backgroundColor: theme.semanticColors.bodyBackground,
             color: theme.semanticColors.bodyText,
             fontSize: theme.fonts.small.fontSize,
-            pointerEvents: 'none'
+            whiteSpace: 'nowrap'
         },
         warningIcon: {
             color: theme.semanticColors.severeWarningIcon

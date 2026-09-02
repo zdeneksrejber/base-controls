@@ -13,11 +13,17 @@ import { useMapAttributes } from "./useMapAttributes";
 import { useMapClusters } from "./useMapClusters";
 import { useMapProviders } from "./useMapProviders";
 import { useMapRecords } from "./useMapRecords";
+import { useMapSearch } from "./useMapSearch";
 import { useMapViewport } from "./useMapViewport";
 import { mapTranslations } from "./translations";
 import { getMapStyles } from "./styles";
+import { MapOverlay } from "./map-overlay";
 import { MapProviderPicker } from "./map-provider-picker";
+import { MapSearchBox } from "./map-search-box";
 import { MapStatus } from "./map-status";
+
+/** Zoom the map moves to when a place is picked out of the search suggestions. */
+const PLACE_ZOOM = 15;
 
 export const Map = (props: IMap) => {
     const onOverrideComponentProps = props.onOverrideComponentProps ?? ((providerProps) => providerProps);
@@ -33,6 +39,8 @@ export const Map = (props: IMap) => {
         MaxRecords,
         EnableClustering,
         ClusteringOptions,
+        EnableSearch,
+        EnableAddressSearch,
         ViewportOptions
     } = props.parameters;
     const { className, labels, theme, onNotifyOutputChanged } = useControl('Map', props, mapTranslations);
@@ -97,6 +105,14 @@ export const Map = (props: IMap) => {
         onChange: (changedViewport) => onNotifyOutputChanged({ Viewport: changedViewport })
     });
 
+    const isSearchEnabled = EnableSearch?.raw === true;
+    const search = useMapSearch({
+        dataset,
+        geocoder,
+        enableAddressSearch: isSearchEnabled && EnableAddressSearch?.raw !== false,
+        language
+    });
+
     const drawnLocations = useMapClusters({
         locations: pins.locations,
         enabled: EnableClustering?.raw !== false,
@@ -146,7 +162,24 @@ export const Map = (props: IMap) => {
     return (
         <div className={getClassNames([className, styles.root])}>
             <MapProvider {...onOverrideComponentProps(providerProps)} />
-            <MapStatus {...status} theme={theme} />
+            <MapOverlay position='top-left' theme={theme}>
+                {isSearchEnabled &&
+                    <MapSearchBox
+                        query={search.query}
+                        suggestions={search.suggestions}
+                        isSuggesting={search.isSuggesting}
+                        searchedColumnNames={search.quickFindColumns.map((column) => column.displayName ?? column.name)}
+                        labels={labels}
+                        theme={theme}
+                        onQueryChange={search.onQueryChange}
+                        onSearch={search.onSearch}
+                        onSelectPlace={(place) => onFocusViewport({
+                            center: place.coordinates,
+                            zoom: PLACE_ZOOM,
+                            padding: viewport.padding
+                        })} />}
+                <MapStatus {...status} theme={theme} />
+            </MapOverlay>
             {options.length > 1 &&
                 <MapProviderPicker
                     options={options}

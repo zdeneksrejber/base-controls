@@ -148,3 +148,42 @@ export const AddressGeocodingFallback: Story = {
         }
     }
 }
+
+const Search = () => {
+    const dataset = useMemo(() => createSampleDataset({ records: getSiteRecords() }), [])
+    return (
+        <MapDemo
+            dataset={dataset}
+            parameters={{
+                ...COORDINATES,
+                EnableSearch: { raw: true },
+                EnableAddressSearch: { raw: true },
+                EnableClustering: { raw: false },
+                DefaultVendor: { raw: MAP_API_KEYS.mapy ? 'mapy' : 'leaflet' }
+            }}
+        />
+    )
+}
+
+export const FullTextSearch: Story = {
+    name: 'D3 — search the records, or an address',
+    render: () => <Search />,
+    parameters: {
+        docs: {
+            description: {
+                story: [
+                    'One box, two searches. Typing and pressing Enter runs the **entity quick find** over the',
+                    'bound dataset - the same `setSearchQuery` and refresh the dataset control header does - so',
+                    'the records, and therefore the pins, are filtered. Try `Brno` or `Ostrava`.',
+                    '',
+                    'Typing also offers **places** from the geo-coding service under the box. Picking one moves',
+                    'the map there without touching the dataset, which is how you reach somewhere the records do',
+                    'not cover. Try `Wenceslas Square`.',
+                    '',
+                    '`EnableSearch` is off by default, so a map hosted inside `DatasetControl` defers to the quick',
+                    'find already in that control header rather than showing a second box.'
+                ].join(' ')
+            }
+        }
+    }
+}

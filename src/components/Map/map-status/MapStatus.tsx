@@ -1,4 +1,4 @@
-import { FontIcon, Spinner, SpinnerSize, ThemeProvider } from '@fluentui/react';
+import { FontIcon, Spinner, SpinnerSize } from '@fluentui/react';
 import { useMemo } from 'react';
 import { ITheme } from '@legacy';
 import { getMapStatusStyles } from './styles';
@@ -14,8 +14,8 @@ export interface IMapStatusProps {
 }
 
 /**
- * A small pill over the map reporting what the control is doing - loading every page, geo-coding addresses,
- * or that a load stopped short.
+ * A small pill reporting what the control is doing - loading every page, resolving addresses, or that a
+ * load stopped short.
  *
  * @param props Message to show, whether it is progress or a warning, and the host theme.
  * @returns The pill, or nothing when there is no message.
@@ -28,10 +28,10 @@ export const MapStatus = (props: IMapStatusProps) => {
     }
 
     return (
-        <ThemeProvider theme={props.theme} applyTo='none' className={styles.root}>
+        <div className={styles.root}>
             {props.isBusy && <Spinner size={SpinnerSize.xSmall} />}
             {props.isWarning && !props.isBusy && <FontIcon iconName='Warning' className={styles.warningIcon} />}
             <span>{props.message}</span>
-        </ThemeProvider>
+        </div>
     );
 };

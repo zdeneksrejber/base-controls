@@ -11,7 +11,7 @@ delivery log.
 ### Data
 - [x] **D1** Full address geo-coding as fallback when coordinates are not available
 - [ ] **D2** Filtering by `IRecord` attributes
-- [ ] **D3** Full text search by address, using the entity's quick find query
+- [x] **D3** Full text search by address, using the entity's quick find query
 - [x] **D4** Paging — display all records, not only the current dataset page
 - [x] **D5** Handle datasets of thousands of pins
 - [x] **D6** Resolve any bound attribute through expands, using dot notation
@@ -122,3 +122,18 @@ wrapped because an unlaid-out map throws rather than answering.
   the coordinates it resolves - so a geo-coded record also joins its route.
 - Verified in Storybook against live HERE: 8 of 15 sites keep coordinates, the other 7 are placed from their
   postal address alone.
+
+### Phase 3 — D3, one search box, two searches
+- `EnableSearch` puts a search box over the map. Committing what is typed runs the entity's **quick find**
+  through `setSearchQuery` and a refresh - the same call the dataset control's own header makes, wrapped in
+  the same unsaved-changes blocker - so the records, and therefore the pins, are filtered.
+- Typing also offers **places** from the geo-coding service. Picking one moves the map without touching the
+  dataset, which is how you reach somewhere the records do not cover. `EnableAddressSearch` turns that half
+  off on its own.
+- Off by default, so a map hosted inside `DatasetControl` defers to the quick find already in that header.
+- New `map-overlay` anchors the control's chrome over whichever provider is drawing, leaving room for the
+  zoom control every tile provider puts in the same corner, and letting drags through to the map.
+- Storybook now registers the Fluent icon set, which no story had done - every icon in every control was
+  rendering as nothing.
+- Verified against live Mapy.com: `Brno` filters 15 pins to 1, and picking `Ostrava, Czechia` off the
+  suggestions moves the map to 49.835, 18.282 at zoom 15.
