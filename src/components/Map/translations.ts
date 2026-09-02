@@ -10,6 +10,10 @@ export const mapTranslations = {
         1033: "Loading pins... {{count}}",
         1029: "Načítání bodů... {{count}}"
     },
+    geocodingAddresses: {
+        1033: "Resolving {{count}} addresses...",
+        1029: "Vyhledávání {{count}} adres..."
+    },
     pinsTruncated: {
         1033: "Showing the first {{count}} pins of this view.",
         1029: "Zobrazeno prvních {{count}} bodů tohoto pohledu."

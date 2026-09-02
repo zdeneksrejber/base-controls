@@ -54,6 +54,13 @@ export interface IMapParameters extends IParameters {
     ClusteringOptions?: {
         raw: IMapClusteringOptions;
     };
+    /**
+     * Attribute holding a record's full address. A record with no readable coordinates is placed by
+     * geo-coding it, through whichever configured vendor has a geo-coding service. Unset turns that off.
+     */
+    FullAddressAttributeName?: IStringProperty;
+    /** Addresses to geo-code before stopping, per set of records. Defaults to 250. */
+    MaxGeocodingRequests?: Omit<IWholeNumberProperty, 'attributes'>;
     /** The end user's pick, reported back as the output of the same name. Wins over `DefaultVendor`. */
     MapProviderId?: IStringProperty;
     /** Whether the picker offers every configured vendor, instead of `DefaultVendor` alone. Defaults to true. */

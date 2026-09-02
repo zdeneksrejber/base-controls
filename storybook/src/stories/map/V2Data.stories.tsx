@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useMemo } from 'react'
 import { MapDemo } from './MapDemo'
+import { MAP_API_KEYS } from './mapApiKeys'
 import { createSampleDataset, generateSiteRecords, getSiteRecords, SAMPLE_ATTRIBUTES } from './mapSampleData'
 
 const meta = {
@@ -103,6 +104,45 @@ export const EveryPage: Story = {
                     'The same dataset, still paged four at a time, with `PinLoading: all`. The control drains every',
                     'page on a clone of the data provider, so the dataset the rest of the app is bound to keeps its',
                     'page and its pagination chrome keeps working.'
+                ].join(' ')
+            }
+        }
+    }
+}
+
+const AddressFallback = ({ vendor }: { vendor: string }) => {
+    const dataset = useMemo(() => createSampleDataset({
+        //every other site keeps its coordinates, the rest carry only a postal address
+        records: getSiteRecords().map((record, index) =>
+            index % 2 === 0 ? record : { ...record, lat: null, lng: null })
+    }), [])
+    return (
+        <MapDemo
+            dataset={dataset}
+            parameters={{
+                ...COORDINATES,
+                FullAddressAttributeName: { raw: SAMPLE_ATTRIBUTES.address },
+                EnableClustering: { raw: false },
+                DefaultVendor: { raw: vendor }
+            }}
+        />
+    )
+}
+
+export const AddressGeocodingFallback: Story = {
+    name: 'D1 — geo-code the address when there are no coordinates',
+    render: () => <AddressFallback vendor={MAP_API_KEYS.here ? 'here' : 'leaflet'} />,
+    parameters: {
+        docs: {
+            description: {
+                story: [
+                    'Half of these sites have had their coordinates removed and carry only a postal address.',
+                    '`FullAddressAttributeName` names that attribute, and the control places them by geo-coding',
+                    'it through whichever configured vendor has a geo-coding service - HERE here, Nominatim when',
+                    'no key is set.',
+                    '',
+                    'Lookups are cached and de-duplicated, capped by `MaxGeocodingRequests`, and an address the',
+                    'service cannot place is remembered as unplaceable rather than asked about again.'
                 ].join(' ')
             }
         }

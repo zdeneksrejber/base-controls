@@ -5,10 +5,12 @@ import { useEventEmitter } from "@hooks/useEventEmitter";
 import { getClassNames } from "@utils";
 import { IMap } from "./interfaces";
 import { getDistinctAttributePaths } from "./attributes";
-import { useMapClusters } from "./useMapClusters";
+import { getMapLanguageTag } from "./language";
 import { IMapLocation, IMapProviderProps } from "./providers";
-import { EMPTY_MAP_PINS, getMapPins } from "./pins";
+import { EMPTY_MAP_PINS, getMapPins, IMapFallbackCoordinates } from "./pins";
+import { useGeocodedLocations } from "./useGeocodedLocations";
 import { useMapAttributes } from "./useMapAttributes";
+import { useMapClusters } from "./useMapClusters";
 import { useMapProviders } from "./useMapProviders";
 import { useMapRecords } from "./useMapRecords";
 import { useMapViewport } from "./useMapViewport";
@@ -24,6 +26,8 @@ export const Map = (props: IMap) => {
         LatitudeAttributeName,
         LongitudeAttributeName,
         RouteAttributeName,
+        FullAddressAttributeName,
+        MaxGeocodingRequests,
         EnableAttributeLinking,
         PinLoading,
         MaxRecords,
@@ -34,8 +38,9 @@ export const Map = (props: IMap) => {
     const { className, labels, theme, onNotifyOutputChanged } = useControl('Map', props, mapTranslations);
     const styles = useMemo(() => getMapStyles(), []);
     const [selectedLocationIds, setSelectedLocationIds] = useState<string[]>([]);
+    const language = getMapLanguageTag(props.context?.userSettings?.languageId);
 
-    const { options, selectedId, provider: MapProvider, onPickProvider } = useMapProviders({
+    const { options, selectedId, provider: MapProvider, geocoder, onPickProvider } = useMapProviders({
         parameters: props.parameters,
         onGetMapProviders: props.onGetMapProviders,
         onGetMapVendors: props.onGetMapVendors,
@@ -46,10 +51,11 @@ export const Map = (props: IMap) => {
     const latitudeAttribute = LatitudeAttributeName?.raw;
     const longitudeAttribute = LongitudeAttributeName?.raw;
     const routeAttribute = RouteAttributeName?.raw;
+    const addressAttribute = FullAddressAttributeName?.raw;
 
     const attributePaths = useMemo(
-        () => getDistinctAttributePaths([latitudeAttribute, longitudeAttribute, routeAttribute]),
-        [latitudeAttribute, longitudeAttribute, routeAttribute]
+        () => getDistinctAttributePaths([latitudeAttribute, longitudeAttribute, routeAttribute, addressAttribute]),
+        [latitudeAttribute, longitudeAttribute, routeAttribute, addressAttribute]
     );
     useMapAttributes({ dataset, paths: attributePaths, enabled: EnableAttributeLinking?.raw !== false });
 
@@ -59,7 +65,8 @@ export const Map = (props: IMap) => {
         maxRecords: MaxRecords?.raw ?? undefined
     });
 
-    const pins = useMemo(() => {
+    //placed first from the record's own coordinates, then again once the address fallback has resolved some
+    const readPins = useCallback((fallbackCoordinates?: IMapFallbackCoordinates) => {
         if (!latitudeAttribute || !longitudeAttribute) {
             return EMPTY_MAP_PINS;
         }
@@ -67,8 +74,20 @@ export const Map = (props: IMap) => {
             latitude: latitudeAttribute,
             longitude: longitudeAttribute,
             route: routeAttribute ?? undefined
-        });
+        }, fallbackCoordinates);
     }, [records, latitudeAttribute, longitudeAttribute, routeAttribute]);
+
+    const unplacedRecords = useMemo(() => readPins().unplacedRecords, [readPins]);
+
+    const geocoded = useGeocodedLocations({
+        records: unplacedRecords,
+        addressAttribute: addressAttribute ?? undefined,
+        geocoder,
+        language,
+        maxRequests: MaxGeocodingRequests?.raw ?? undefined
+    });
+
+    const pins = useMemo(() => readPins(geocoded.coordinates), [readPins, geocoded.coordinates]);
 
     const { viewport, visibleViewport, onViewportChange, onFocusViewport } = useMapViewport({
         locations: pins.locations,
@@ -118,9 +137,11 @@ export const Map = (props: IMap) => {
 
     const status = isLoading
         ? { message: labels.loadingPins({ count: `${loadedCount}` }), isBusy: true }
-        : isTruncated
-            ? { message: labels.pinsTruncated({ count: `${records.length}` }), isWarning: true }
-            : {};
+        : geocoded.isResolving
+            ? { message: labels.geocodingAddresses({ count: `${geocoded.pendingCount}` }), isBusy: true }
+            : isTruncated
+                ? { message: labels.pinsTruncated({ count: `${records.length}` }), isWarning: true }
+                : {};
 
     return (
         <div className={getClassNames([className, styles.root])}>

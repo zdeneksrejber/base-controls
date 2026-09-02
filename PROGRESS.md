@@ -9,7 +9,7 @@ delivery log.
 ## Requested features
 
 ### Data
-- [ ] **D1** Full address geo-coding as fallback when coordinates are not available
+- [x] **D1** Full address geo-coding as fallback when coordinates are not available
 - [ ] **D2** Filtering by `IRecord` attributes
 - [ ] **D3** Full text search by address, using the entity's quick find query
 - [x] **D4** Paging — display all records, not only the current dataset page
@@ -110,3 +110,15 @@ wrapped because an unlaid-out map throws rather than answering.
 - A grouped pin carries the exact count and the ids behind it; clicking one zooms to where it comes apart.
 - `EnableClustering` (on by default) and `ClusteringOptions` control it.
 - Verified in Storybook: 5 000 records draw as 22 pins, re-group to 75 on pan, and the viewport is reported.
+
+### Phase 3 — D1, the address fallback
+- `FullAddressAttributeName` names the attribute holding a record's address. A record with no readable
+  coordinates is placed by geo-coding it through whichever configured vendor has a geo-coding service.
+- Resolving is bounded on three sides: four lookups in flight, `MaxGeocodingRequests` per set of records
+  (250 by default), and one lookup per distinct address however many records share it.
+- An address the service cannot place is remembered as unplaceable rather than retried, which is what stops
+  the fallback looping on it.
+- `getMapPins` now reports the records it could not place, which is what the fallback consumes, and accepts
+  the coordinates it resolves - so a geo-coded record also joins its route.
+- Verified in Storybook against live HERE: 8 of 15 sites keep coordinates, the other 7 are placed from their
+  postal address alone.

@@ -128,3 +128,53 @@ export const createResultCache = <T>(maxEntries = 200): IResultCache<T> => {
         }
     };
 };
+
+export interface IConcurrentRunOptions<TItem, TResult> {
+    /** Items in flight at once. */
+    limit: number;
+    /** Called with each result as it arrives, so a caller can show progress rather than wait for all of it. */
+    onResult?: (item: TItem, result: TResult) => void;
+    /** Checked before each item is started; a cancelled run resolves with what it already had. */
+    isCancelled?: () => boolean;
+}
+
+/**
+ * Runs work over a list with a bounded number of calls in flight.
+ *
+ * A view can name hundreds of addresses to resolve, and firing them all at once is what gets an origin rate
+ * limited - so the work is spread rather than batched.
+ *
+ * @param items Items to work through, in order.
+ * @param run Does the work for one item. A rejection resolves to `undefined` rather than stopping the run.
+ * @param options Concurrency, progress callback and cancellation check.
+ * @returns Each item paired with its result, in the order the items were given.
+ */
+export const runWithConcurrency = async <TItem, TResult>(
+    items: TItem[],
+    run: (item: TItem) => Promise<TResult>,
+    options: IConcurrentRunOptions<TItem, TResult>
+): Promise<{ item: TItem; result: TResult | undefined }[]> => {
+    const results: { item: TItem; result: TResult | undefined }[] = items.map((item) => ({ item, result: undefined }));
+    let next = 0;
+
+    const worker = async (): Promise<void> => {
+        while (next < items.length) {
+            if (options.isCancelled?.()) {
+                return;
+            }
+            const index = next++;
+            const item = items[index];
+            try {
+                const result = await run(item);
+                results[index] = { item, result };
+                options.onResult?.(item, result);
+            } catch (error) {
+                //one address the service cannot resolve must not stop the rest of them
+                results[index] = { item, result: undefined };
+            }
+        }
+    };
+
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(options.limit, items.length)) }, worker));
+    return results;
+};

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildUrl, createRequestQueue, createResultCache, getJson } from './http';
+import { buildUrl, createRequestQueue, createResultCache, getJson, runWithConcurrency } from './http';
 
 afterEach(() => {
     vi.unstubAllGlobals();
@@ -117,5 +117,64 @@ describe('createResultCache', () => {
         cache.set('a', 2);
         expect(cache.size).toBe(1);
         expect(cache.get('a')).toBe(2);
+    });
+});
+
+describe('runWithConcurrency', () => {
+    it('works through every item and keeps their order', async () => {
+        const results = await runWithConcurrency([1, 2, 3, 4], async (n) => n * 2, { limit: 2 });
+        expect(results).toEqual([
+            { item: 1, result: 2 },
+            { item: 2, result: 4 },
+            { item: 3, result: 6 },
+            { item: 4, result: 8 }
+        ]);
+    });
+
+    it('never has more in flight than the limit', async () => {
+        let inFlight = 0;
+        let peak = 0;
+        await runWithConcurrency(Array.from({ length: 12 }, (_, i) => i), async (n) => {
+            inFlight += 1;
+            peak = Math.max(peak, inFlight);
+            await new Promise((resolve) => setTimeout(resolve, 1));
+            inFlight -= 1;
+            return n;
+        }, { limit: 3 });
+
+        expect(peak).toBeLessThanOrEqual(3);
+        expect(peak).toBeGreaterThan(1);
+    });
+
+    it('reports each result as it arrives', async () => {
+        const seen: number[] = [];
+        await runWithConcurrency([1, 2, 3], async (n) => n, { limit: 1, onResult: (_, r) => seen.push(r) });
+        expect(seen).toEqual([1, 2, 3]);
+    });
+
+    it('lets one failure through without stopping the rest', async () => {
+        const results = await runWithConcurrency([1, 2, 3], async (n) => {
+            if (n === 2) {
+                throw new Error('nope');
+            }
+            return n;
+        }, { limit: 1 });
+
+        expect(results.map((entry) => entry.result)).toEqual([1, undefined, 3]);
+    });
+
+    it('stops early when cancelled, leaving the rest unresolved', async () => {
+        let done = 0;
+        const results = await runWithConcurrency([1, 2, 3, 4, 5], async (n) => {
+            done += 1;
+            return n;
+        }, { limit: 1, isCancelled: () => done >= 2 });
+
+        expect(done).toBe(2);
+        expect(results.slice(2).every((entry) => entry.result === undefined)).toBe(true);
+    });
+
+    it('does nothing for an empty list', async () => {
+        expect(await runWithConcurrency([], async () => 1, { limit: 4 })).toEqual([]);
     });
 });
