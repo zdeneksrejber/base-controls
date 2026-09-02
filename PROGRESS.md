@@ -10,7 +10,7 @@ delivery log.
 
 ### Data
 - [x] **D1** Full address geo-coding as fallback when coordinates are not available
-- [ ] **D2** Filtering by `IRecord` attributes
+- [x] **D2** Filtering by `IRecord` attributes
 - [x] **D3** Full text search by address, using the entity's quick find query
 - [x] **D4** Paging — display all records, not only the current dataset page
 - [x] **D5** Handle datasets of thousands of pins
@@ -137,3 +137,13 @@ wrapped because an unlaid-out map throws rather than answering.
   rendering as nothing.
 - Verified against live Mapy.com: `Brno` filters 15 pins to 1, and picking `Ostrava, Czechia` off the
   suggestions moves the map to 49.835, 18.282 at zoom 15.
+
+### Phase 3 — D2, filtering by record attributes
+- `FilterAttributeNames` names the attributes the panel offers. Each becomes a list of the values the loaded
+  records actually hold, with a count, so the panel describes the data rather than the schema.
+- Values within one attribute widen the result and attributes narrow it - "depots or stores, in Brno".
+- `FilterMode: pins` (the default) filters what the map draws, which is instant and works on every provider.
+  `dataset` pushes an `In` filter expression to the bound dataset instead, so every control sharing it
+  follows - at the cost of needing a provider that implements `In` for those attributes, which the in-memory
+  provider used by the demos does not.
+- Verified in Storybook: the panel offers store 9 / service 4 / depot 2, and picking depot leaves two pins.

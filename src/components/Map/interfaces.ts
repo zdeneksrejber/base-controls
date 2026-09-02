@@ -5,6 +5,7 @@ import { IMapTranslations } from "./translations";
 import { IMapProviderOption, IMapProviderProps, IMapVendor } from "./providers";
 import { IMapFallbackLocationResolver } from "./fallbackLocation";
 import { IMapClusteringOptions } from "./clustering";
+import { IMapFilterMode } from "./mapFilters";
 import { IMapPinLoading } from "./records";
 import { IMapViewport, IMapViewportOptions } from "./viewport";
 
@@ -61,6 +62,16 @@ export interface IMapParameters extends IParameters {
     FullAddressAttributeName?: IStringProperty;
     /** Addresses to geo-code before stopping, per set of records. Defaults to 250. */
     MaxGeocodingRequests?: Omit<IWholeNumberProperty, 'attributes'>;
+    /**
+     * Attributes the filter panel offers, comma separated. Each becomes a list of the values the loaded
+     * records actually hold. Empty hides the panel.
+     */
+    FilterAttributeNames?: IStringProperty;
+    /**
+     * Where a filter applies: `pins` filters what the map draws and works on any provider, `dataset` pushes
+     * it to the bound dataset so every control sharing it follows. Defaults to `pins`.
+     */
+    FilterMode?: Omit<ComponentFramework.PropertyTypes.EnumProperty<IMapFilterMode>, 'type'>;
     /**
      * Whether the map hosts its own search box. Off by default, because a map inside `DatasetControl`
      * already has quick find in that control's header and two boxes would be one too many.

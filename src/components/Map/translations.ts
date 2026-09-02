@@ -38,6 +38,22 @@ export const mapTranslations = {
         1033: "Clear the search",
         1029: "Zrušit hledání"
     },
+    filters: {
+        1033: "Filters",
+        1029: "Filtry"
+    },
+    filtersActive: {
+        1033: "Filters ({{count}})",
+        1029: "Filtry ({{count}})"
+    },
+    filtersClear: {
+        1033: "Clear the filters",
+        1029: "Zrušit filtry"
+    },
+    filtersClose: {
+        1033: "Close the filters",
+        1029: "Zavřít filtry"
+    },
     pinsTruncated: {
         1033: "Showing the first {{count}} pins of this view.",
         1029: "Zobrazeno prvních {{count}} bodů tohoto pohledu."

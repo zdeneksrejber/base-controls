@@ -11,6 +11,7 @@ import { EMPTY_MAP_PINS, getMapPins, IMapFallbackCoordinates } from "./pins";
 import { useGeocodedLocations } from "./useGeocodedLocations";
 import { useMapAttributes } from "./useMapAttributes";
 import { useMapClusters } from "./useMapClusters";
+import { useMapFiltering } from "./useMapFiltering";
 import { useMapProviders } from "./useMapProviders";
 import { useMapRecords } from "./useMapRecords";
 import { useMapSearch } from "./useMapSearch";
@@ -18,6 +19,7 @@ import { useMapViewport } from "./useMapViewport";
 import { mapTranslations } from "./translations";
 import { getMapStyles } from "./styles";
 import { MapOverlay } from "./map-overlay";
+import { MapFilterPanel } from "./map-filter-panel";
 import { MapProviderPicker } from "./map-provider-picker";
 import { MapSearchBox } from "./map-search-box";
 import { MapStatus } from "./map-status";
@@ -39,6 +41,8 @@ export const Map = (props: IMap) => {
         MaxRecords,
         EnableClustering,
         ClusteringOptions,
+        FilterAttributeNames,
+        FilterMode,
         EnableSearch,
         EnableAddressSearch,
         ViewportOptions
@@ -61,17 +65,30 @@ export const Map = (props: IMap) => {
     const routeAttribute = RouteAttributeName?.raw;
     const addressAttribute = FullAddressAttributeName?.raw;
 
+    const filterAttributes = useMemo(
+        () => (FilterAttributeNames?.raw ?? '').split(',').map((name) => name.trim()).filter(Boolean),
+        [FilterAttributeNames?.raw]
+    );
+
     const attributePaths = useMemo(
-        () => getDistinctAttributePaths([latitudeAttribute, longitudeAttribute, routeAttribute, addressAttribute]),
-        [latitudeAttribute, longitudeAttribute, routeAttribute, addressAttribute]
+        () => getDistinctAttributePaths([latitudeAttribute, longitudeAttribute, routeAttribute, addressAttribute, ...filterAttributes]),
+        [latitudeAttribute, longitudeAttribute, routeAttribute, addressAttribute, filterAttributes]
     );
     useMapAttributes({ dataset, paths: attributePaths, enabled: EnableAttributeLinking?.raw !== false });
 
-    const { records, isLoading, loadedCount, isTruncated } = useMapRecords({
+    const { records: loadedRecords, isLoading, loadedCount, isTruncated } = useMapRecords({
         dataset,
         loading: PinLoading?.raw === 'all' ? 'all' : 'page',
         maxRecords: MaxRecords?.raw ?? undefined
     });
+
+    const filtering = useMapFiltering({
+        dataset,
+        records: loadedRecords,
+        attributes: filterAttributes,
+        mode: FilterMode?.raw === 'dataset' ? 'dataset' : 'pins'
+    });
+    const records = filtering.records;
 
     //placed first from the record's own coordinates, then again once the address fallback has resolved some
     const readPins = useCallback((fallbackCoordinates?: IMapFallbackCoordinates) => {
@@ -179,6 +196,13 @@ export const Map = (props: IMap) => {
                             padding: viewport.padding
                         })} />}
                 <MapStatus {...status} theme={theme} />
+                <MapFilterPanel
+                    facets={filtering.facets}
+                    selection={filtering.selection}
+                    labels={labels}
+                    theme={theme}
+                    onToggle={filtering.onToggle}
+                    onClear={filtering.onClear} />
             </MapOverlay>
             {options.length > 1 &&
                 <MapProviderPicker

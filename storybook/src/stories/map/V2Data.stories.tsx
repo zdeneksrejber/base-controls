@@ -187,3 +187,39 @@ export const FullTextSearch: Story = {
         }
     }
 }
+
+const Filtering = () => {
+    const dataset = useMemo(() => createSampleDataset({ records: getSiteRecords() }), [])
+    return (
+        <MapDemo
+            dataset={dataset}
+            parameters={{
+                ...COORDINATES,
+                FilterAttributeNames: { raw: 'category,city' },
+                FilterMode: { raw: 'pins' },
+                EnableClustering: { raw: false },
+                DefaultVendor: { raw: 'leaflet' }
+            }}
+        />
+    )
+}
+
+export const FilteringByAttributes: Story = {
+    name: 'D2 — filter by record attributes',
+    render: () => <Filtering />,
+    parameters: {
+        docs: {
+            description: {
+                story: [
+                    '`FilterAttributeNames` names the attributes the filter panel offers - `category` and `city`',
+                    'here. Each becomes a list of the values the loaded records actually hold, with a count, so',
+                    'the panel describes the data rather than the schema.',
+                    '',
+                    'Values within one attribute widen the result and attributes narrow it: "depots **or** stores,',
+                    '**in** Brno". `FilterMode: pins` filters what the map draws, which works on any provider;',
+                    '`dataset` pushes the filter to the bound dataset instead, so every control sharing it follows.'
+                ].join(' ')
+            }
+        }
+    }
+}
