@@ -31,6 +31,11 @@ export interface IMapParameters extends IParameters {
     LongitudeAttributeName: IStringProperty;
     /** Groups pins into routes by shared non empty value. Routes of fewer than two pins are dropped. */
     RouteAttributeName?: IStringProperty;
+    /**
+     * Whether the control may add the link entity and column a dot notation attribute path needs when the
+     * dataset does not already carry them. Defaults to true; the added column is hidden.
+     */
+    EnableAttributeLinking?: Omit<ITwoOptionsProperty, 'attributes'>;
     /** The end user's pick, reported back as the output of the same name. Wins over `DefaultVendor`. */
     MapProviderId?: IStringProperty;
     /** Whether the picker offers every configured vendor, instead of `DefaultVendor` alone. Defaults to true. */

@@ -1,5 +1,6 @@
-import { IRecord } from "@talxis/client-libraries";
-import { IMapLocation, IMapRoute } from "./providers";
+import { IRecord } from '@talxis/client-libraries';
+import { getRecordCoordinate, getRecordValue } from './attributes';
+import { IMapLocation, IMapRoute } from './providers';
 
 export interface IMapPins {
     locations: IMapLocation[];
@@ -15,14 +16,16 @@ export interface IMapPinAttributes {
 
 export const EMPTY_MAP_PINS: IMapPins = { locations: [], routes: [] };
 
-const toCoordinate = (value: any): number | undefined => {
-    const coordinate = typeof value === 'number' ? value : parseFloat(value);
-    return isNaN(coordinate) ? undefined : coordinate;
-};
-
+/**
+ * Reads one record's pin.
+ *
+ * @param record Record to read.
+ * @param attributes Attribute paths the coordinates are held under.
+ * @returns The location, or `undefined` when the record carries no readable coordinates.
+ */
 const getLocation = (record: IRecord, attributes: IMapPinAttributes): IMapLocation | undefined => {
-    const latitude = toCoordinate(record.getValue(attributes.latitude));
-    const longitude = toCoordinate(record.getValue(attributes.longitude));
+    const latitude = getRecordCoordinate(record, attributes.latitude);
+    const longitude = getRecordCoordinate(record, attributes.longitude);
     if (latitude === undefined || longitude === undefined) {
         return undefined;
     }
@@ -35,18 +38,31 @@ const getLocation = (record: IRecord, attributes: IMapPinAttributes): IMapLocati
     };
 };
 
+/**
+ * Reads the route a record belongs to.
+ *
+ * @param record Record to read.
+ * @param attributes Attribute paths, whose `route` entry names the grouping attribute.
+ * @returns The route id, or `undefined` when no attribute is configured or the record's value is empty.
+ */
 const getRouteId = (record: IRecord, attributes: IMapPinAttributes): string | undefined => {
     if (!attributes.route) {
         return undefined;
     }
-    const value = record.getValue(attributes.route);
+    const value = getRecordValue(record, attributes.route);
     if (value === undefined || value === null || value === '') {
         return undefined;
     }
     return `${value}`;
 };
 
-/** Reads the pins off the loaded records. One the coordinates cannot be read from is skipped, not fatal. */
+/**
+ * Reads the pins off the loaded records.
+ *
+ * @param records Records to draw.
+ * @param attributes Attribute paths the coordinates and the route grouping are held under.
+ * @returns The locations in dataset order, and the routes of two pins or more.
+ */
 export const getMapPins = (records: IRecord[], attributes: IMapPinAttributes): IMapPins => {
     const locations: IMapLocation[] = [];
     //a Map, not an object - object keys that look like integers would reorder the routes

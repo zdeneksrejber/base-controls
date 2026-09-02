@@ -4,6 +4,8 @@ import { useControl } from "@hooks";
 import { useEventEmitter } from "@hooks/useEventEmitter";
 import { getClassNames } from "@utils";
 import { IMap } from "./interfaces";
+import { getDistinctAttributePaths } from "./attributes";
+import { useMapAttributes } from "./useMapAttributes";
 import { IMapLocation, IMapProviderProps } from "./providers";
 import { EMPTY_MAP_PINS, getMapPins, IMapPins } from "./pins";
 import { useMapProviders } from "./useMapProviders";
@@ -19,6 +21,7 @@ export const Map = (props: IMap) => {
         LatitudeAttributeName,
         LongitudeAttributeName,
         RouteAttributeName,
+        EnableAttributeLinking,
         ViewportOptions
     } = props.parameters;
     const { className, labels, theme, onNotifyOutputChanged } = useControl('Map', props, mapTranslations);
@@ -45,6 +48,12 @@ export const Map = (props: IMap) => {
     const latitudeAttribute = LatitudeAttributeName?.raw;
     const longitudeAttribute = LongitudeAttributeName?.raw;
     const routeAttribute = RouteAttributeName?.raw;
+
+    const attributePaths = useMemo(
+        () => getDistinctAttributePaths([latitudeAttribute, longitudeAttribute, routeAttribute]),
+        [latitudeAttribute, longitudeAttribute, routeAttribute]
+    );
+    useMapAttributes({ dataset, paths: attributePaths, enabled: EnableAttributeLinking?.raw !== false });
 
     const loadPins = useCallback(() => {
         if (!dataset || !latitudeAttribute || !longitudeAttribute) {
