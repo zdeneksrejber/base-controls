@@ -1,9 +1,9 @@
-import { APIProvider, ColorScheme, InfoWindow, Map as GoogleMap, MapCameraChangedEvent, Marker, Polyline, useMap } from '@vis.gl/react-google-maps';
+import { APIProvider, ColorScheme, InfoWindow, Map as GoogleMap, MapCameraChangedEvent, Marker, Polyline, useApiIsLoaded, useMap } from '@vis.gl/react-google-maps';
 import { useCallback, useEffect, useMemo } from 'react';
 import { createGoogleMapsDirectionsService } from './directions';
 import { createGoogleMapsGeocoder } from './geocoder';
-import { isMapSurfaceClick } from '../mapClick';
 import { IMapLocation, IMapProvider, IMapProviderProps } from '../IMapProvider';
+import { isMapSurfaceClick } from '../mapClick';
 import { getClusterPinSize, getClusterPinSvg, getPinSize, getPinSvg, ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
 import { IMapVendor } from '../vendors';
 import { IMapViewport } from '../../viewport';
@@ -47,6 +47,51 @@ const ApplyViewport = (props: { viewport: IMapViewport }) => {
     }, [map, props.viewport]);
 
     return null;
+};
+
+interface IMapPinsProps extends Pick<IMapProviderProps, 'locations' | 'theme' | 'isPinDraggable' | 'onLocationClick' | 'onLocationDragEnd'> {
+    selection: ReturnType<typeof useMapPinSelection>;
+}
+
+/**
+ * The record pins.
+ *
+ * Held back until the Maps JS API is there: an icon is built out of `google.maps.Size` and
+ * `google.maps.Point`, neither of which exists before the api script has loaded - and a marker has nothing to
+ * attach to until then either.
+ *
+ * @param props Pins to draw, the current selection, and what a click or a drop does.
+ * @returns One marker per pin, or nothing while the api is still loading.
+ */
+const MapPins = (props: IMapPinsProps) => {
+    const { locations, selection, theme, isPinDraggable, onLocationClick, onLocationDragEnd } = props;
+    const isApiLoaded = useApiIsLoaded();
+
+    if (!isApiLoaded) {
+        return null;
+    }
+
+    return (
+        <>
+            {locations.map((location) => (
+                <Marker
+                    key={location.id}
+                    position={{ lat: location.latitude, lng: location.longitude }}
+                    title={location.cluster ? `${location.cluster.count}` : location.pin?.title ?? location.label}
+                    icon={getPinIcon(location, theme.palette.themePrimary, theme.palette.white)}
+                    draggable={isPinDraggable?.(location) ?? false}
+                    opacity={selection.getOpacity(location)}
+                    zIndex={location.cluster ? 1000 + location.cluster.count : selection.isSelected(location) ? 1 : undefined}
+                    onClick={() => onLocationClick(location)}
+                    onDragEnd={onLocationDragEnd && ((event) => {
+                        const position = event.latLng;
+                        if (position) {
+                            onLocationDragEnd(location, { latitude: position.lat(), longitude: position.lng() });
+                        }
+                    })} />
+            ))}
+        </>
+    );
 };
 
 const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
@@ -114,23 +159,13 @@ const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
                             strokeColor={route.color ?? theme.palette.themePrimary}
                             strokeWeight={ROUTE_STROKE_WEIGHT} />
                     ))}
-                    {locations.map((location) => (
-                        <Marker
-                            key={location.id}
-                            position={{ lat: location.latitude, lng: location.longitude }}
-                            title={location.cluster ? `${location.cluster.count}` : location.pin?.title ?? location.label}
-                            icon={getPinIcon(location, theme.palette.themePrimary, theme.palette.white)}
-                            draggable={isPinDraggable?.(location) ?? false}
-                            opacity={selection.getOpacity(location)}
-                            zIndex={location.cluster ? 1000 + location.cluster.count : selection.isSelected(location) ? 1 : undefined}
-                            onClick={() => onLocationClick(location)}
-                            onDragEnd={onLocationDragEnd && ((event) => {
-                                const position = event.latLng;
-                                if (position) {
-                                    onLocationDragEnd(location, { latitude: position.lat(), longitude: position.lng() });
-                                }
-                            })} />
-                    ))}
+                    <MapPins
+                        locations={locations}
+                        selection={selection}
+                        theme={theme}
+                        isPinDraggable={isPinDraggable}
+                        onLocationClick={onLocationClick}
+                        onLocationDragEnd={onLocationDragEnd} />
                 </GoogleMap>
             </div>
         </APIProvider>
@@ -143,12 +178,15 @@ const toDataUrl = (svg: string) => `data:image/svg+xml;charset=UTF-8,${encodeURI
 /**
  * The icon one pin is drawn with.
  *
+ * A pin the control resolved nothing for still gets the shipped shape in the theme's colour, never Google's
+ * own default marker - switching providers must not change what the same record looks like.
+ *
  * @param location Pin to draw.
  * @param color Fill colour, normally the host theme's primary.
  * @param textColor Colour of a group pin's count.
- * @returns A Google Maps icon, or `undefined` to keep Google's own default pin.
+ * @returns The Google Maps icon.
  */
-const getPinIcon = (location: IMapLocation, color: string, textColor: string): google.maps.Icon | undefined => {
+const getPinIcon = (location: IMapLocation, color: string, textColor: string): google.maps.Icon => {
     if (location.cluster) {
         const size = getClusterPinSize(location.cluster.count);
         return {
@@ -157,14 +195,11 @@ const getPinIcon = (location: IMapLocation, color: string, textColor: string): g
             anchor: new google.maps.Point(size / 2, size / 2)
         };
     }
-    if (!location.pin?.color && !location.pin?.url && !location.pin?.svg) {
-        return undefined;
-    }
     const size = getPinSize(location.pin);
     //an image or custom markup is centred on the position, the shipped shape points at it
-    const isCentred = !!(location.pin.url || location.pin.svg);
+    const isCentred = !!(location.pin?.url || location.pin?.svg);
     return {
-        url: location.pin.url ?? toDataUrl(location.pin.svg ?? getPinSvg(location.pin.color as string)),
+        url: location.pin?.url ?? toDataUrl(location.pin?.svg ?? getPinSvg(location.pin?.color ?? color)),
         scaledSize: new google.maps.Size(size.width, size.height),
         anchor: new google.maps.Point(size.width / 2, isCentred ? size.height / 2 : size.height)
     };
