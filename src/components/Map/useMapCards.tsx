@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useMemo, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { executeFunctionAsync, IRecord } from '@talxis/client-libraries';
 import { IContext } from '@interfaces';
 import { ITheme } from '@legacy';
@@ -100,6 +100,13 @@ export const useMapCards = (props: IUseMapCards): IMapCardsState => {
 
     const onCloseCard = useCallback(() => setOpenLocation(undefined), []);
 
+    //nothing renders for a pin that is gone, so the open pin is dropped rather than left hanging in state
+    useEffect(() => {
+        setOpenLocation((current) => (
+            current && !current.cluster && !recordsById.has(current.id) ? undefined : current
+        ));
+    }, [recordsById]);
+
     const getClusterRecords = useCallback((location: IMapLocation): IRecord[] =>
         (location.cluster?.recordIds ?? [])
             .map((recordId) => recordsById.get(recordId))
@@ -108,7 +115,11 @@ export const useMapCards = (props: IUseMapCards): IMapCardsState => {
 
     const deletableIds = useMemo(() => new Set(deletableRecordIds ?? []), [deletableRecordIds]);
 
-    const renderRecordCard = useCallback((record: IRecord, location: IMapLocation): ReactNode => {
+    const renderRecordCard = useCallback((record: IRecord | undefined, location: IMapLocation): ReactNode => {
+        //the record can go while its card is open - a search or a filter narrows the dataset under it
+        if (!record) {
+            return null;
+        }
         const definition = getDefinition(record);
         const renderer = allRenderers[definition.type];
         if (!renderer) {
@@ -172,6 +183,10 @@ export const useMapCards = (props: IUseMapCards): IMapCardsState => {
         if (!openLocation) {
             return undefined;
         }
+        //a card whose record has left the dataset closes rather than renders half of itself
+        if (!openLocation.cluster && !recordsById.has(openLocation.id)) {
+            return undefined;
+        }
         const content = openLocation.cluster
             ? <MapClusterCard
                 cluster={openLocation.cluster}
@@ -183,7 +198,7 @@ export const useMapCards = (props: IUseMapCards): IMapCardsState => {
                     onZoomToCluster(openLocation);
                     setOpenLocation(undefined);
                 }} />
-            : renderRecordCard(recordsById.get(openLocation.id) as IRecord, openLocation);
+            : renderRecordCard(recordsById.get(openLocation.id), openLocation);
         if (!content) {
             return undefined;
         }
