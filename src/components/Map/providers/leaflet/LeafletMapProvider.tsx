@@ -261,9 +261,10 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
                     </Popup>}
                 {routes.map((route) => (
                     <Polyline
-                        key={route.id}
-                        positions={route.locations.map((location) => [location.latitude, location.longitude])}
-                        color={theme.palette.themePrimary}
+                        //a snapped path is a different line, so react-leaflet needs a new identity to redraw
+                        key={`${route.id}|${route.path ? 'snapped' : 'straight'}`}
+                        positions={(route.path ?? route.locations).map((point) => [point.latitude, point.longitude])}
+                        color={route.color ?? theme.palette.themePrimary}
                         weight={ROUTE_STROKE_WEIGHT} />
                 ))}
                 {/* the label lives on the marker's tooltip; the card the control opens is the popup below */}

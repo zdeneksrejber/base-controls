@@ -33,6 +33,7 @@ export * from './map-cluster-card';
 export * from './addressMapping';
 export * from './useMapEditing';
 export * from './useUserLocation';
+export * from './useMapRoutePaths';
 export * from './translations';
 export * from './viewport';
 export * from './fallbackLocation';

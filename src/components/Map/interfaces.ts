@@ -47,6 +47,15 @@ export interface IMapParameters extends IParameters {
     LongitudeAttributeName: IStringProperty;
     /** Groups pins into routes by shared non empty value. Routes of fewer than two pins are dropped. */
     RouteAttributeName?: IStringProperty;
+    /** Orders the pins within a route. Without it they are drawn in dataset order. */
+    RouteSequenceAttributeName?: IStringProperty;
+    /** Colours a route. The first pin on it that has a value wins; without one the theme's primary is used. */
+    RouteColorAttributeName?: IStringProperty;
+    /**
+     * Whether a route follows the road network instead of running straight between its pins, through
+     * whichever configured vendor has a directions service. Off by default - it costs a request per route.
+     */
+    SnapRoutesToRoads?: Omit<ITwoOptionsProperty, 'attributes'>;
     /**
      * Whether the control may add the link entity and column a dot notation attribute path needs when the
      * dataset does not already carry them. Defaults to true; the added column is hidden.

@@ -28,8 +28,18 @@ export interface IMapLocation extends IMapCoordinates {
 export interface IMapRoute {
     /** Value of the `RouteAttributeName` attribute shared by every location on this route. */
     id: string;
-    /** Locations in dataset order. Providers should connect them into a single line. */
+    /**
+     * Locations in the order they should be visited - by the sequence attribute where one is configured,
+     * and in dataset order otherwise. Providers connect them into a single line.
+     */
     locations: IMapLocation[];
+    /** Colour to draw the line in, from the colour attribute. Absent means the theme's primary. */
+    color?: string;
+    /**
+     * The line to actually draw, following the road network, once a directions service has resolved it.
+     * Absent means draw a straight line through `locations`.
+     */
+    path?: IMapCoordinates[];
 }
 
 /**

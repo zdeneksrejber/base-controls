@@ -18,7 +18,12 @@ export interface IMapPins {
 export interface IMapPinAttributes {
     latitude: string;
     longitude: string;
+    /** Groups pins into one line by shared value. */
     route?: string;
+    /** Orders the pins within a line. Without it they are drawn in dataset order. */
+    routeSequence?: string;
+    /** Colours the line. The first non empty value on the route wins. */
+    routeColor?: string;
 }
 
 /** Coordinates resolved some other way than off the record - by geo-coding an address - keyed by record id. */
@@ -35,6 +40,16 @@ export interface IMapPinOptions {
 }
 
 export const EMPTY_MAP_PINS: IMapPins = { locations: [], routes: [], unplacedRecords: [] };
+
+/** One pin on a route, with what the route needs to order and colour itself. */
+interface IRouteStop {
+    location: IMapLocation;
+    /** Value of the sequence attribute, or `undefined` where none is configured or the record has none. */
+    sequence?: number | string;
+    color?: string;
+    /** Position in the dataset, which orders stops that share a sequence value or have none. */
+    index: number;
+}
 
 /**
  * Reads one record's pin.
@@ -69,22 +84,63 @@ const getLocation = (record: IRecord, options: IMapPinOptions): IMapLocation | u
 };
 
 /**
- * Reads the route a record belongs to.
+ * Reads an attribute as text, treating an empty value as no value at all.
  *
  * @param record Record to read.
- * @param attributes Attribute paths, whose `route` entry names the grouping attribute.
- * @returns The route id, or `undefined` when no attribute is configured or the record's value is empty.
+ * @param path Attribute path, or `undefined` when none is configured.
+ * @returns The value as text, or `undefined`.
  */
-const getRouteId = (record: IRecord, attributes: IMapPinAttributes): string | undefined => {
-    if (!attributes.route) {
+const getText = (record: IRecord, path?: string): string | undefined => {
+    if (!path) {
         return undefined;
     }
-    const value = getRecordValue(record, attributes.route);
+    const value = getRecordValue(record, path);
     if (value === undefined || value === null || value === '') {
         return undefined;
     }
     return `${value}`;
 };
+
+/**
+ * Reads the value a route orders its stops by.
+ *
+ * @param record Record to read.
+ * @param path Sequence attribute path.
+ * @returns A number where the value is one, the text otherwise, or `undefined`.
+ */
+const getSequence = (record: IRecord, path?: string): number | string | undefined => {
+    const text = getText(record, path);
+    if (text === undefined) {
+        return undefined;
+    }
+    const numeric = Number(text);
+    return Number.isFinite(numeric) ? numeric : text;
+};
+
+/**
+ * Orders the stops of one route.
+ *
+ * Stops with a sequence come first, in that order; numbers sort as numbers so `10` follows `9`. Anything
+ * without one keeps its dataset position at the end, which is what an unconfigured route already did.
+ *
+ * @param stops Stops of one route, in dataset order.
+ * @returns The stops in the order they should be drawn.
+ */
+const orderStops = (stops: IRouteStop[]): IRouteStop[] => [...stops].sort((left, right) => {
+    if (left.sequence === undefined && right.sequence === undefined) {
+        return left.index - right.index;
+    }
+    if (left.sequence === undefined) {
+        return 1;
+    }
+    if (right.sequence === undefined) {
+        return -1;
+    }
+    if (typeof left.sequence === 'number' && typeof right.sequence === 'number') {
+        return left.sequence - right.sequence || left.index - right.index;
+    }
+    return `${left.sequence}`.localeCompare(`${right.sequence}`) || left.index - right.index;
+});
 
 /**
  * Reads the pins off the loaded records.
@@ -94,10 +150,12 @@ const getRouteId = (record: IRecord, attributes: IMapPinAttributes): string | un
  * @returns The locations in dataset order, the routes of two pins or more, and the records left unplaced.
  */
 export const getMapPins = (records: IRecord[], options: IMapPinOptions): IMapPins => {
+    const { attributes } = options;
     const locations: IMapLocation[] = [];
     const unplacedRecords: IRecord[] = [];
     //a Map, not an object - object keys that look like integers would reorder the routes
-    const routeLocations = new Map<string, IMapLocation[]>();
+    const routeStops = new Map<string, IRouteStop[]>();
+
     records.forEach((record, index) => {
         try {
             const location = getLocation(record, options);
@@ -106,26 +164,40 @@ export const getMapPins = (records: IRecord[], options: IMapPinOptions): IMapPin
                 return;
             }
             locations.push(location);
-            const routeId = getRouteId(record, options.attributes);
+            const routeId = getText(record, attributes.route);
             if (!routeId) {
                 return;
             }
-            const route = routeLocations.get(routeId);
-            if (route) {
-                route.push(location);
+            const stop: IRouteStop = {
+                location,
+                sequence: getSequence(record, attributes.routeSequence),
+                color: getText(record, attributes.routeColor),
+                index
+            };
+            const stops = routeStops.get(routeId);
+            if (stops) {
+                stops.push(stop);
                 return;
             }
-            routeLocations.set(routeId, [location]);
+            routeStops.set(routeId, [stop]);
         } catch (error) {
             console.warn(`Map: failed to read the location of the record on index ${index}:`, error);
         }
     });
+
     return {
         locations,
         unplacedRecords,
         //a route needs at least two pins to be drawable
-        routes: [...routeLocations]
-            .filter(([, route]) => route.length > 1)
-            .map(([id, route]) => ({ id, locations: route }))
+        routes: [...routeStops]
+            .filter(([, stops]) => stops.length > 1)
+            .map(([id, stops]) => {
+                const ordered = orderStops(stops);
+                return {
+                    id,
+                    locations: ordered.map((stop) => stop.location),
+                    color: ordered.find((stop) => stop.color)?.color
+                };
+            })
     };
 };

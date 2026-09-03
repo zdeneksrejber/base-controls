@@ -129,4 +129,89 @@ describe('getMapPins', () => {
         ];
         expect(getMapPins(records, options).routes).toEqual([]);
     });
+
+    it('orders a route by its sequence attribute rather than by dataset order', () => {
+        const records = [
+            createFakeRecord({ id: 'c', rawData: { lat: 3, lng: 3, trip: 'north', stop: 3 } }),
+            createFakeRecord({ id: 'a', rawData: { lat: 1, lng: 1, trip: 'north', stop: 1 } }),
+            createFakeRecord({ id: 'b', rawData: { lat: 2, lng: 2, trip: 'north', stop: 2 } })
+        ];
+
+        const [route] = getMapPins(records, {
+            attributes: { ...attributes, route: 'trip', routeSequence: 'stop' }
+        }).routes;
+
+        expect(route.locations.map((location) => location.id)).toEqual(['a', 'b', 'c']);
+    });
+
+    it('sorts a numeric sequence as numbers, so ten follows nine', () => {
+        const records = [9, 10, 2].map((stop) => createFakeRecord({
+            id: `s${stop}`,
+            rawData: { lat: stop, lng: stop, trip: 'north', stop }
+        }));
+
+        const [route] = getMapPins(records, {
+            attributes: { ...attributes, route: 'trip', routeSequence: 'stop' }
+        }).routes;
+
+        expect(route.locations.map((location) => location.id)).toEqual(['s2', 's9', 's10']);
+    });
+
+    it('puts the stops with no sequence last, keeping their dataset order', () => {
+        const records = [
+            createFakeRecord({ id: 'none1', rawData: { lat: 1, lng: 1, trip: 'north' } }),
+            createFakeRecord({ id: 'second', rawData: { lat: 2, lng: 2, trip: 'north', stop: 2 } }),
+            createFakeRecord({ id: 'none2', rawData: { lat: 3, lng: 3, trip: 'north' } }),
+            createFakeRecord({ id: 'first', rawData: { lat: 4, lng: 4, trip: 'north', stop: 1 } })
+        ];
+
+        const [route] = getMapPins(records, {
+            attributes: { ...attributes, route: 'trip', routeSequence: 'stop' }
+        }).routes;
+
+        expect(route.locations.map((location) => location.id)).toEqual(['first', 'second', 'none1', 'none2']);
+    });
+
+    it('colours a route from the first stop that names one', () => {
+        const records = [
+            createFakeRecord({ id: 'a', rawData: { lat: 1, lng: 1, trip: 'north' } }),
+            createFakeRecord({ id: 'b', rawData: { lat: 2, lng: 2, trip: 'north', shade: '#c50f1f' } })
+        ];
+
+        const [route] = getMapPins(records, {
+            attributes: { ...attributes, route: 'trip', routeColor: 'shade' }
+        }).routes;
+
+        expect(route.color).toBe('#c50f1f');
+    });
+
+    it('leaves a route uncoloured when no stop names one', () => {
+        const records = [
+            createFakeRecord({ id: 'a', rawData: { lat: 1, lng: 1, trip: 'north' } }),
+            createFakeRecord({ id: 'b', rawData: { lat: 2, lng: 2, trip: 'north' } })
+        ];
+
+        const [route] = getMapPins(records, {
+            attributes: { ...attributes, route: 'trip', routeColor: 'shade' }
+        }).routes;
+
+        expect(route.color).toBeUndefined();
+    });
+
+    it('reads a pin appearance for each record', () => {
+        const records = [createFakeRecord({ id: 'a', rawData: { lat: 1, lng: 1, kind: 'depot' } })];
+
+        const pins = getMapPins(records, {
+            attributes,
+            getAppearance: (record) => record.getValue('kind') === 'depot' ? { color: '#c50f1f' } : undefined
+        });
+
+        expect(pins.locations[0].pin).toEqual({ color: '#c50f1f' });
+    });
+
+    it('leaves an appearance that changes nothing off the location', () => {
+        const records = [createFakeRecord({ id: 'a', rawData: { lat: 1, lng: 1 } })];
+        const pins = getMapPins(records, { attributes, getAppearance: () => ({}) });
+        expect(pins.locations[0]).not.toHaveProperty('pin');
+    });
 });

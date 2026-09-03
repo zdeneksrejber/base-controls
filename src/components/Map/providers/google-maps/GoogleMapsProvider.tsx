@@ -109,8 +109,8 @@ const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
                     {routes.map((route) => (
                         <Polyline
                             key={route.id}
-                            path={route.locations.map((location) => ({ lat: location.latitude, lng: location.longitude }))}
-                            strokeColor={theme.palette.themePrimary}
+                            path={(route.path ?? route.locations).map((point) => ({ lat: point.latitude, lng: point.longitude }))}
+                            strokeColor={route.color ?? theme.palette.themePrimary}
                             strokeWeight={ROUTE_STROKE_WEIGHT} />
                     ))}
                     {locations.map((location) => (

@@ -22,6 +22,7 @@ import { useMapClusters } from "./useMapClusters";
 import { useMapFiltering } from "./useMapFiltering";
 import { useMapProviders } from "./useMapProviders";
 import { useMapRecords } from "./useMapRecords";
+import { useMapRoutePaths } from "./useMapRoutePaths";
 import { useMapSearch } from "./useMapSearch";
 import { useMapViewport } from "./useMapViewport";
 import { mapTranslations } from "./translations";
@@ -42,6 +43,9 @@ export const Map = (props: IMap) => {
         LatitudeAttributeName,
         LongitudeAttributeName,
         RouteAttributeName,
+        RouteSequenceAttributeName,
+        RouteColorAttributeName,
+        SnapRoutesToRoads,
         FullAddressAttributeName,
         MaxGeocodingRequests,
         EnableAttributeLinking,
@@ -79,7 +83,7 @@ export const Map = (props: IMap) => {
     const [selectedLocationIds, setSelectedLocationIds] = useState<string[]>([]);
     const language = getMapLanguageTag(props.context?.userSettings?.languageId);
 
-    const { options, selectedId, provider: MapProvider, geocoder, onPickProvider } = useMapProviders({
+    const { options, selectedId, provider: MapProvider, geocoder, directions, onPickProvider } = useMapProviders({
         parameters: props.parameters,
         onGetMapProviders: props.onGetMapProviders,
         onGetMapVendors: props.onGetMapVendors,
@@ -90,6 +94,8 @@ export const Map = (props: IMap) => {
     const latitudeAttribute = LatitudeAttributeName?.raw;
     const longitudeAttribute = LongitudeAttributeName?.raw;
     const routeAttribute = RouteAttributeName?.raw;
+    const routeSequenceAttribute = RouteSequenceAttributeName?.raw;
+    const routeColorAttribute = RouteColorAttributeName?.raw;
     const addressAttribute = FullAddressAttributeName?.raw;
 
     const filterAttributes = useMemo(
@@ -124,10 +130,20 @@ export const Map = (props: IMap) => {
             latitudeAttribute,
             longitudeAttribute,
             routeAttribute,
+            routeSequenceAttribute,
+            routeColorAttribute,
             ...Object.values(addressAttributes),
             ...filterAttributes
         ]),
-        [latitudeAttribute, longitudeAttribute, routeAttribute, addressAttributes, filterAttributes]
+        [
+            latitudeAttribute,
+            longitudeAttribute,
+            routeAttribute,
+            routeSequenceAttribute,
+            routeColorAttribute,
+            addressAttributes,
+            filterAttributes
+        ]
     );
     useMapAttributes({ dataset, paths: attributePaths, enabled: EnableAttributeLinking?.raw !== false });
 
@@ -170,12 +186,14 @@ export const Map = (props: IMap) => {
             attributes: {
                 latitude: latitudeAttribute,
                 longitude: longitudeAttribute,
-                route: routeAttribute ?? undefined
+                route: routeAttribute ?? undefined,
+                routeSequence: routeSequenceAttribute ?? undefined,
+                routeColor: routeColorAttribute ?? undefined
             },
             fallbackCoordinates,
             getAppearance: resolvePinAppearance
         });
-    }, [records, latitudeAttribute, longitudeAttribute, routeAttribute, resolvePinAppearance]);
+    }, [records, latitudeAttribute, longitudeAttribute, routeAttribute, routeSequenceAttribute, routeColorAttribute, resolvePinAppearance]);
 
     const unplacedRecords = useMemo(() => readPins().unplacedRecords, [readPins]);
 
@@ -206,6 +224,13 @@ export const Map = (props: IMap) => {
         dataset,
         geocoder,
         enableAddressSearch: isSearchEnabled && EnableAddressSearch?.raw !== false,
+        language
+    });
+
+    const routePaths = useMapRoutePaths({
+        routes: pins.routes,
+        enabled: SnapRoutesToRoads?.raw === true,
+        directions,
         language
     });
 
@@ -273,7 +298,7 @@ export const Map = (props: IMap) => {
 
     const providerProps = useMemo<IMapProviderProps>(() => ({
         locations: drawnLocations,
-        routes: pins.routes,
+        routes: routePaths.routes,
         viewport,
         selectedLocationIds,
         context: props.context,
@@ -289,7 +314,7 @@ export const Map = (props: IMap) => {
         onMapClick: editing.onMapClick
     }), [
         drawnLocations,
-        pins.routes,
+        routePaths.routes,
         viewport,
         selectedLocationIds,
         props.context,

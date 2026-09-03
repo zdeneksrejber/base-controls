@@ -27,8 +27,8 @@ delivery log.
 - [x] **P3** Automated group-by on pin overlap in the current viewport, with a count and a grouped card
 
 ### Pin connections
-- [ ] **C1** Connect a group of pins into a line — ordered, grouped and coloured by attributes
-- [ ] **C2** Optional: snap the line to roads via the provider's directions service
+- [x] **C1** Connect a group of pins into a line — ordered, grouped and coloured by attributes
+- [x] **C2** Optional: snap the line to roads via the provider's directions service
 
 ### Map legend
 - [ ] **L1** Render simple HTML as a legend, loadable from a web resource, sanitized
@@ -201,3 +201,15 @@ where they overlap. Storybook exercises the fallback path.
 - Verified in Storybook against live HERE: a click created a record filled in as
   `273 / Lhotka / 277 31 / Czechia`, its card offered Delete, and dragging Brno depot wrote
   `49.6107 / 17.3804` back to the dataset.
+
+### Phase 6 — C1 and C2, pin connections
+- `RouteAttributeName` groups pins into a line, `RouteSequenceAttributeName` orders each line, and
+  `RouteColorAttributeName` colours it. A numeric sequence sorts as numbers, so stop 10 follows stop 9; a
+  stop with no sequence keeps its dataset position at the end.
+- `SnapRoutesToRoads` asks the active directions service for the real path. Optional in every sense: a
+  control that does not ask for it draws straight lines, a vendor with no directions service leaves them
+  straight, and a single run the service cannot resolve stays straight while the others are snapped.
+- Long runs are split across calls at each service's own stop limit and rejoined without repeating the
+  shared stop.
+- Verified in Storybook: three runs drawn blue, red and green in stop order despite the records arriving
+  sorted by name, then the same three following the road network through live Mapy.com routing.
