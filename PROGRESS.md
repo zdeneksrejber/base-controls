@@ -129,6 +129,12 @@ Three of these predate V2 and would have shipped unnoticed.
    columns back through it, so every card drawn in `PinLoading: all` silently lost its field labels and its
    title. The clone's lifetime now belongs to the caller.
 4. **Storybook never registered the Fluent icon set**, so every icon in every control rendered as nothing.
+5. **The Storybook dev server died on startup with `ENOSPC`** on this machine. Vite was watching the parent
+   repository including `node_modules` and `dist`, and one inotify instance per watched directory exhausted
+   `fs.inotify.max_user_instances` (1024, with 220 already held). The watcher now ignores the heavy
+   directories, which is worth doing regardless. Where that is still not enough the real fix is
+   `sudo sysctl fs.inotify.max_user_instances=8192` — and until then `STORYBOOK_POLL_WATCHER=1 npm run
+   storybook` trades a little CPU for needing no inotify instances at all.
 
 ## Known limitation, reported rather than hidden
 
