@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { IMapProvider } from '../IMapProvider';
+import { IMapProvider } from '../provider';
 import { createLeafletMapProvider } from '../leaflet';
 import { getMapyProviderStyles } from './styles';
 

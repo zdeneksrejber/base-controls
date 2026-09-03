@@ -15,9 +15,6 @@ export interface IFakeRecordOptions {
  *
  * `getValue` and `getFormattedValue` throw for a column the dataset does not carry, matching the real
  * record - which is what makes the control's raw data fallback worth testing.
- *
- * @param options Record id, raw data, registered columns and primary name.
- * @returns A record usable anywhere the control expects an `IRecord`.
  */
 export const createFakeRecord = (options: IFakeRecordOptions = {}): IRecord => {
     const rawData = options.rawData ?? {};

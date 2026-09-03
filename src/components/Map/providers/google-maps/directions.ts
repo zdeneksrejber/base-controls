@@ -1,7 +1,7 @@
-import { IMapDirections, IMapDirectionsFactory, IMapRoutePath } from '../../directions';
-import { getJson } from '../../http';
-import { decodeEncodedPolyline } from '../../polyline';
-import { IMapCoordinates } from '../../viewport';
+import { IMapDirections, IMapDirectionsFactory, IMapRoutePath } from '../../internal/directions';
+import { getJson } from '../../internal/http';
+import { decodeEncodedPolyline } from '../../internal/polyline';
+import { IMapCoordinates } from '../../internal/viewport';
 
 const ROUTES_URL = 'https://routes.googleapis.com/directions/v2:computeRoutes';
 
@@ -24,23 +24,13 @@ export interface IGoogleDirectionsConfig {
     travelMode?: 'DRIVE' | 'BICYCLE' | 'WALK' | 'TWO_WHEELER' | 'TRANSIT';
 }
 
-/**
- * Turns a Routes API duration into seconds.
- *
- * @param duration Duration as the API formats it, a number of seconds followed by `s`.
- * @returns The seconds, or `undefined` when there is nothing to read.
- */
+/** Turns a Routes API duration - a number of seconds followed by `s` - into seconds, or `undefined` when there is nothing to read. */
 const getDurationSeconds = (duration?: string): number | undefined => {
     const seconds = parseFloat(duration ?? '');
     return Number.isFinite(seconds) ? seconds : undefined;
 };
 
-/**
- * Reads a path out of a Routes API response.
- *
- * @param response Response body.
- * @returns The path, or `null` when Google routed nothing.
- */
+/** Reads a path out of a Routes API response, or `null` when Google routed nothing. */
 export const getGoogleRoutePath = (response: IGoogleRoutesResponse): IMapRoutePath | null => {
     const route = response.routes?.[0];
     const coordinates = decodeEncodedPolyline(route?.polyline?.encodedPolyline ?? '');
@@ -65,10 +55,6 @@ const toWaypoint = (stop: IMapCoordinates) => ({
  * The Routes API is a separate api from the one that draws the map and from the Geocoding API, so a project
  * that has not enabled `routes.googleapis.com` answers 403 - which the control reports and then falls back
  * to a straight line for.
- *
- * @param apiKey Key of a project with the Routes API enabled.
- * @param config Travel mode. Defaults to driving.
- * @returns The directions service.
  */
 export const createGoogleMapsDirections = (apiKey: string, config: IGoogleDirectionsConfig = {}): IMapDirections => ({
     maxStops: MAX_STOPS,

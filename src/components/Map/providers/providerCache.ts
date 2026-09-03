@@ -1,8 +1,8 @@
 import { useRef } from 'react';
 import deepEqual from 'fast-deep-equal/es6';
-import { IMapDirections } from '../directions';
-import { IMapGeocoder } from '../geocoding';
-import { IMapProvider, IMapProviderOption } from './IMapProvider';
+import { IMapDirections } from '../internal/directions';
+import { IMapGeocoder } from '../internal/geocoding';
+import { IMapProvider, IMapProviderOption } from './provider';
 
 export interface IMapProviderSource extends Omit<IMapProviderOption, 'provider' | 'geocoder' | 'directions'> {
     /** Identifies the configuration behind `id`, defaulting to `id`. A changed key rebuilds everything below. */
@@ -21,13 +21,10 @@ interface ICachedProvider {
 }
 
 /**
- * Keeps one provider, geocoder and directions service per cache key, and the resolved list stable while it
- * resolves to the same thing. A fresh component identity remounts the map, and a fresh geocoder drops its
- * cache, so this is what lets a host rebuild its provider list every render, and a maker edit one vendor's
- * api key, without the map blinking or the geocoding starting over.
- *
- * Call once per render with the full list - the cache is rebuilt rather than added to, so a key that stopped
- * being offered does not stay alive in it.
+ * Keeps one provider, geocoder and directions service per cache key, so a host can rebuild its provider list
+ * every render, or a maker edit one vendor's api key, without remounting the map or resetting the geocoding
+ * cache. Call once per render with the full list - it is rebuilt, not appended to, so a dropped key does not
+ * stay alive.
  */
 export const useMapProviderCache = () => {
     const cacheRef = useRef<{ [cacheKey: string]: ICachedProvider }>({});

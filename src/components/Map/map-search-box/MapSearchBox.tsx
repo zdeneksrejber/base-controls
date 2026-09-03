@@ -1,6 +1,6 @@
 import { KeyboardEvent, useMemo } from 'react';
 import { ITheme, TextField } from '@legacy';
-import { IMapPlace } from '../geocoding';
+import { IMapPlace } from '../internal/geocoding';
 import { IMapLabels } from '../translations';
 import { getMapSearchBoxStyles } from './styles';
 
@@ -26,9 +26,6 @@ export interface IMapSearchBoxProps {
  * Committing what is typed filters the records through the entity's quick find; picking one of the offered
  * places moves the map there instead. Both are the same input, because to the person using it "find Brno" is
  * one question whether the answer is a record or a location.
- *
- * @param props The query, the offered places, the labels and the two ways of acting on a search.
- * @returns The box and its suggestions.
  */
 export const MapSearchBox = (props: IMapSearchBoxProps) => {
     const styles = useMemo(() => getMapSearchBoxStyles(props.theme), [props.theme]);

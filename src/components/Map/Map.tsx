@@ -4,29 +4,29 @@ import { useControl } from "@hooks";
 import { useEventEmitter } from "@hooks/useEventEmitter";
 import { getClassNames } from "@utils";
 import { IMap } from "./interfaces";
-import { getDistinctAttributePaths } from "./attributes";
-import { getMapLanguageTag } from "./language";
-import { IMapAddressAttributes } from "./addressMapping";
-import { useMapEditing } from "./useMapEditing";
-import { useUserLocation } from "./useUserLocation";
-import { getMapPinAppearance, parseMapPinRules } from "./pinAppearance";
-import { useMapClientApi } from "./clientApi";
-import { parseMapCardRules } from "./cards";
-import { useMapCards } from "./useMapCards";
-import { getMapWebResourceUrl } from "./webResource";
+import { getDistinctAttributePaths } from "./internal/attributes";
+import { getMapLanguageTag } from "./internal/language";
+import { IMapAddressAttributes } from "./internal/addressMapping";
+import { useMapEditing } from "./hooks/useMapEditing";
+import { useUserLocation } from "./hooks/useUserLocation";
+import { getMapPinAppearance, parseMapPinRules } from "./internal/pinAppearance";
+import { useMapClientApi } from "./hooks/useMapClientApi";
+import { parseMapCardRules } from "./internal/cards";
+import { useMapCards } from "./hooks/useMapCards";
+import { getMapWebResourceUrl } from "./internal/webResource";
 import { IMapLocation, IMapProviderProps } from "./providers";
-import { EMPTY_MAP_PINS, getMapPins, IMapFallbackCoordinates } from "./pins";
-import { useGeocodedLocations } from "./useGeocodedLocations";
-import { useMapAttributes } from "./useMapAttributes";
-import { useMapClusters } from "./useMapClusters";
-import { useMapFiltering } from "./useMapFiltering";
-import { useMapProviders } from "./useMapProviders";
-import { useMapRecords } from "./useMapRecords";
-import { useDatasetLoading } from "./useDatasetLoading";
-import { useMapRoutePaths } from "./useMapRoutePaths";
-import { useMapLegend } from "./useMapLegend";
-import { useMapSearch } from "./useMapSearch";
-import { useMapViewport } from "./useMapViewport";
+import { EMPTY_MAP_PINS, getMapPins, IMapFallbackCoordinates } from "./internal/pins";
+import { useGeocodedLocations } from "./hooks/useGeocodedLocations";
+import { useMapAttributes } from "./hooks/useMapAttributes";
+import { useMapClusters } from "./hooks/useMapClusters";
+import { useMapFiltering } from "./hooks/useMapFiltering";
+import { useMapProviders } from "./hooks/useMapProviders";
+import { useMapRecords } from "./hooks/useMapRecords";
+import { useDatasetLoading } from "./hooks/useDatasetLoading";
+import { useMapRoutePaths } from "./hooks/useMapRoutePaths";
+import { useMapLegend } from "./hooks/useMapLegend";
+import { useMapSearch } from "./hooks/useMapSearch";
+import { useMapViewport } from "./hooks/useMapViewport";
 import { mapTranslations } from "./translations";
 import { getMapStyles } from "./styles";
 import { MapLegend } from "./map-legend";
@@ -38,6 +38,8 @@ import { MapStatus } from "./map-status";
 
 /** Zoom the map moves to when a place is picked out of the search suggestions. */
 const PLACE_ZOOM = 15;
+
+const EMPTY_RECORDS: IRecord[] = [];
 
 export const Map = (props: IMap) => {
     const onOverrideComponentProps = props.onOverrideComponentProps ?? ((providerProps) => providerProps);
@@ -150,7 +152,7 @@ export const Map = (props: IMap) => {
             filterAttributes
         ]
     );
-    useMapAttributes({ dataset, paths: attributePaths, enabled: EnableAttributeLinking?.raw !== false });
+    const isRegisteringAttributes = useMapAttributes({ dataset, paths: attributePaths, enabled: EnableAttributeLinking?.raw !== false });
 
     const isDatasetLoading = useDatasetLoading(dataset);
 
@@ -202,17 +204,22 @@ export const Map = (props: IMap) => {
         });
     }, [records, latitudeAttribute, longitudeAttribute, routeAttribute, routeSequenceAttribute, routeColorAttribute, resolvePinAppearance]);
 
-    const unplacedRecords = useMemo(() => readPins().unplacedRecords, [readPins]);
+    const placement = useMemo(() => readPins(), [readPins]);
 
     const geocoded = useGeocodedLocations({
-        records: unplacedRecords,
+        //while linked columns are still registering, coordinates read as absent - geocoding those records
+        //would spend quota on pins that are about to place themselves
+        records: isRegisteringAttributes ? EMPTY_RECORDS : placement.unplacedRecords,
         addressAttribute: addressAttribute ?? undefined,
         geocoder,
         language,
         maxRequests: MaxGeocodingRequests?.raw ?? undefined
     });
 
-    const pins = useMemo(() => readPins(geocoded.coordinates), [readPins, geocoded.coordinates]);
+    const pins = useMemo(
+        () => (Object.keys(geocoded.coordinates).length ? readPins(geocoded.coordinates) : placement),
+        [readPins, placement, geocoded.coordinates]
+    );
 
     const resolveUserLocation = useUserLocation({ onResolveFallbackLocation: props.onResolveFallbackLocation });
 
@@ -276,10 +283,11 @@ export const Map = (props: IMap) => {
     const onZoomToCluster = useCallback((location: IMapLocation) => {
         onFocusViewport({
             center: { latitude: location.latitude, longitude: location.longitude },
-            zoom: location.cluster?.expansionZoom ?? viewport.zoom + 2,
-            padding: viewport.padding
+            //relative to what the user is actually looking at, not what the control last asked for
+            zoom: location.cluster?.expansionZoom ?? visibleViewport.zoom + 2,
+            padding: visibleViewport.padding
         });
-    }, [onFocusViewport, viewport.padding, viewport.zoom]);
+    }, [onFocusViewport, visibleViewport.padding, visibleViewport.zoom]);
 
     const cardRules = useMemo(() => parseMapCardRules(Cards?.raw), [Cards?.raw]);
     const cardFallback = useMemo(() => ({
@@ -303,13 +311,14 @@ export const Map = (props: IMap) => {
         deletableRecordIds: editing.createdRecordIds
     });
 
+    const onOpenCard = cards.onOpenCard;
     const onLocationClick = useCallback((location: IMapLocation) => {
         //a group has no record to select, so activating one opens the card listing what it stands for
         if (!location.cluster) {
             dataset?.setSelectedRecordIds([location.id]);
         }
-        cards.onOpenCard(location);
-    }, [dataset, cards]);
+        onOpenCard(location);
+    }, [dataset, onOpenCard]);
 
     const providerProps = useMemo<IMapProviderProps>(() => ({
         locations: drawnLocations,
@@ -352,7 +361,7 @@ export const Map = (props: IMap) => {
         : geocoded.isResolving
             ? { message: labels.geocodingAddresses({ count: `${geocoded.pendingCount}` }), isBusy: true }
             : isTruncated
-                ? { message: labels.pinsTruncated({ count: `${records.length}` }), isWarning: true }
+                ? { message: labels.pinsTruncated({ count: `${loadedCount}` }), isWarning: true }
                 : {};
 
     return (

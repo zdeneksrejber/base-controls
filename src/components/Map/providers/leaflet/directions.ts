@@ -1,6 +1,6 @@
-import { IMapDirections, IMapRoutePath } from '../../directions';
-import { buildUrl, getJson } from '../../http';
-import { IMapCoordinates } from '../../viewport';
+import { IMapDirections, IMapRoutePath } from '../../internal/directions';
+import { buildUrl, getJson } from '../../internal/http';
+import { IMapCoordinates } from '../../internal/viewport';
 
 const OSRM_URL = 'https://router.project-osrm.org/route/v1';
 
@@ -29,8 +29,6 @@ export interface IOsrmDirectionsConfig {
  *
  * The geometry is GeoJSON, so its coordinates are longitude first.
  *
- * @param response Response body.
- * @returns The path, or `null` when OSRM routed nothing.
  * @throws When OSRM answered with a code other than `Ok`, so a misconfigured profile is not silent.
  */
 export const getOsrmRoutePath = (response: IOsrmRouteResponse): IMapRoutePath | null => {
@@ -54,9 +52,6 @@ export const getOsrmRoutePath = (response: IOsrmRouteResponse): IMapRoutePath | 
  *
  * The public demo server carries no availability guarantee and asks that it not be used in production, so
  * point `baseUrl` at your own instance for anything real - the same caveat the OpenStreetMap tiles carry.
- *
- * @param config Service url and routing profile. Defaults to the public demo server, driving.
- * @returns The directions service.
  */
 export const createOsrmDirections = (config: IOsrmDirectionsConfig = {}): IMapDirections => ({
     maxStops: MAX_STOPS,

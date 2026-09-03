@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renameFormattedValueKeys } from '../../cards';
+import { renameFormattedValueKeys } from '../../internal/cards';
 import { expandAdaptiveCardTemplate, expandSimpleBindings } from './template';
 
 const DATA = renameFormattedValueKeys({

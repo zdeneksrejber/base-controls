@@ -1,4 +1,4 @@
-import { IMapProvider } from '../IMapProvider';
+import { IMapProvider } from '../provider';
 import { createLeafletMapProvider } from '../leaflet';
 
 /**
@@ -93,14 +93,7 @@ const getTileLayerUrl = (config: IHereMapsConfig, style: IHereMapsStyle): string
 const DEFAULT_LOW_POI_STYLE: IHereMapsStyle = 'lite.day';
 const DEFAULT_LOW_POI_DARK_STYLE: IHereMapsStyle = 'lite.night';
 
-/**
- * Picks the style for a theme and whether points of interest are wanted.
- *
- * @param config Provider config.
- * @param isDark Whether the control theme is dark.
- * @param showPointsOfInterest Whether the map should draw its own points of interest.
- * @returns The style to request tiles in.
- */
+/** Picks the style for a theme and whether points of interest are wanted. */
 const getStyle = (config: IHereMapsConfig, isDark: boolean, showPointsOfInterest: boolean): IHereMapsStyle => {
     if (!showPointsOfInterest) {
         return isDark

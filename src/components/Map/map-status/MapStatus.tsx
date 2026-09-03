@@ -13,13 +13,7 @@ export interface IMapStatusProps {
     theme: ITheme;
 }
 
-/**
- * A small pill reporting what the control is doing - loading every page, resolving addresses, or that a
- * load stopped short.
- *
- * @param props Message to show, whether it is progress or a warning, and the host theme.
- * @returns The pill, or nothing when there is no message.
- */
+/** A small pill reporting what the control is doing - loading every page, resolving addresses, or that a load stopped short. */
 export const MapStatus = (props: IMapStatusProps) => {
     const styles = useMemo(() => getMapStatusStyles(props.theme), [props.theme]);
 

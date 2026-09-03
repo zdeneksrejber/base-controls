@@ -6,9 +6,9 @@ import {
     IMapGeocoderFactory,
     IMapPlace,
     withGeocodingCache
-} from '../../geocoding';
-import { buildUrl, getJson } from '../../http';
-import { IMapCoordinates } from '../../viewport';
+} from '../../internal/geocoding';
+import { buildUrl, getJson } from '../../internal/http';
+import { IMapCoordinates } from '../../internal/viewport';
 
 const GEOCODE_URL = 'https://api.mapy.com/v1/geocode';
 const REVERSE_GEOCODE_URL = 'https://api.mapy.com/v1/rgeocode';
@@ -36,12 +36,8 @@ export interface IMapyGeocodeResponse {
  * Picks a part out of the regional structure by its type.
  *
  * Mapy.com orders the structure from the most specific part outwards and repeats a type where a country has
- * more than one level of it - two `regional.region` entries are a district followed by the region above it.
- *
- * @param parts Regional structure of one item.
- * @param type Type to look for.
- * @param position `first` for the most specific part of that type, `last` for the broadest.
- * @returns The matching part, or `undefined`.
+ * more than one level of it - two `regional.region` entries are a district followed by the region above it;
+ * `position` picks which end of that list to read from.
  */
 const findRegionalPart = (
     parts: IMapyRegionalPart[],
@@ -52,12 +48,7 @@ const findRegionalPart = (
     return position === 'first' ? matches[0] : matches[matches.length - 1];
 };
 
-/**
- * Maps one Mapy.com geocoding item onto a place.
- *
- * @param item Item as the REST API returns it.
- * @returns The place, or `undefined` when the item carries no position.
- */
+/** Maps one Mapy.com geocoding item onto a place, or `undefined` when the item carries no position. */
 export const getMapyPlace = (item: IMapyGeocodeItem): IMapPlace | undefined => {
     const position = item.position;
     if (!position || typeof position.lat !== 'number' || typeof position.lon !== 'number') {
@@ -88,21 +79,11 @@ export const getMapyPlace = (item: IMapyGeocodeItem): IMapPlace | undefined => {
     };
 };
 
-/**
- * Reads the places out of a Mapy.com geocoding response.
- *
- * @param response Response body.
- * @returns The places it matched.
- */
+/** Reads the places out of a Mapy.com geocoding response. */
 export const getMapyPlaces = (response: IMapyGeocodeResponse): IMapPlace[] =>
     (response.items ?? []).map(getMapyPlace).filter((place): place is IMapPlace => !!place);
 
-/**
- * Builds the Mapy.com geocoder, backed by their REST API.
- *
- * @param apiKey Key from the Mapy.com developer portal.
- * @returns A geocoder that answers the same lookup only once.
- */
+/** Builds the Mapy.com geocoder, backed by their REST API; answers the same lookup only once. */
 export const createMapyGeocoder: IMapGeocoderFactory = (apiKey: string): IMapGeocoder => withGeocodingCache({
     geocode: async (query, options) => {
         if (!query.trim()) {

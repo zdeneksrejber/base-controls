@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useMemo } from 'react'
-import { MapDemo } from './MapDemo'
-import { preferredVendor } from './mapApiKeys'
-import { createSampleDataset, generateSiteRecords, getSiteRecords, SAMPLE_ATTRIBUTES } from './mapSampleData'
+import { MapDemo } from '../../map/MapDemo'
+import { preferredVendor } from '../../map/mapApiKeys'
+import { createSampleDataset, generateSiteRecords, getSiteRecords, SAMPLE_ATTRIBUTES } from '../../map/mapSampleData'
 import { mapStoryParameters } from './storyHelpers'
 
 const COORDINATES = {

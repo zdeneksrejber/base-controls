@@ -1,20 +1,20 @@
 import L from 'leaflet';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { IMapLocation, IMapProvider, IMapProviderProps } from '../IMapProvider';
+import { IMapLocation, IMapProvider, IMapProviderProps } from '../provider';
 import {
     getClusterPinSize,
     getClusterPinSvg,
+    getPinAnchor,
     getPinImageMarkup,
     getPinMarkup,
     getPinSize,
-    PIN_HEIGHT,
-    PIN_WIDTH,
     ROUTE_STROKE_WEIGHT,
     useMapPinSelection
 } from '../pinStyle';
+import { CARD_MAX_WIDTH } from '../layout';
 import { isMapSurfaceClick } from '../mapClick';
-import { isFiniteMapViewport, IMapViewport } from '../../viewport';
+import { isFiniteMapViewport, IMapViewport } from '../../internal/viewport';
 import { getLeafletMapProviderStyles } from './styles';
 import 'leaflet/dist/leaflet.css';
 
@@ -36,9 +36,6 @@ export interface ILeafletMapConfig {
 /** Builds the config from what the control handed the provider, for tiles that depend on it - a dark style, say. */
 export type ILeafletMapConfigResolver = (props: IMapProviderProps) => ILeafletMapConfig;
 
-/** Widest a card is allowed to be, so it never covers the map it is anchored on. */
-const CARD_MAX_WIDTH = 340;
-
 const DEFAULT_TILE_LAYER_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const DEFAULT_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
@@ -47,19 +44,15 @@ const DEFAULT_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyr
  *
  * Everything is a `DivIcon`, image included, so the provider needs no image assets of its own and a custom
  * appearance is drawn exactly the same way as the shipped one.
- *
- * @param location Pin to draw.
- * @param defaultColor Colour the shipped pin takes.
- * @returns The Leaflet icon.
  */
 const getPinIcon = (location: IMapLocation, defaultColor: string) => {
     const size = getPinSize(location.pin);
     const markup = getPinMarkup(location.pin, defaultColor);
+    const anchor = getPinAnchor(location, size);
     return new L.DivIcon({
         className: '',
         iconSize: [size.width, size.height],
-        //the shipped shape points at its position, anything else is centred on it
-        iconAnchor: location.pin?.svg || location.pin?.url ? [size.width / 2, size.height / 2] : [size.width / 2, size.height],
+        iconAnchor: [anchor.x, anchor.y],
         popupAnchor: [0, -(size.height / 2)],
         html: markup ?? getPinImageMarkup(location.pin!.url as string, size)
     });
@@ -83,13 +76,10 @@ const toLeafletBounds = (bounds: Required<IMapViewport>['bounds']) =>
 /**
  * Keeps Leaflet's cached container size in step with the element.
  *
- * Leaflet measures its container once, at creation, and afterwards only when the window resizes. A map built
- * inside an element the browser has not laid out yet - a hidden tab, a docs page, a control that mounts
- * before its host sizes it - therefore caches a zero size, and every coordinate it computes from that is
- * `NaN` for the rest of its life. Observing the element and re-measuring is what makes the map recoverable.
- *
- * @param map Map to keep measured.
- * @returns Whether the map currently has a usable size, so the caller can hold off on applying a viewport.
+ * Leaflet measures its container once, at creation, and only re-measures on a window resize - so a map
+ * mounted before its host lays out the element (a hidden tab, an unsized container) caches a zero size and
+ * every coordinate it computes turns `NaN` for good. Returns whether the map currently has a usable size, so
+ * the caller can hold off applying a viewport until it does.
  */
 const useMeasuredMap = (map: L.Map): boolean => {
     const hasUsableSize = () => {

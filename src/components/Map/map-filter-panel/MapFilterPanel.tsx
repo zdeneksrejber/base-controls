@@ -1,7 +1,7 @@
 import { Checkbox, IconButton } from '@fluentui/react';
 import { useMemo, useState } from 'react';
 import { ITheme } from '@legacy';
-import { IMapFilterFacet, IMapFilterSelection, isMapFilterSelectionEmpty } from '../mapFilters';
+import { IMapFilterFacet, IMapFilterSelection, isMapFilterSelectionEmpty } from '../internal/mapFilters';
 import { IMapLabels } from '../translations';
 import { getMapFilterPanelStyles } from './styles';
 
@@ -20,9 +20,6 @@ export interface IMapFilterPanelProps {
  *
  * Values within one attribute widen the result and attributes narrow it, which is what clicking through
  * facets on a map is for: "depots or stores, in Brno". Each value carries how many records have it.
- *
- * @param props The facets, what is picked, and how to change it.
- * @returns The panel, collapsed to a single button until it is opened.
  */
 export const MapFilterPanel = (props: IMapFilterPanelProps) => {
     const styles = useMemo(() => getMapFilterPanelStyles(props.theme), [props.theme]);

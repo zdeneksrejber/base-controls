@@ -3,13 +3,13 @@ import { IControl, IOutputs } from "@interfaces/context";
 import { IDataset } from "@talxis/client-libraries";
 import { IMapTranslations } from "./translations";
 import { IMapProviderOption, IMapProviderProps, IMapVendor } from "./providers";
-import { IMapFallbackLocationResolver } from "./fallbackLocation";
-import { IMapPinResolver } from "./clientApi";
-import { IMapCardRenderers, IMapCardType } from "./cards";
-import { IMapClusteringOptions } from "./clustering";
-import { IMapFilterMode } from "./mapFilters";
-import { IMapPinLoading } from "./records";
-import { IMapViewport, IMapViewportOptions } from "./viewport";
+import { IMapFallbackLocationResolver } from "./internal/fallbackLocation";
+import { IMapPinResolver } from "./hooks/useMapClientApi";
+import { IMapCardRenderers, IMapCardType } from "./internal/cards";
+import { IMapClusteringOptions } from "./internal/clustering";
+import { IMapFilterMode } from "./internal/mapFilters";
+import { IMapPinLoading } from "./internal/records";
+import { IMapViewport, IMapViewportOptions } from "./internal/viewport";
 
 export interface IMap extends IControl<IMapParameters, IMapOutputs, IMapTranslations, IMapProviderProps> {
     /**

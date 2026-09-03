@@ -2,7 +2,7 @@ import { DefaultButton } from '@fluentui/react';
 import { Fragment, ReactNode, useMemo } from 'react';
 import { IRecord } from '@talxis/client-libraries';
 import { ITheme } from '@legacy';
-import { IMapClusterInfo } from '../clustering';
+import { IMapClusterInfo } from '../internal/clustering';
 import { IMapLabels } from '../translations';
 import { getMapClusterCardStyles } from './styles';
 
@@ -23,9 +23,6 @@ export interface IMapClusterCardProps {
  *
  * A group can stand for thousands of records, so only the ones the clusterer listed are shown and the rest
  * are counted - zooming in is how you reach them.
- *
- * @param props The group, the resolved member records, and how to render and zoom.
- * @returns The card.
  */
 export const MapClusterCard = (props: IMapClusterCardProps) => {
     const styles = useMemo(() => getMapClusterCardStyles(props.theme), [props.theme]);

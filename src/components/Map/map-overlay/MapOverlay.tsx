@@ -22,9 +22,6 @@ export interface IMapOverlayProps {
  * drawing, so none of them needs to know how a given map positions things.
  *
  * Only the chrome itself takes pointer events, so the empty space around it still pans the map.
- *
- * @param props Corner to anchor to, the axis to run along, the host theme, and the chrome to place there.
- * @returns The positioned chrome, or nothing when there is none.
  */
 export const MapOverlay = (props: IMapOverlayProps) => {
     const direction = props.direction ?? 'column';

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { IMapDirections } from '../directions';
-import { IMapGeocoder } from '../geocoding';
+import { IMapDirections } from '../internal/directions';
+import { IMapGeocoder } from '../internal/geocoding';
 import { getMapDirections, getMapGeocoder } from './geoServices';
-import { IMapProvider, IMapProviderOption } from './IMapProvider';
+import { IMapProvider, IMapProviderOption } from './provider';
 
 const provider = (() => null) as unknown as IMapProvider;
 const geocoder = (name: string) => ({ name } as unknown as IMapGeocoder);

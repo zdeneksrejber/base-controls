@@ -17,9 +17,6 @@ export interface IMapLegendProps {
  * The markup is whatever a maker put in the `Legend` property or the web resource it names, cleaned before it
  * gets here. Its button stays beside the provider picker whether the legend is open or shut, and the panel
  * drops below that row - a legend explains a map rather than replaces it.
- *
- * @param props Cleaned markup, the labels and the host theme.
- * @returns The legend, or nothing when there is no markup.
  */
 export const MapLegend = (props: IMapLegendProps) => {
     const styles = useMemo(() => getMapLegendStyles(props.theme), [props.theme]);

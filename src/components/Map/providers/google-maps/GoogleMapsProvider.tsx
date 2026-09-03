@@ -2,15 +2,13 @@ import { APIProvider, ColorScheme, InfoWindow, Map as GoogleMap, MapCameraChange
 import { useCallback, useEffect, useMemo } from 'react';
 import { createGoogleMapsDirectionsService } from './directions';
 import { createGoogleMapsGeocoder } from './geocoder';
-import { IMapLocation, IMapProvider, IMapProviderProps } from '../IMapProvider';
+import { IMapLocation, IMapProvider, IMapProviderProps } from '../provider';
 import { isMapSurfaceClick } from '../mapClick';
-import { getClusterPinSize, getClusterPinSvg, getPinSize, getPinSvg, ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
+import { getClusterPinSize, getClusterPinSvg, getPinAnchor, getPinSize, getPinSvg, ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
+import { CARD_MAX_WIDTH } from '../layout';
 import { IMapVendor } from '../vendors';
-import { IMapViewport } from '../../viewport';
+import { IMapViewport } from '../../internal/viewport';
 import { getGoogleMapsProviderStyles } from './styles';
-
-/** Widest a card is allowed to be, so it never covers the map it is anchored on. */
-const CARD_MAX_WIDTH = 340;
 
 /**
  * Hides the points of interest Google draws of its own accord, so the only pins on the map are the records.
@@ -59,9 +57,6 @@ interface IMapPinsProps extends Pick<IMapProviderProps, 'locations' | 'theme' | 
  * Held back until the Maps JS API is there: an icon is built out of `google.maps.Size` and
  * `google.maps.Point`, neither of which exists before the api script has loaded - and a marker has nothing to
  * attach to until then either.
- *
- * @param props Pins to draw, the current selection, and what a click or a drop does.
- * @returns One marker per pin, or nothing while the api is still loading.
  */
 const MapPins = (props: IMapPinsProps) => {
     const { locations, selection, theme, isPinDraggable, onLocationClick, onLocationDragEnd } = props;
@@ -180,11 +175,6 @@ const toDataUrl = (svg: string) => `data:image/svg+xml;charset=UTF-8,${encodeURI
  *
  * A pin the control resolved nothing for still gets the shipped shape in the theme's colour, never Google's
  * own default marker - switching providers must not change what the same record looks like.
- *
- * @param location Pin to draw.
- * @param color Fill colour, normally the host theme's primary.
- * @param textColor Colour of a group pin's count.
- * @returns The Google Maps icon.
  */
 const getPinIcon = (location: IMapLocation, color: string, textColor: string): google.maps.Icon => {
     if (location.cluster) {
@@ -196,12 +186,11 @@ const getPinIcon = (location: IMapLocation, color: string, textColor: string): g
         };
     }
     const size = getPinSize(location.pin);
-    //an image or custom markup is centred on the position, the shipped shape points at it
-    const isCentred = !!(location.pin?.url || location.pin?.svg);
+    const anchor = getPinAnchor(location, size);
     return {
         url: location.pin?.url ?? toDataUrl(location.pin?.svg ?? getPinSvg(location.pin?.color ?? color)),
         scaledSize: new google.maps.Size(size.width, size.height),
-        anchor: new google.maps.Point(size.width / 2, isCentred ? size.height / 2 : size.height)
+        anchor: new google.maps.Point(anchor.x, anchor.y)
     };
 };
 

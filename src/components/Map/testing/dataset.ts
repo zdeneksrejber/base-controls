@@ -23,9 +23,6 @@ export interface IFakeDataset {
 
 /**
  * Builds a stand in for a bound dataset carrying only what the Map asks of one.
- *
- * @param options Records, columns, and the related entity metadata the provider should report.
- * @returns The dataset, plus a record of the mutating calls made against it.
  */
 export const createFakeDataset = (options: IFakeDatasetOptions = {}): IFakeDataset => {
     let columns = options.columns ?? [];

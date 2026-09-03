@@ -1,7 +1,7 @@
-import { IMapDirections, IMapDirectionsFactory, IMapRoutePath } from '../../directions';
-import { buildUrl, getJson } from '../../http';
-import { decodeFlexiblePolyline } from '../../polyline';
-import { IMapCoordinates } from '../../viewport';
+import { IMapDirections, IMapDirectionsFactory, IMapRoutePath } from '../../internal/directions';
+import { buildUrl, getJson } from '../../internal/http';
+import { decodeFlexiblePolyline } from '../../internal/polyline';
+import { IMapCoordinates } from '../../internal/viewport';
 
 const ROUTES_URL = 'https://router.hereapi.com/v8/routes';
 
@@ -27,9 +27,6 @@ export interface IHereDirectionsConfig {
  *
  * A route with `via` points comes back as one section per leg, each with its own polyline, so the sections
  * are joined and the stop they share is not drawn twice.
- *
- * @param response Response body.
- * @returns The path, or `null` when HERE routed nothing.
  */
 export const getHereRoutePath = (response: IHereRoutesResponse): IMapRoutePath | null => {
     const sections = response.routes?.[0]?.sections ?? [];
@@ -51,13 +48,7 @@ export const getHereRoutePath = (response: IHereRoutesResponse): IMapRoutePath |
     return { coordinates, distance: distance || undefined, duration: duration || undefined };
 };
 
-/**
- * Builds the HERE directions service, backed by the Routing API v8.
- *
- * @param apiKey Key of a HERE platform project.
- * @param config Transport mode. Defaults to driving.
- * @returns The directions service.
- */
+/** Builds the HERE directions service, backed by the Routing API v8. */
 export const createHereMapsDirections = (apiKey: string, config: IHereDirectionsConfig = {}): IMapDirections => ({
     maxStops: MAX_STOPS,
     getRoute: async (stops, options) => {

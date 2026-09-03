@@ -1,19 +1,14 @@
 import { DefaultButton } from '@fluentui/react';
 import { useMemo } from 'react';
 import { IColumn } from '@talxis/client-libraries';
-import { getRecordFormattedValue } from '../attributes';
-import { IMapCardProps } from '../cards';
+import { getRecordFormattedValue } from '../internal/attributes';
+import { IMapCardProps } from '../internal/cards';
 import { getMapCardStyles } from './styles';
 
 /** Columns shown when the card names none, so a card is useful before anyone configures it. */
 const DEFAULT_COLUMN_LIMIT = 6;
 
-/**
- * Reads the attributes a card should show.
- *
- * @param props Card props, whose definition may name the columns.
- * @returns Attribute paths in the order to show them.
- */
+/** Reads the attributes a card should show. */
 const getCardColumns = (props: IMapCardProps): string[] => {
     if (props.definition.columns?.length) {
         return props.definition.columns;
@@ -30,9 +25,6 @@ const getCardColumns = (props: IMapCardProps): string[] => {
  *
  * Values come through the same resolver as every other attribute, so a card can show something held on a
  * related record with a dot notation path.
- *
- * @param props The record, the card definition, and how to run its buttons.
- * @returns The card.
  */
 export const MapCard = (props: IMapCardProps) => {
     const styles = useMemo(() => getMapCardStyles(props.theme), [props.theme]);

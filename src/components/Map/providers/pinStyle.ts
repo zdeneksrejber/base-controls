@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
-import { IMapPinAppearance } from '../pinAppearance';
-import { IMapLocation } from './IMapProvider';
+import { IMapPinAppearance } from '../internal/pinAppearance';
+import { IMapLocation } from './provider';
 
 /** Stroke width, in pixels, of the line connecting the pins of a route. */
 export const ROUTE_STROKE_WEIGHT = 4;
@@ -18,23 +18,13 @@ const CLUSTER_SIZE_CEILING = 1000;
 
 const UNSELECTED_PIN_OPACITY = 0.45;
 
-/**
- * Diameter of the pin standing for a group, grown with the group so a dense area reads at a glance.
- *
- * @param count Records the pin stands for.
- * @returns The diameter in pixels.
- */
+/** Diameter of the pin standing for a group, grown with the group so a dense area reads at a glance. */
 export const getClusterPinSize = (count: number): number => {
     const scale = Math.min(1, Math.log10(Math.max(count, 1)) / Math.log10(CLUSTER_SIZE_CEILING));
     return Math.round(CLUSTER_MIN_SIZE + (CLUSTER_MAX_SIZE - CLUSTER_MIN_SIZE) * scale);
 };
 
-/**
- * Shortens a group size to what fits inside a pin.
- *
- * @param count Records the pin stands for.
- * @returns The count, or a rounded form of it once it runs to four digits.
- */
+/** Shortens a group size to what fits inside a pin: the raw count, or a rounded form once it runs to four digits. */
 export const getClusterPinLabel = (count: number): string => {
     if (count < 1000) {
         return `${count}`;
@@ -45,26 +35,14 @@ export const getClusterPinLabel = (count: number): string => {
     return `${Math.round(count / 1000)}k`;
 };
 
-/**
- * The SVG a pin standing for a single record is drawn from.
- *
- * @param color Fill colour, normally the host theme's primary.
- * @returns The markup, sized `PIN_WIDTH` by `PIN_HEIGHT`.
- */
+/** The SVG a pin standing for a single record is drawn from, sized `PIN_WIDTH` by `PIN_HEIGHT`. */
 export const getPinSvg = (color: string): string =>
     `<svg width="${PIN_WIDTH}" height="${PIN_HEIGHT}" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 0a12 12 0 0 0-12 12c0 8.5 12 20 12 20s12-11.5 12-20A12 12 0 0 0 12 0z" fill="${color}" stroke="#ffffff" stroke-width="1.5" />
         <circle cx="12" cy="12" r="4.5" fill="#ffffff" />
     </svg>`;
 
-/**
- * The SVG a pin standing for a group is drawn from, carrying the number of records behind it.
- *
- * @param count Records the pin stands for.
- * @param color Fill colour, normally the host theme's primary.
- * @param textColor Colour of the count, normally the theme's contrasting text.
- * @returns The markup, sized by `getClusterPinSize`.
- */
+/** The SVG a pin standing for a group is drawn from, carrying the record count and sized by `getClusterPinSize`. */
 export const getClusterPinSvg = (count: number, color: string, textColor: string): string => {
     const size = getClusterPinSize(count);
     const label = getClusterPinLabel(count);
@@ -83,10 +61,6 @@ export const getClusterPinSvg = (count: number, color: string, textColor: string
  *
  * Nothing selected reads as everything selected, so an unfiltered dataset is not a dimmed map. A pin
  * standing for a group is never dimmed either - it may well contain the selection.
- *
- * @param location Pin to style.
- * @param selectedIds Ids the dataset has selected.
- * @returns The opacity to draw it at.
  */
 export const getPinOpacity = (location: IMapLocation, selectedIds: Set<string>): number =>
     location.cluster || selectedIds.size === 0 || selectedIds.has(location.id) ? 1 : UNSELECTED_PIN_OPACITY;
@@ -106,27 +80,25 @@ export interface IMapPinSize {
     height: number;
 }
 
-/**
- * The size a pin is drawn at.
- *
- * @param appearance Appearance the control resolved, if any.
- * @param fallback Size to use when the appearance says nothing.
- * @returns The width and height in pixels.
- */
+/** The size a pin is drawn at. */
 export const getPinSize = (appearance?: IMapPinAppearance, fallback: IMapPinSize = { width: PIN_WIDTH, height: PIN_HEIGHT }): IMapPinSize => ({
     width: appearance?.width ?? fallback.width,
     height: appearance?.height ?? fallback.height
 });
 
 /**
- * The markup a pin is drawn from, given what the control resolved for it.
- *
- * Custom markup wins over an image, an image over a colour, and a colour over the theme - which is the order
- * of how specific each one is about the record it stands for.
- *
- * @param appearance Appearance the control resolved, if any.
- * @param defaultColor Colour the shipped pin takes when nothing else says otherwise.
- * @returns The markup, or `undefined` when the pin is an image the caller should draw instead.
+ * Where a pin is anchored on its position: an image or custom markup is centred on it, the shipped shape
+ * points at it with its tip.
+ */
+export const getPinAnchor = (location: IMapLocation, size: IMapPinSize): { x: number; y: number } => ({
+    x: size.width / 2,
+    y: location.pin?.svg || location.pin?.url ? size.height / 2 : size.height
+});
+
+/**
+ * The markup a pin is drawn from. Custom markup wins over an image, an image over a colour, and a colour
+ * over the theme, in order of how specific each is about the record. Returns `undefined` when the pin is an
+ * image, which the caller should draw instead.
  */
 export const getPinMarkup = (appearance: IMapPinAppearance | undefined, defaultColor: string): string | undefined => {
     if (appearance?.svg) {
@@ -138,12 +110,10 @@ export const getPinMarkup = (appearance: IMapPinAppearance | undefined, defaultC
     return getPinSvg(appearance?.color ?? defaultColor);
 };
 
-/**
- * A pin image as markup, so a renderer that only takes HTML can draw one.
- *
- * @param url Image url.
- * @param size Size to draw it at.
- * @returns An `img` element sized to the pin.
- */
+//the url can come from a maker-typed rule, so it must not be able to break out of the attribute
+const escapeAttribute = (value: string): string =>
+    value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+/** A pin image as markup, so a renderer that only takes HTML can draw one. */
 export const getPinImageMarkup = (url: string, size: IMapPinSize): string =>
-    `<img src="${url}" width="${size.width}" height="${size.height}" alt="" style="display:block" />`;
+    `<img src="${escapeAttribute(url)}" width="${size.width}" height="${size.height}" alt="" style="display:block" />`;

@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useMemo } from 'react'
-import { MapDemo } from './MapDemo'
-import { createSampleDataset, getSiteRecords, SAMPLE_ATTRIBUTES } from './mapSampleData'
-import { LEGEND_HTML, PIN_RULES } from './mapSampleConfig'
+import { MapDemo } from '../../map/MapDemo'
+import { createSampleDataset, getSiteRecords, SAMPLE_ATTRIBUTES } from '../../map/mapSampleData'
+import { LEGEND_HTML, PIN_RULES } from '../../map/mapSampleConfig'
 import { mapStoryParameters } from './storyHelpers'
 
 const INTRO = `

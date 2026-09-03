@@ -1,4 +1,4 @@
-import { IMapCardRenderers } from '../../cards';
+import { IMapCardRenderers } from '../../internal/cards';
 import { AdaptiveMapCard } from './AdaptiveMapCard';
 
 /**

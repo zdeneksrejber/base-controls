@@ -1,6 +1,6 @@
-import { IMapDirections, IMapDirectionsFactory, IMapRoutePath } from '../../directions';
-import { buildUrl, getJson } from '../../http';
-import { IMapCoordinates } from '../../viewport';
+import { IMapDirections, IMapDirectionsFactory, IMapRoutePath } from '../../internal/directions';
+import { buildUrl, getJson } from '../../internal/http';
+import { IMapCoordinates } from '../../internal/viewport';
 
 const ROUTE_URL = 'https://api.mapy.com/v1/routing/route';
 
@@ -24,9 +24,6 @@ export interface IMapyDirectionsConfig {
  * Reads a path out of a Mapy.com routing response.
  *
  * The geometry is GeoJSON, so its coordinates are longitude first.
- *
- * @param response Response body.
- * @returns The path, or `null` when Mapy.com routed nothing.
  */
 export const getMapyRoutePath = (response: IMapyRouteResponse): IMapRoutePath | null => {
     const coordinates = response.geometry?.geometry?.coordinates ?? [];
@@ -40,13 +37,7 @@ export const getMapyRoutePath = (response: IMapyRouteResponse): IMapRoutePath | 
     };
 };
 
-/**
- * Builds the Mapy.com directions service, backed by their routing API.
- *
- * @param apiKey Key from the Mapy.com developer portal.
- * @param config Route type and what to avoid. Defaults to the fastest car route.
- * @returns The directions service.
- */
+/** Builds the Mapy.com directions service, backed by their routing API; defaults to the fastest car route. */
 export const createMapyDirections = (apiKey: string, config: IMapyDirectionsConfig = {}): IMapDirections => ({
     maxStops: MAX_STOPS,
     getRoute: async (stops, options) => {

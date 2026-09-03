@@ -1,17 +1,11 @@
 import { Action, AdaptiveCard, HostConfig, OpenUrlAction, SubmitAction } from 'adaptivecards';
 import { useEffect, useMemo, useRef } from 'react';
 import { ITheme } from '@legacy';
-import { IMapCardAction, IMapCardProps, renameFormattedValueKeys } from '../../cards';
+import { IMapCardAction, IMapCardProps, renameFormattedValueKeys } from '../../internal/cards';
 import { expandAdaptiveCardTemplate } from './template';
 import { getAdaptiveMapCardStyles } from './styles';
 
-/**
- * Colours the Adaptive Card host from the control theme, so a card does not arrive in Adaptive Cards'
- * own palette on top of a themed map.
- *
- * @param theme Host theme.
- * @returns A host config to render the card with.
- */
+/** Colours the Adaptive Card host from the control theme, so a card does not arrive in Adaptive Cards' own palette on top of a themed map. */
 const getHostConfig = (theme: ITheme) => new HostConfig({
     fontFamily: theme.fonts.medium.fontFamily,
     containerStyles: {
@@ -33,10 +27,6 @@ const getHostConfig = (theme: ITheme) => new HostConfig({
  *
  * A `Action.Submit` carrying `webResourceName` and `functionName` in its data runs that function, which is
  * how an Adaptive Card triggers custom code the same way the built-in card's buttons do.
- *
- * @param action Action the card raised.
- * @param definition Card definition, for the web resource to fall back to.
- * @returns The action to run, or `undefined` when the card asked for something else.
  */
 const getCardAction = (action: Action, definition: IMapCardProps['definition']): IMapCardAction | undefined => {
     if (!(action instanceof SubmitAction)) {
@@ -57,9 +47,6 @@ const getCardAction = (action: Action, definition: IMapCardProps['definition']):
  * The record's data is copied with its formatted value annotations renamed to `<attribute>_label` first,
  * because an Adaptive Cards binding expression cannot address a key containing `@` or `.` - the same
  * treatment the legacy MapPicker applied, so an existing template binds unchanged.
- *
- * @param props The record, the template in `definition.payload`, and how to run its actions.
- * @returns The rendered card.
  */
 export const AdaptiveMapCard = (props: IMapCardProps) => {
     const styles = useMemo(() => getAdaptiveMapCardStyles(props.theme), [props.theme]);

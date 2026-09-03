@@ -8,13 +8,7 @@ const DATA_PREFIXES = ['$root.', '$data.'];
 
 let hasWarnedAboutEngine = false;
 
-/**
- * Reads a value out of the card data by a dotted path.
- *
- * @param data Data the card was given.
- * @param path Path from a binding, without the `${}`.
- * @returns The value, or `undefined` when the path resolves to nothing.
- */
+/** Reads a value out of the card data by a dotted path. */
 const getBoundValue = (data: any, path: string): any => {
     const prefix = DATA_PREFIXES.find((candidate) => path.startsWith(candidate));
     const segments = (prefix ? path.slice(prefix.length) : path).split('.');
@@ -29,10 +23,6 @@ const getBoundValue = (data: any, path: string): any => {
  * This covers `${$root.attribute}` and the dotted paths under it, which is what a card bound to a record
  * needs. Anything it cannot resolve is left as written, exactly as the templating engine's own default for
  * an undefined field does, so a missing value is visible rather than silently blank.
- *
- * @param node Template node - the payload, or anything reached while walking it.
- * @param data Data the card was given.
- * @returns A copy of the node with its bindings substituted.
  */
 export const expandSimpleBindings = (node: any, data: any): any => {
     if (typeof node === 'string') {
@@ -58,10 +48,6 @@ export const expandSimpleBindings = (node: any, data: any): any => {
  * `antlr4ts`, and that combination does not survive every bundler: under Vite's dependency optimizer it
  * throws because a Node `assert` shim is left undefined. Rather than let a card fail to render because of
  * where it was bundled, the simple bindings are substituted instead and the loss of the rest is reported.
- *
- * @param payload Adaptive Card template.
- * @param data Data to bind, with its formatted value annotations already renamed.
- * @returns The expanded card payload.
  */
 export const expandAdaptiveCardTemplate = (payload: object, data: any): object => {
     try {

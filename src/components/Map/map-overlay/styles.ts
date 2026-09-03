@@ -25,10 +25,6 @@ const POSITIONS: { [position in IMapOverlayPosition]: object } = {
  * A stack hugs the edge it hangs off, so nothing drifts into the middle of the map. A row instead keeps its
  * children level with the top or bottom edge, so a piece of chrome that grows - a legend being opened - grows
  * away from the map's corner rather than pushing what sits beside it.
- *
- * @param position Corner the chrome is anchored to.
- * @param direction Axis it runs along.
- * @returns The `align-items` value for that combination.
  */
 const getAlignItems = (position: IMapOverlayPosition, direction: IMapOverlayDirection) => {
     if (direction === 'row') {

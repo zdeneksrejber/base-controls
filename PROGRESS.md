@@ -462,3 +462,42 @@ constructed from the manifest api keys, because they are Leaflet with a differen
 consumer nothing; Google Maps is the exception because its dependency is, and importing it is what pulls the
 optional `@vis.gl/react-google-maps` peer into every build that names it. Both prose sources now say this in
 those terms rather than leaving it implied.
+
+### Refactor round — the flat folder organized, eleven bugs fixed, and the comments cut in half
+
+**Structure, to the Form control's standard.** The Map root held forty-four files; it now holds the control
+and its contract. The fourteen `use*` hooks live in `hooks/`, the pure domain modules and their tests in
+`internal/`, and `clientApi.ts` is `hooks/useMapClientApi.ts` so every hook is named as one.
+`providers/IMapProvider.ts` is `providers/provider.ts`, matching its camelCase siblings. `index.ts` stopped
+re-exporting all forty-two modules and now exports the documented surface alone: the control, its interfaces,
+the provider seam, and the types the props are written in. The Storybook harness moved the same way Form's
+is arranged — `MapDemo`, the sample data, the key panel, the host shim and the snippet machinery live in
+`storybook/src/map/`, leaving `stories/map/` to the stories.
+
+**Eleven bugs, most of them in the async hooks.** Mounting a map in `dataset` filter mode wiped whatever
+filter the host had set and forced a refresh before the user touched anything. A superseded geo-coding or
+route-snapping run never cleared its `isResolving` flag, and a successor with nothing to do left it set
+forever — which, through the fallback-location gate, could permanently suppress that feature. An edited
+address was never re-geocoded, because attempts were remembered by record id alone; they are now remembered
+by id and address. Geo-coding no longer runs while linked columns are still registering, where every record
+reads as unplaced and the quota is spent on pins about to place themselves. A pin creation whose save threw
+still offered Delete for a record that may not exist. The rest: the abort of a superseded suggestion fetch
+logged as a failure on every keystroke, the provider props memo was defeated by a fresh object per render,
+zooming into a cluster measured from the requested viewport rather than the visible one, the truncation
+message showed the filtered count rather than the loaded one, a pin image url reached the markup unescaped,
+the snapped-path cache grew without bound, and the shared `useEventEmitter` re-subscribed on every render.
+
+**Dead code and duplication.** `hasCard`, `resolvedCount` and `getApproximateMapViewport` were built and
+never consumed; gone, with the one test that only tested the latter. `CARD_MAX_WIDTH` and the pin anchor rule
+were implemented separately in the Leaflet and Google providers; both live in `providers/` shared modules
+now. Pin extraction ran twice per change to read `unplacedRecords`; it runs once and is reused. The stale
+`map-implementations` worktree under `.claude/` is removed.
+
+**Comments, for humans.** Every `@param`/`@returns` block restating a signature is gone — roughly 550 lines
+across seventy files — and the multi-paragraph hook essays are compressed to the design decision they were
+protecting. What stayed is what cannot be read off the code: the Leaflet `NaN` poisoning, the viewport
+precedence rules, the Nominatim rate limit, the sanitizer's reasoning. `interfaces.ts` keeps its full
+documentation, because it is the manifest reference the README points at.
+
+All 288 tests pass, the package builds, and the two documented deep import paths —
+`providers/google-maps` and `map-card/adaptive-card` — are untouched.

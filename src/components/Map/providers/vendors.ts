@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { IMapDirections } from '../directions';
-import { IMapGeocoder } from '../geocoding';
-import { IMapProvider, IMapProviderOption } from './IMapProvider';
+import { IMapDirections } from '../internal/directions';
+import { IMapGeocoder } from '../internal/geocoding';
+import { IMapProvider, IMapProviderOption } from './provider';
 import { useMapProviderCache } from './providerCache';
 import { createLeafletMapProvider, createNominatimGeocoder, createOsrmDirections } from './leaflet';
 import { createHereMapsProvider, createHereMapsGeocoder, createHereMapsDirectionsService } from './here-maps';

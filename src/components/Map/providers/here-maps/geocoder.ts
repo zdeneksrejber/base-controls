@@ -6,9 +6,9 @@ import {
     IMapGeocoderFactory,
     IMapPlace,
     withGeocodingCache
-} from '../../geocoding';
-import { buildUrl, getJson } from '../../http';
-import { IMapCoordinates } from '../../viewport';
+} from '../../internal/geocoding';
+import { buildUrl, getJson } from '../../internal/http';
+import { IMapCoordinates } from '../../internal/viewport';
 
 const GEOCODE_URL = 'https://geocode.search.hereapi.com/v1/geocode';
 const REVERSE_GEOCODE_URL = 'https://revgeocode.search.hereapi.com/v1/revgeocode';
@@ -41,9 +41,6 @@ export interface IHereGeocodeResponse {
  * Maps one HERE geocoding item onto a place.
  *
  * HERE reports a three letter country code, which is kept as it comes rather than guessed down to two.
- *
- * @param item Item as the Geocoding and Search API returns it.
- * @returns The place, or `undefined` when the item carries no position.
  */
 export const getHerePlace = (item: IHereGeocodeItem): IMapPlace | undefined => {
     const position = item.position;
@@ -72,21 +69,11 @@ export const getHerePlace = (item: IHereGeocodeItem): IMapPlace | undefined => {
     };
 };
 
-/**
- * Reads the places out of a HERE geocoding response.
- *
- * @param response Response body.
- * @returns The places it matched.
- */
+/** Reads the places out of a HERE geocoding response. */
 export const getHerePlaces = (response: IHereGeocodeResponse): IMapPlace[] =>
     (response.items ?? []).map(getHerePlace).filter((place): place is IMapPlace => !!place);
 
-/**
- * Builds the HERE geocoder, backed by the Geocoding and Search API v7.
- *
- * @param apiKey Key of a HERE platform project.
- * @returns A geocoder that answers the same lookup only once.
- */
+/** Builds the HERE geocoder, backed by the Geocoding and Search API v7; answers the same lookup only once. */
 export const createHereMapsGeocoder: IMapGeocoderFactory = (apiKey: string): IMapGeocoder => withGeocodingCache({
     geocode: async (query, options) => {
         if (!query.trim()) {

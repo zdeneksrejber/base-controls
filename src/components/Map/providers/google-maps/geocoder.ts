@@ -6,9 +6,9 @@ import {
     IMapGeocoderFactory,
     IMapPlace,
     withGeocodingCache
-} from '../../geocoding';
-import { buildUrl, getJson } from '../../http';
-import { IMapCoordinates } from '../../viewport';
+} from '../../internal/geocoding';
+import { buildUrl, getJson } from '../../internal/http';
+import { IMapCoordinates } from '../../internal/viewport';
 
 const GEOCODE_URL = 'https://maps.googleapis.com/maps/api/geocode/json';
 
@@ -53,13 +53,7 @@ export interface IGoogleGeocodeResponse {
     results?: IGoogleGeocodeResult[];
 }
 
-/**
- * Finds the first component of a result carrying any of a list of types.
- *
- * @param components Components of one geocoding result.
- * @param types Types to look for, most specific first.
- * @returns The matching component, or `undefined`.
- */
+/** Finds the first component of a result carrying any of a list of types, most specific first. */
 const findComponent = (components: IGoogleAddressComponent[], types: string[]): IGoogleAddressComponent | undefined => {
     for (const type of types) {
         const component = components.find((candidate) => candidate.types.includes(type));
@@ -70,12 +64,7 @@ const findComponent = (components: IGoogleAddressComponent[], types: string[]): 
     return undefined;
 };
 
-/**
- * Maps one Google geocoding result onto a place.
- *
- * @param result Result as the Geocoding API returns it.
- * @returns The place, or `undefined` when the result carries no position.
- */
+/** Maps one Google geocoding result onto a place, or `undefined` when the result carries no position. */
 export const getGooglePlace = (result: IGoogleGeocodeResult): IMapPlace | undefined => {
     const location = result.geometry?.location;
     if (!location || typeof location.lat !== 'number' || typeof location.lng !== 'number') {
@@ -104,8 +93,6 @@ export const getGooglePlace = (result: IGoogleGeocodeResult): IMapPlace | undefi
 /**
  * Reads the places out of a Geocoding API response.
  *
- * @param response Response body.
- * @returns The places it matched.
  * @throws When Google rejected the request, so a disabled api or a bad key is not read as "no results".
  */
 export const getGooglePlaces = (response: IGoogleGeocodeResponse): IMapPlace[] => {
@@ -117,12 +104,7 @@ export const getGooglePlaces = (response: IGoogleGeocodeResponse): IMapPlace[] =
         .filter((place): place is IMapPlace => !!place);
 };
 
-/**
- * Builds the Google Maps geocoder, backed by the Geocoding API.
- *
- * @param apiKey Key of a project with the Geocoding API enabled.
- * @returns A geocoder that answers the same lookup only once.
- */
+/** Builds the Google Maps geocoder, backed by the Geocoding API; answers the same lookup only once. */
 export const createGoogleMapsGeocoder: IMapGeocoderFactory = (apiKey: string): IMapGeocoder => withGeocodingCache({
     geocode: async (query, options) => {
         if (!query.trim()) {

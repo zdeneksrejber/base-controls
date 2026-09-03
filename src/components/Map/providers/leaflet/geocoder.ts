@@ -5,9 +5,9 @@ import {
     IMapGeocoder,
     IMapPlace,
     withGeocodingCache
-} from '../../geocoding';
-import { buildUrl, createRequestQueue, getJson } from '../../http';
-import { IMapCoordinates } from '../../viewport';
+} from '../../internal/geocoding';
+import { buildUrl, createRequestQueue, getJson } from '../../internal/http';
+import { IMapCoordinates } from '../../internal/viewport';
 
 const SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
 const REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse';
@@ -67,9 +67,6 @@ export interface INominatimGeocoderConfig {
  *
  * Nominatim names the settlement level differently by country, so each component reads the first of the
  * keys that carries a value.
- *
- * @param result Result as Nominatim returns it in `jsonv2` format.
- * @returns The place, or `undefined` when the result carries no usable position.
  */
 export const getNominatimPlace = (result: INominatimResult): IMapPlace | undefined => {
     const latitude = parseFloat(result.lat ?? '');
@@ -105,9 +102,6 @@ export const getNominatimPlace = (result: INominatimResult): IMapPlace | undefin
  * The public service is rate limited to one call a second by its usage policy, which this client enforces,
  * and refuses a caller it cannot attribute - so every call identifies the application. Production traffic
  * belongs on your own instance, configured through `searchUrl` and `reverseUrl`.
- *
- * @param config Service urls and the name to identify as. Defaults to the public Nominatim instance.
- * @returns A geocoder that answers the same lookup only once.
  */
 export const createNominatimGeocoder = (config: INominatimGeocoderConfig = {}): IMapGeocoder => {
     const searchUrl = config.searchUrl ?? SEARCH_URL;
