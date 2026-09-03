@@ -52,7 +52,8 @@ export const useMapRecords = (options: IUseMapRecords): IMapRecordsState => {
             return;
         }
         if (loading !== 'all') {
-            const records = dataset.getRecords();
+            //a fresh array, so a save that changed a value in place still reaches the pins
+            const records = [...dataset.getRecords()];
             setState({ records, isLoading: false, loadedCount: records.length, isTruncated: false });
             return;
         }
@@ -81,7 +82,9 @@ export const useMapRecords = (options: IUseMapRecords): IMapRecordsState => {
         load();
     }, [load]);
 
-    useEventEmitter<IDataProviderEventListeners>(dataset, 'onNewDataLoaded', load);
+    //a create or an edit reports itself as a saved record rather than as newly loaded data, and the map has
+    //to redraw for both
+    useEventEmitter<IDataProviderEventListeners>(dataset, ['onNewDataLoaded', 'onAfterRecordSaved', 'onAfterSaved'], load);
 
     return state;
 };

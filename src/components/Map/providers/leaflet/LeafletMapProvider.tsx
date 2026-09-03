@@ -173,12 +173,33 @@ const ReportViewport = (props: Pick<IMapProviderProps, 'viewport' | 'onViewportC
     return null;
 };
 
+const ReportMapClick = (props: { onMapClick: (coordinates: { latitude: number; longitude: number }) => void }) => {
+    useMapEvents({
+        click: (event) => props.onMapClick({ latitude: event.latlng.lat, longitude: event.latlng.lng })
+    });
+
+    return null;
+};
+
 /**
  * The Leaflet renderer behind every tile based provider here, so a provider for a raster tile service is only
  * a tile url and whatever chrome its licence asks for.
  */
 export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
-    const { locations, routes, viewport, selectedLocationIds, theme, openCard, onLocationClick, onViewportChange, onCloseCard } = props;
+    const {
+        locations,
+        routes,
+        viewport,
+        selectedLocationIds,
+        theme,
+        openCard,
+        isPinDraggable,
+        onLocationClick,
+        onViewportChange,
+        onCloseCard,
+        onLocationDragEnd,
+        onMapClick
+    } = props;
     const tileLayerUrl = props.tileLayerUrl ?? DEFAULT_TILE_LAYER_URL;
     const attribution = props.attribution ?? DEFAULT_ATTRIBUTION;
     const invertTiles = !!theme.isInverted && (props.invertTilesInDarkTheme ?? true);
@@ -203,9 +224,15 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
     //keyed per location, so a selection or viewport re-render does not hand react-leaflet a new identity to rebind on
     const markerEventHandlers = useMemo(() => {
         const handlers = new Map<string, L.LeafletEventHandlerFnMap>();
-        locations.forEach((location) => handlers.set(location.id, { click: () => onLocationClick(location) }));
+        locations.forEach((location) => handlers.set(location.id, {
+            click: () => onLocationClick(location),
+            dragend: (event) => {
+                const { lat, lng } = (event.target as L.Marker).getLatLng();
+                onLocationDragEnd?.(location, { latitude: lat, longitude: lng });
+            }
+        }));
         return handlers;
-    }, [locations, onLocationClick]);
+    }, [locations, onLocationClick, onLocationDragEnd]);
 
     return (
         <div className={styles.container}>
@@ -222,6 +249,7 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
                     maxZoom={props.maxZoom} />
                 <ApplyViewport viewport={viewport} />
                 <ReportViewport viewport={viewport} onViewportChange={onViewportChange} />
+                {onMapClick && <ReportMapClick onMapClick={onMapClick} />}
                 {openCard &&
                     <Popup
                         //a popup with no parent marker opens as it mounts, and closes whichever was open
@@ -245,6 +273,7 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
                         position={[location.latitude, location.longitude]}
                         icon={getIcon(location)}
                         title={location.pin?.title ?? location.label}
+                        draggable={isPinDraggable?.(location) ?? false}
                         opacity={selection.getOpacity(location)}
                         eventHandlers={markerEventHandlers.get(location.id)} />
                 ))}

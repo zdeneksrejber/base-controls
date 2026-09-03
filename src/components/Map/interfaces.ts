@@ -87,6 +87,43 @@ export interface IMapParameters extends IParameters {
     /** Adaptive Card template the default card renders, when `CardType` is `adaptiveCard`. */
     CardPayload?: IStringProperty;
     /**
+     * Whether a pin can be dragged to move its record. **Off by default** - a map that moves records when a
+     * finger slips is worse than one that does not move them at all.
+     */
+    EnablePinDragging?: Omit<ITwoOptionsProperty, 'attributes'>;
+    /**
+     * Whether clicking empty map creates a record there. **Off by default.** A record the control created
+     * carries a delete button on its own pin.
+     */
+    EnablePinCreation?: Omit<ITwoOptionsProperty, 'attributes'>;
+    /**
+     * Whether the map centres on the user while the dataset has no pins, asking the browser first and
+     * falling back to `onResolveFallbackLocation`. Off by default, because it prompts for permission.
+     */
+    PrefillUserLocation?: Omit<ITwoOptionsProperty, 'attributes'>;
+    /** Attribute the resolved country is written to when a pin is moved or created. */
+    CountryAttributeName?: IStringProperty;
+    /** Attribute the resolved region is written to. */
+    AdministrativeAreaAttributeName?: IStringProperty;
+    /** Attribute the resolved town or city is written to. */
+    LocalityAttributeName?: IStringProperty;
+    /** Attribute the resolved district is written to. */
+    SublocalityAttributeName?: IStringProperty;
+    /** Attribute the resolved street is written to, without its number. */
+    StreetAttributeName?: IStringProperty;
+    /** Attribute the resolved street and number together are written to. */
+    StreetNameAttributeName?: IStringProperty;
+    /** Attribute the resolved house number is written to. */
+    StreetNumberAttributeName?: IStringProperty;
+    /** Attribute the resolved postal code is written to. */
+    PostalCodeAttributeName?: IStringProperty;
+    /**
+     * Whether the map draws the points of interest its vendor knows about. **Hidden by default**, so the
+     * only pins are the records. Only Google Maps can switch this properly; HERE approximates it with a
+     * lower detail style, and the other raster tile services ignore it.
+     */
+    ShowPointsOfInterest?: Omit<ITwoOptionsProperty, 'attributes'>;
+    /**
      * Whether pins that overlap in the current view are drawn as one, carrying the number of records behind
      * it. Defaults to true - it is what keeps a dataset of thousands readable.
      */

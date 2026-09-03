@@ -38,6 +38,13 @@ export interface IHereMapsConfig {
     style?: IHereMapsStyle;
     /** Style rendered while the control theme is dark. Defaults to `explore.night`. */
     darkStyle?: IHereMapsStyle;
+    /**
+     * Style rendered while the control is asked to hide points of interest. HERE's raster tiles carry no
+     * switch for that, so the closest thing is a style that draws far fewer of them - `lite.day` by default.
+     */
+    lowPoiStyle?: IHereMapsStyle;
+    /** The same, for a dark control theme. Defaults to `lite.night`. */
+    lowPoiDarkStyle?: IHereMapsStyle;
     /** Layer of the map to request. Defaults to `base`. */
     resource?: IHereMapsResource;
     /** Image format. Defaults to `png8`, smallest for a vector drawn map. Prefer `jpeg` for satellite. */
@@ -82,15 +89,34 @@ const getTileLayerUrl = (config: IHereMapsConfig, style: IHereMapsStyle): string
     return `${TILE_ENDPOINT}/${resource}/${PROJECTION}/{z}/{x}/{y}/${format}?${parameters.toString()}`;
 };
 
+/** Style with the fewest points of interest HERE draws, for a control asked to hide them. */
+const DEFAULT_LOW_POI_STYLE: IHereMapsStyle = 'lite.day';
+const DEFAULT_LOW_POI_DARK_STYLE: IHereMapsStyle = 'lite.night';
+
+/**
+ * Picks the style for a theme and whether points of interest are wanted.
+ *
+ * @param config Provider config.
+ * @param isDark Whether the control theme is dark.
+ * @param showPointsOfInterest Whether the map should draw its own points of interest.
+ * @returns The style to request tiles in.
+ */
+const getStyle = (config: IHereMapsConfig, isDark: boolean, showPointsOfInterest: boolean): IHereMapsStyle => {
+    if (!showPointsOfInterest) {
+        return isDark
+            ? config.lowPoiDarkStyle ?? DEFAULT_LOW_POI_DARK_STYLE
+            : config.lowPoiStyle ?? DEFAULT_LOW_POI_STYLE;
+    }
+    return isDark ? config.darkStyle ?? DEFAULT_DARK_STYLE : config.style ?? DEFAULT_STYLE;
+};
+
 /**
  * Provider backed by the HERE Raster Tile API v3 - plain XYZ raster images, so an api key is the whole setup.
  * The one shipped provider with a real dark map: it swaps the HERE style rather than filtering the tiles.
  */
 export const createHereMapsProvider = (config: IHereMapsConfig): IMapProvider => {
-    return createLeafletMapProvider(({ theme }) => ({
-        tileLayerUrl: getTileLayerUrl(config, theme.isInverted
-            ? config.darkStyle ?? DEFAULT_DARK_STYLE
-            : config.style ?? DEFAULT_STYLE),
+    return createLeafletMapProvider(({ theme, showPointsOfInterest }) => ({
+        tileLayerUrl: getTileLayerUrl(config, getStyle(config, !!theme.isInverted, !!showPointsOfInterest)),
         attribution: config.attribution ?? getAttribution(),
         maxZoom: MAX_ZOOM,
         invertTilesInDarkTheme: false

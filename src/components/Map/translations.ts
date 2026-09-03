@@ -74,9 +74,17 @@ export const mapTranslations = {
         1033: "Zoom in",
         1029: "Přiblížit"
     },
+    cardDelete: {
+        1033: "Delete",
+        1029: "Odstranit"
+    },
     cardClose: {
         1033: "Close",
         1029: "Zavřít"
+    },
+    savingRecord: {
+        1033: "Saving...",
+        1029: "Ukládání..."
     },
     pinsTruncated: {
         1033: "Showing the first {{count}} pins of this view.",

@@ -65,14 +65,19 @@ export const MapCard = (props: IMapCardProps) => {
                     ])}
                 </div>
                 : <span className={styles.empty}>{props.labels.cardNoDetails()}</span>}
-            {!!props.definition.actions?.length &&
+            {(!!props.definition.actions?.length || props.onDelete) &&
                 <div className={styles.actions}>
-                    {props.definition.actions.map((action) => (
+                    {props.definition.actions?.map((action) => (
                         <DefaultButton
                             key={`${action.webResourceName}|${action.functionName}|${action.label}`}
                             text={action.label}
                             onClick={() => props.onExecuteAction(action)} />
                     ))}
+                    {props.onDelete &&
+                        <DefaultButton
+                            iconProps={{ iconName: 'Delete' }}
+                            text={props.labels.cardDelete()}
+                            onClick={props.onDelete} />}
                 </div>}
         </div>
     );

@@ -1,0 +1,206 @@
+import type { Meta, StoryObj } from '@storybook/react'
+import { useEffect, useMemo, useState } from 'react'
+import type { IDataProviderEventListeners, IDataset } from '@talxis/client-libraries'
+import { MapDemo } from './MapDemo'
+import { MAP_API_KEYS } from './mapApiKeys'
+import { createSampleDataset, getSiteRecords, SAMPLE_ATTRIBUTES } from './mapSampleData'
+
+const meta = {
+    title: 'Map/V2/Interaction',
+    parameters: { layout: 'fullscreen' }
+} satisfies Meta
+
+export default meta
+type Story = StoryObj<typeof meta>
+
+const COORDINATES = {
+    LatitudeAttributeName: { raw: SAMPLE_ATTRIBUTES.latitude },
+    LongitudeAttributeName: { raw: SAMPLE_ATTRIBUTES.longitude }
+}
+
+/** The address components a created or moved pin writes back, as a wrapper would bind them. */
+const ADDRESS_BINDINGS = {
+    FullAddressAttributeName: { raw: 'address' },
+    CountryAttributeName: { raw: 'country' },
+    AdministrativeAreaAttributeName: { raw: 'region' },
+    LocalityAttributeName: { raw: 'city' },
+    SublocalityAttributeName: { raw: 'district' },
+    StreetAttributeName: { raw: 'street' },
+    StreetNameAttributeName: { raw: 'streetLine' },
+    StreetNumberAttributeName: { raw: 'streetNumber' },
+    PostalCodeAttributeName: { raw: 'postalCode' }
+}
+
+const ADDRESS_COLUMNS = [
+    { name: 'country', alias: 'country', displayName: 'Country', dataType: 'SingleLine.Text', order: 20, visualSizeFactor: 120 },
+    { name: 'region', alias: 'region', displayName: 'Region', dataType: 'SingleLine.Text', order: 21, visualSizeFactor: 120 },
+    { name: 'district', alias: 'district', displayName: 'District', dataType: 'SingleLine.Text', order: 22, visualSizeFactor: 120 },
+    { name: 'street', alias: 'street', displayName: 'Street', dataType: 'SingleLine.Text', order: 23, visualSizeFactor: 140 },
+    { name: 'streetLine', alias: 'streetLine', displayName: 'Street line', dataType: 'SingleLine.Text', order: 24, visualSizeFactor: 160 },
+    { name: 'streetNumber', alias: 'streetNumber', displayName: 'Number', dataType: 'SingleLine.Text', order: 25, visualSizeFactor: 100 },
+    { name: 'postalCode', alias: 'postalCode', displayName: 'Postal code', dataType: 'SingleLine.Text', order: 26, visualSizeFactor: 100 }
+] as any[]
+
+/** Shows what the records actually hold, which is the only way to see a write-back land. */
+const RecordTable = ({ dataset, columns }: { dataset: IDataset; columns: string[] }) => {
+    const [, setVersion] = useState(0)
+    useEffect(() => {
+        const rerender = () => setVersion((current) => current + 1)
+        //a create or an edit reports itself as a saved record, not as newly loaded data
+        const events = ['onNewDataLoaded', 'onAfterSaved', 'onAfterRecordSaved'] as const
+        events.forEach((event) => dataset.addEventListener(event, rerender as IDataProviderEventListeners[typeof event]))
+        //the first load may already have finished by the time this runs, so read once rather than wait
+        rerender()
+        return () => events.forEach((event) =>
+            dataset.removeEventListener(event, rerender as IDataProviderEventListeners[typeof event]))
+    }, [dataset])
+
+    const records = dataset.getRecords()
+    return (
+        <table style={{ fontFamily: 'monospace', fontSize: 11, borderCollapse: 'collapse', width: '100%' }}>
+            <thead>
+                <tr>{columns.map((column) => (
+                    <th key={column} style={{ textAlign: 'left', padding: '2px 8px 2px 0', opacity: 0.6 }}>{column}</th>
+                ))}</tr>
+            </thead>
+            <tbody>
+                {records.slice(-6).map((record) => (
+                    <tr key={record.getRecordId()}>
+                        {columns.map((column) => (
+                            <td key={column} style={{ padding: '2px 8px 2px 0' }}>
+                                {`${record.getValue(column) ?? ''}`.slice(0, 28) || '—'}
+                            </td>
+                        ))}
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    )
+}
+
+const DragPins = () => {
+    const dataset = useMemo(() => createSampleDataset({
+        records: getSiteRecords().slice(0, 5),
+        columns: undefined
+    }), [])
+    return (
+        <MapDemo
+            dataset={dataset}
+            height={420}
+            parameters={{
+                ...COORDINATES,
+                EnablePinDragging: { raw: true },
+                EnableClustering: { raw: false },
+                DefaultVendor: { raw: 'leaflet' }
+            }}>
+            <RecordTable dataset={dataset} columns={['name', 'lat', 'lng']} />
+        </MapDemo>
+    )
+}
+
+export const DragAPin: Story = {
+    name: 'I1 — drag a pin to move its record',
+    render: () => <DragPins />,
+    parameters: {
+        docs: {
+            description: {
+                story: [
+                    '`EnablePinDragging` lets a pin be dragged, and dropping it writes the new coordinates back to',
+                    'the record and saves. The table under the map is the dataset, so you can watch the values',
+                    'change as you drop a pin.',
+                    '',
+                    'It is **off by default**: a map that moves records when a finger slips is worse than one that',
+                    'does not move them at all.'
+                ].join(' ')
+            }
+        }
+    }
+}
+
+const CreatePins = () => {
+    const dataset = useMemo(() => createSampleDataset({
+        records: [],
+        columns: [
+            { name: 'name', alias: 'name', displayName: 'Name', dataType: 'SingleLine.Text', order: 0, visualSizeFactor: 160, isPrimary: true },
+            { name: 'address', alias: 'address', displayName: 'Address', dataType: 'SingleLine.Text', order: 1, visualSizeFactor: 240 },
+            { name: 'city', alias: 'city', displayName: 'City', dataType: 'SingleLine.Text', order: 2, visualSizeFactor: 120 },
+            ...ADDRESS_COLUMNS,
+            { name: 'lat', alias: 'lat', displayName: 'Latitude', dataType: 'Decimal', order: 30, visualSizeFactor: 100 },
+            { name: 'lng', alias: 'lng', displayName: 'Longitude', dataType: 'Decimal', order: 31, visualSizeFactor: 100 }
+        ] as any[]
+    }), [])
+    return (
+        <MapDemo
+            dataset={dataset}
+            height={400}
+            parameters={{
+                ...COORDINATES,
+                ...ADDRESS_BINDINGS,
+                EnablePinCreation: { raw: true },
+                EnablePinDragging: { raw: true },
+                EnableClustering: { raw: false },
+                CardColumns: { raw: 'address,city,street,streetLine,postalCode,country' },
+                DefaultVendor: { raw: MAP_API_KEYS.here ? 'here' : 'leaflet' }
+            }}>
+            <RecordTable dataset={dataset} columns={['streetLine', 'city', 'postalCode', 'country', 'lat', 'lng']} />
+        </MapDemo>
+    )
+}
+
+export const CreateAPin: Story = {
+    name: 'I2 — click the map to create a record, with its address filled in',
+    render: () => <CreatePins />,
+    parameters: {
+        docs: {
+            description: {
+                story: [
+                    '`EnablePinCreation` turns a click on empty map into a new record in the bound dataset. The',
+                    'control reverse geo-codes the point and writes the components back to whichever attributes',
+                    'are bound - `fullAddress`, `country`, `administrativeArea`, `locality`, `sublocality`,',
+                    '`street`, `streetName`, `streetNumber` and `postalCode` - so a click is a usable way to fill',
+                    'in an address. Watch the table fill in.',
+                    '',
+                    'Opening the pin the map created shows a **Delete** button on its card. A component the',
+                    'service could not resolve is written as empty rather than skipped, so moving a pin from a',
+                    'street address into a field clears the street instead of leaving the old one behind.',
+                    '',
+                    'Off by default, like dragging.'
+                ].join(' ')
+            }
+        }
+    }
+}
+
+const PrefillLocation = () => {
+    const dataset = useMemo(() => createSampleDataset({ records: [] }), [])
+    return (
+        <MapDemo
+            dataset={dataset}
+            parameters={{
+                ...COORDINATES,
+                PrefillUserLocation: { raw: true },
+                EnablePinCreation: { raw: true },
+                DefaultVendor: { raw: 'leaflet' }
+            }}
+        />
+    )
+}
+
+export const PrefillUserLocation: Story = {
+    name: 'I2 — centre on the user while the dataset is empty',
+    render: () => <PrefillLocation />,
+    parameters: {
+        docs: {
+            description: {
+                story: [
+                    'With no pins to fit, `PrefillUserLocation` centres the map on the user. The browser is asked',
+                    'first, because it is the only source precise enough to drop a pin on; a user who declines, or',
+                    'a browser with nothing to say, falls through to `onResolveFallbackLocation` - the opt-in IP',
+                    'lookup this page passes, which is approximate and deliberately so.',
+                    '',
+                    'Off by default, because it prompts for permission.'
+                ].join(' ')
+            }
+        }
+    }
+}

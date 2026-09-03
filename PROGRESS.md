@@ -17,8 +17,8 @@ delivery log.
 - [x] **D6** Resolve any bound attribute through expands, using dot notation
 
 ### Interaction
-- [ ] **I1** Update coordinates by dragging a pin (default: disabled)
-- [ ] **I2** Place a marker by clicking the map (default: disabled), with reverse geo-coding, address
+- [x] **I1** Update coordinates by dragging a pin (default: disabled)
+- [x] **I2** Place a marker by clicking the map (default: disabled), with reverse geo-coding, address
   component mapping, deletion and `prefillUserLocation`
 
 ### Pins
@@ -185,3 +185,19 @@ fail to render because of where it was bundled, `expandAdaptiveCardTemplate` fal
 simple `${...}` bindings and says so once in the console. The full engine - repetition, conditions,
 functions - runs wherever it can, which includes webpack, rollup and Node; a test asserts the two agree
 where they overlap. Storybook exercises the fallback path.
+
+### Phase 5 — I1 and I2, writing the map back to the dataset
+- `EnablePinDragging` writes a dropped pin's coordinates back to its record and saves. `EnablePinCreation`
+  turns a click on empty map into a new record. Both are **off by default**: a map that moves records when a
+  finger slips is worse than one that does not move them at all.
+- Either gesture reverse geo-codes the point and writes the components back to whichever of the nine address
+  attributes are bound, so a map click is a usable way to fill in an address. A component the service could
+  not resolve is written as empty rather than skipped, so moving a pin out of a street clears the street.
+- A record the map created carries a **Delete** button on its own card.
+- `PrefillUserLocation` centres an empty map on the user, asking the browser first - the only source precise
+  enough to drop a pin on - and falling through to `onResolveFallbackLocation` when it declines.
+- **Fixed while verifying:** a create or an edit reports itself through `onAfterRecordSaved`, not
+  `onNewDataLoaded`, so the map never redrew after either. The record loader now listens to both.
+- Verified in Storybook against live HERE: a click created a record filled in as
+  `273 / Lhotka / 277 31 / Czechia`, its card offered Delete, and dragging Brno depot wrote
+  `49.6107 / 17.3804` back to the dataset.

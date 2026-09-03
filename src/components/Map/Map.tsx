@@ -6,6 +6,9 @@ import { getClassNames } from "@utils";
 import { IMap } from "./interfaces";
 import { getDistinctAttributePaths } from "./attributes";
 import { getMapLanguageTag } from "./language";
+import { IMapAddressAttributes } from "./addressMapping";
+import { useMapEditing } from "./useMapEditing";
+import { useUserLocation } from "./useUserLocation";
 import { getMapPinAppearance, parseMapPinRules } from "./pinAppearance";
 import { useMapClientApi } from "./clientApi";
 import { parseMapCardRules } from "./cards";
@@ -51,6 +54,18 @@ export const Map = (props: IMap) => {
         CardColumns,
         CardType,
         CardPayload,
+        EnablePinDragging,
+        EnablePinCreation,
+        PrefillUserLocation,
+        CountryAttributeName,
+        AdministrativeAreaAttributeName,
+        LocalityAttributeName,
+        SublocalityAttributeName,
+        StreetAttributeName,
+        StreetNameAttributeName,
+        StreetNumberAttributeName,
+        PostalCodeAttributeName,
+        ShowPointsOfInterest,
         EnableClustering,
         ClusteringOptions,
         FilterAttributeNames,
@@ -82,9 +97,37 @@ export const Map = (props: IMap) => {
         [FilterAttributeNames?.raw]
     );
 
+    const addressAttributes = useMemo<IMapAddressAttributes>(() => ({
+        fullAddress: addressAttribute ?? undefined,
+        country: CountryAttributeName?.raw ?? undefined,
+        administrativeArea: AdministrativeAreaAttributeName?.raw ?? undefined,
+        locality: LocalityAttributeName?.raw ?? undefined,
+        sublocality: SublocalityAttributeName?.raw ?? undefined,
+        street: StreetAttributeName?.raw ?? undefined,
+        streetName: StreetNameAttributeName?.raw ?? undefined,
+        streetNumber: StreetNumberAttributeName?.raw ?? undefined,
+        postalCode: PostalCodeAttributeName?.raw ?? undefined
+    }), [
+        addressAttribute,
+        CountryAttributeName?.raw,
+        AdministrativeAreaAttributeName?.raw,
+        LocalityAttributeName?.raw,
+        SublocalityAttributeName?.raw,
+        StreetAttributeName?.raw,
+        StreetNameAttributeName?.raw,
+        StreetNumberAttributeName?.raw,
+        PostalCodeAttributeName?.raw
+    ]);
+
     const attributePaths = useMemo(
-        () => getDistinctAttributePaths([latitudeAttribute, longitudeAttribute, routeAttribute, addressAttribute, ...filterAttributes]),
-        [latitudeAttribute, longitudeAttribute, routeAttribute, addressAttribute, filterAttributes]
+        () => getDistinctAttributePaths([
+            latitudeAttribute,
+            longitudeAttribute,
+            routeAttribute,
+            ...Object.values(addressAttributes),
+            ...filterAttributes
+        ]),
+        [latitudeAttribute, longitudeAttribute, routeAttribute, addressAttributes, filterAttributes]
     );
     useMapAttributes({ dataset, paths: attributePaths, enabled: EnableAttributeLinking?.raw !== false });
 
@@ -146,11 +189,15 @@ export const Map = (props: IMap) => {
 
     const pins = useMemo(() => readPins(geocoded.coordinates), [readPins, geocoded.coordinates]);
 
+    const resolveUserLocation = useUserLocation({ onResolveFallbackLocation: props.onResolveFallbackLocation });
+
     const { viewport, visibleViewport, onViewportChange, onFocusViewport } = useMapViewport({
         locations: pins.locations,
         provider: MapProvider,
         options: ViewportOptions?.raw,
-        onResolveFallbackLocation: props.onResolveFallbackLocation,
+        onResolveFallbackLocation: PrefillUserLocation?.raw === true
+            ? resolveUserLocation
+            : props.onResolveFallbackLocation,
         onChange: (changedViewport) => onNotifyOutputChanged({ Viewport: changedViewport })
     });
 
@@ -174,6 +221,17 @@ export const Map = (props: IMap) => {
     }, [dataset, records]);
 
     useEventEmitter<IDataProviderEventListeners>(dataset, 'onRecordsSelected', (ids: string[]) => setSelectedLocationIds(ids ?? []));
+
+    const editing = useMapEditing({
+        dataset,
+        latitudeAttribute: latitudeAttribute ?? undefined,
+        longitudeAttribute: longitudeAttribute ?? undefined,
+        addressAttributes,
+        canDrag: EnablePinDragging?.raw === true,
+        canCreate: EnablePinCreation?.raw === true,
+        geocoder,
+        language
+    });
 
     const onZoomToCluster = useCallback((location: IMapLocation) => {
         onFocusViewport({
@@ -200,7 +258,9 @@ export const Map = (props: IMap) => {
         context: props.context,
         theme,
         labels,
-        onZoomToCluster
+        onZoomToCluster,
+        onDeleteLocation: editing.onDeleteLocation,
+        deletableRecordIds: editing.createdRecordIds
     });
 
     const onLocationClick = useCallback((location: IMapLocation) => {
@@ -220,12 +280,34 @@ export const Map = (props: IMap) => {
         theme,
         labels,
         openCard: cards.openCard,
+        showPointsOfInterest: ShowPointsOfInterest?.raw === true,
+        isPinDraggable: editing.isPinDraggable,
         onLocationClick,
         onViewportChange,
-        onCloseCard: cards.onCloseCard
-    }), [drawnLocations, pins.routes, viewport, selectedLocationIds, props.context, theme, labels, cards.openCard, cards.onCloseCard, onLocationClick, onViewportChange]);
+        onCloseCard: cards.onCloseCard,
+        onLocationDragEnd: editing.onLocationDragEnd,
+        onMapClick: editing.onMapClick
+    }), [
+        drawnLocations,
+        pins.routes,
+        viewport,
+        selectedLocationIds,
+        props.context,
+        theme,
+        labels,
+        cards.openCard,
+        cards.onCloseCard,
+        ShowPointsOfInterest?.raw,
+        editing.isPinDraggable,
+        editing.onLocationDragEnd,
+        editing.onMapClick,
+        onLocationClick,
+        onViewportChange
+    ]);
 
-    const status = isLoading
+    const status = editing.isSaving
+        ? { message: labels.savingRecord(), isBusy: true }
+        : isLoading
         ? { message: labels.loadingPins({ count: `${loadedCount}` }), isBusy: true }
         : geocoded.isResolving
             ? { message: labels.geocodingAddresses({ count: `${geocoded.pendingCount}` }), isBusy: true }

@@ -29,6 +29,10 @@ export interface IUseMapCards {
     labels: IMapLabels;
     /** Zooms the map to where a group comes apart, for the button on a grouped card. */
     onZoomToCluster: (location: IMapLocation) => void;
+    /** Deletes a record the map created, offered as a button on its card. */
+    onDeleteLocation?: (location: IMapLocation) => void;
+    /** Ids of the records the map created, which are the only ones it offers to delete. */
+    deletableRecordIds?: string[];
 }
 
 export interface IMapCardsState {
@@ -70,7 +74,18 @@ const executeCardAction = (action: IMapCardAction, record: IRecord) => {
  * @returns The open card and the ways to change it.
  */
 export const useMapCards = (props: IUseMapCards): IMapCardsState => {
-    const { records, rules, fallback, renderers, context, theme, labels, onZoomToCluster } = props;
+    const {
+        records,
+        rules,
+        fallback,
+        renderers,
+        context,
+        theme,
+        labels,
+        onZoomToCluster,
+        onDeleteLocation,
+        deletableRecordIds
+    } = props;
     const [openLocation, setOpenLocation] = useState<IMapLocation>();
 
     const recordsById = useMemo(
@@ -91,6 +106,8 @@ export const useMapCards = (props: IUseMapCards): IMapCardsState => {
             .filter((record): record is IRecord => !!record),
     [recordsById]);
 
+    const deletableIds = useMemo(() => new Set(deletableRecordIds ?? []), [deletableRecordIds]);
+
     const renderRecordCard = useCallback((record: IRecord, location: IMapLocation): ReactNode => {
         const definition = getDefinition(record);
         const renderer = allRenderers[definition.type];
@@ -106,9 +123,15 @@ export const useMapCards = (props: IUseMapCards): IMapCardsState => {
             theme,
             labels,
             onExecuteAction: (action) => executeCardAction(action, record),
+            onDelete: onDeleteLocation && deletableIds.has(record.getRecordId())
+                ? () => {
+                    onDeleteLocation({ ...location, id: record.getRecordId() });
+                    onCloseCard();
+                }
+                : undefined,
             onClose: onCloseCard
         });
-    }, [allRenderers, getDefinition, context, theme, labels, onCloseCard]);
+    }, [allRenderers, getDefinition, context, theme, labels, onCloseCard, onDeleteLocation, deletableIds]);
 
     const hasCard = useCallback((location: IMapLocation): boolean => {
         if (location.cluster) {

@@ -64,6 +64,17 @@ export interface IMapProviderProps {
     openCard?: IMapOpenCard;
     /** Call when the user dismisses the open card. */
     onCloseCard?: () => void;
+    /** Whether this pin can be dragged. Providers that cannot drag may ignore it. */
+    isPinDraggable?: (location: IMapLocation) => boolean;
+    /** Call when a pin is dropped. The control moves the record to the new point. */
+    onLocationDragEnd?: (location: IMapLocation, coordinates: IMapCoordinates) => void;
+    /** Call when the user clicks empty map. The control creates a record there. Absent means do not offer it. */
+    onMapClick?: (coordinates: IMapCoordinates) => void;
+    /**
+     * Whether the map draws points of interest of its own. Off by default; not every vendor's tiles can
+     * express it, and the ones that cannot simply ignore this.
+     */
+    showPointsOfInterest?: boolean;
 }
 
 /** A card the control wants anchored on the map. */

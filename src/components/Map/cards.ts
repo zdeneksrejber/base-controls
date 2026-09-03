@@ -50,6 +50,8 @@ export interface IMapCardProps {
     labels: IMapLabels;
     /** Runs one of the card's buttons. */
     onExecuteAction: (action: IMapCardAction) => void;
+    /** Deletes the record. Present only for one the map itself created. */
+    onDelete?: () => void;
     onClose: () => void;
 }
 

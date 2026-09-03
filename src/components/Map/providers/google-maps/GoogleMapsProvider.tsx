@@ -11,6 +11,15 @@ import { getGoogleMapsProviderStyles } from './styles';
 /** Widest a card is allowed to be, so it never covers the map it is anchored on. */
 const CARD_MAX_WIDTH = 340;
 
+/**
+ * Hides the points of interest Google draws of its own accord, so the only pins on the map are the records.
+ * This is the one vendor here whose tiles can express it - the raster tile services cannot.
+ */
+const POI_OFF_STYLES: google.maps.MapTypeStyle[] = [
+    { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+    { featureType: 'transit', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] }
+];
+
 export interface IGoogleMapsConfig {
     apiKey: string;
 }
@@ -40,7 +49,22 @@ const ApplyViewport = (props: { viewport: IMapViewport }) => {
 };
 
 const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
-    const { apiKey, locations, routes, viewport, selectedLocationIds, theme, openCard, onLocationClick, onViewportChange, onCloseCard } = props;
+    const {
+        apiKey,
+        locations,
+        routes,
+        viewport,
+        selectedLocationIds,
+        theme,
+        openCard,
+        isPinDraggable,
+        showPointsOfInterest,
+        onLocationClick,
+        onViewportChange,
+        onCloseCard,
+        onLocationDragEnd,
+        onMapClick
+    } = props;
     const styles = useMemo(() => getGoogleMapsProviderStyles(), []);
     const selection = useMapPinSelection(selectedLocationIds);
 
@@ -62,7 +86,14 @@ const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
                     defaultZoom={viewport.zoom}
                     colorScheme={theme.isInverted ? ColorScheme.DARK : ColorScheme.LIGHT}
                     disableDefaultUI
+                    styles={showPointsOfInterest ? undefined : POI_OFF_STYLES}
                     onCameraChanged={onCameraChanged}
+                    onClick={onMapClick && ((event) => {
+                        const position = event.detail.latLng;
+                        if (position) {
+                            onMapClick({ latitude: position.lat, longitude: position.lng });
+                        }
+                    })}
                     className={styles.map}>
                     <ApplyViewport viewport={viewport} />
                     {openCard &&
@@ -88,9 +119,16 @@ const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
                             position={{ lat: location.latitude, lng: location.longitude }}
                             title={location.cluster ? `${location.cluster.count}` : location.pin?.title ?? location.label}
                             icon={getPinIcon(location, theme.palette.themePrimary, theme.palette.white)}
+                            draggable={isPinDraggable?.(location) ?? false}
                             opacity={selection.getOpacity(location)}
                             zIndex={location.cluster ? 1000 + location.cluster.count : selection.isSelected(location) ? 1 : undefined}
-                            onClick={() => onLocationClick(location)} />
+                            onClick={() => onLocationClick(location)}
+                            onDragEnd={onLocationDragEnd && ((event) => {
+                                const position = event.latLng;
+                                if (position) {
+                                    onLocationDragEnd(location, { latitude: position.lat(), longitude: position.lng() });
+                                }
+                            })} />
                     ))}
                 </GoogleMap>
             </div>
