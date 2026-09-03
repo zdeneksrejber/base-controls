@@ -87,7 +87,7 @@ Without keys the keyless OpenStreetMap provider still draws every story; the ven
 not offered, and geo-coding falls through to Nominatim.
 
 ```bash
-npm test        # typecheck, then 255 unit tests
+npm test        # typecheck, then 261 unit tests
 npm run build   # the package build, which is also the repo's PR gate
 npm run test:live   # calls the real geo services; needs MAP_HERE_API_KEY, MAP_MAPY_API_KEY, MAP_GOOGLE_API_KEY
 ```
@@ -391,3 +391,29 @@ shipped pin too. Making that unconditional exposed a second, worse one: building
 markers were being rendered before it had. It only ever worked because the early return happened to skip that
 line — meaning a `PinIcons` configuration on Google was one render-order coin-flip away from throwing. The
 markers now wait for the api, which is also the only honest thing for a marker to do.
+
+### Second review round — a Code toggle, keys without a local file, and one more location bug
+
+- **A Code toggle, beside the map.** The Form pages have one, and the Map needed the same: a switch that
+  swaps the live map for the configuration that page hands the control. The source is **generated from the
+  parameters the story actually passed** rather than written alongside them, so what a reader inspects cannot
+  drift from what they are looking at. Rule sets and legend markup are lifted into named constants above the
+  component so the property list stays readable, and the code hooks a page uses — `onResolvePin`,
+  `onGetCardRenderers` — appear with it.
+- **Api keys without a local file.** Keys came only from a gitignored `.env.local`, which is no use once the
+  Storybook is published: every story would fall back to OpenStreetMap with no way past it, and committing
+  keys to avoid that would mean publishing somebody else's billing. Every map now carries an **Api keys**
+  button. A reader pastes their own HERE, Mapy.com or Google key, it is kept in that browser's local storage
+  and sent only to the vendor it belongs to, and every mounted map redraws with it. Where the build has its
+  own keys those stay the default, and Clear goes back to them.
+- **Two Overview rows on the front page.** The docs entry and the story had different ids, so the sidebar
+  nested an Overview inside an Overview. Exporting the story under the name the docs page already uses merges
+  them into one row — which is what the Form pages have been doing all along.
+- **The map asked for a location while it had pins.** Two causes, both fixed. The control was reading "no
+  pins yet" as "no pins": a 400 ms debounce was all that stood between a slow dataset and a location lookup
+  for a map that was about to be full. `shouldResolveFallbackLocation` now makes the condition explicit and
+  testable — nothing is asked until the host has finished fetching, every requested page is drained, and the
+  addresses waiting on geo-coding have resolved. And the prefill story is now a switch that starts off: a
+  docs page renders every story it has, so leaving it on meant opening **Editing** asked for your location
+  while two maps full of pins sat above it. Verified by counting `getCurrentPosition` calls per page: zero
+  everywhere, one only when the switch is turned on.
