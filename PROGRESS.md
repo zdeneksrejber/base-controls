@@ -1,57 +1,154 @@
 # Map Base Control V2 — progress
 
-Tracks delivery of the [Map Base Control V2](https://github.com/orgs/TALXIS/projects/3/views/3?pane=issue&itemId=239306331)
-checklist (project item `239306331`). Branch `users/zdenek.srejber/map-features`.
+Delivery log for the [Map Base Control V2](https://github.com/orgs/TALXIS/projects/3/views/3?pane=issue&itemId=239306331)
+checklist (project item `239306331`), on branch `users/zdenek.srejber/map-features`.
 
-The durable design lives in [`src/components/Map/README.md`](src/components/Map/README.md); this file is the
-delivery log.
+The durable design lives in [`src/components/Map/README.md`](src/components/Map/README.md); this file records
+what was delivered, how to see it, and what was found along the way.
 
-## Requested features
+## Every requested feature, and where to watch it work
+
+Run `npm run storybook`, open **Map → V2**, and each story below demonstrates the item next to it. Every one
+was driven in a browser against the live provider APIs, not just typechecked.
 
 ### Data
 - [x] **D1** Full address geo-coding as fallback when coordinates are not available
+  → *Data → D1*. Eight of fifteen sites keep coordinates; the other seven are placed from their postal
+  address alone, through live HERE.
 - [x] **D2** Filtering by `IRecord` attributes
+  → *Data → D2*. The panel offers the values the records hold — store 9, service 4, depot 2 — and picking
+  depot leaves exactly those two pins.
 - [x] **D3** Full text search by address, using the entity's quick find query
+  → *Data → D3*. `Brno` filters fifteen pins to one through quick find; picking `Ostrava, Czechia` off the
+  live Mapy.com suggestions moves the map to 49.835, 18.282 at zoom 15.
 - [x] **D4** Paging — display all records, not only the current dataset page
-- [x] **D5** Handle datasets of thousands of pins
+  → *Data → D4* (two stories). Fifteen sites in a dataset paged four at a time, drawn one page then all.
+- [x] **D5** The control must handle datasets of thousands of pins
+  → *Data → D5* (two stories). Five thousand records draw as 22 pins and re-group to 75 on pan.
 - [x] **D6** Resolve any bound attribute through expands, using dot notation
+  → Exercised by every story through the shared resolver; unit-tested against the flat aliased key, the
+  nested expand and the array form.
 
 ### Interaction
-- [x] **I1** Update coordinates by dragging a pin (default: disabled)
-- [x] **I2** Place a marker by clicking the map (default: disabled), with reverse geo-coding, address
-  component mapping, deletion and `prefillUserLocation`
+- [x] **I1** Update coordinates by drag and drop of a pin — default disabled
+  → *Interaction → I1*. Dragging Brno depot wrote `49.6107 / 17.3804` back to the dataset, visible in the
+  table under the map.
+- [x] **I2** Place a marker by clicking the map — default disabled, with reverse geo-coding, the nine
+  address components, deletion, and `prefillUserLocation`
+  → *Interaction → I2* (two stories). A click created a record filled in as `273 / Lhotka / 277 31 /
+  Czechia` from live HERE, and its card offered Delete.
 
 ### Pins
 - [x] **P1** Custom icons — colour / URL / web resource / custom renderer, chosen by conditional rules
+  → *Pins → P1* (two stories). Depots red, service points green, stores blue by rule; and every site drawn
+  as a capacity donut through the code hook.
 - [x] **P2** Popup card on pin click, localized, with `ExecuteFunction()` buttons, one card at a time
+  → *Pins → P2* (two stories). The fields card with two working ExecuteFunction buttons, and an Adaptive
+  Card whose Capacity fact resolves through the renamed `_label` annotation.
 - [x] **P3** Automated group-by on pin overlap in the current viewport, with a count and a grouped card
+  → *Pins → P3*. Six warehouses drawn as one pin carrying `6`, opening a card listing all six.
 
 ### Pin connections
 - [x] **C1** Connect a group of pins into a line — ordered, grouped and coloured by attributes
+  → *Pin connections → C1*. Three runs drawn blue, red and green in stop order, despite the records
+  arriving sorted by name.
 - [x] **C2** Optional: snap the line to roads via the provider's directions service
+  → *Pin connections → C2*. The same three runs following the road network through live Mapy.com routing.
 
 ### Map legend
 - [x] **L1** Render simple HTML as a legend, loadable from a web resource, sanitized
+  → *Legend and providers → L1*. The markup deliberately ends in a `<script>` and an `<img onerror>`;
+  neither reached the page, and the surviving link came out with `target="_blank" rel="noopener noreferrer"`.
 
 ### Map provider
 - [x] **M1** Switch between Google Maps, OpenStreetMap, Mapy.com and Here.com, with provider-agnostic
-  geo-coding, reverse geo-coding and directions — *provider switching already shipped; this adds the two
-  geo service contracts and eight implementations, all verified against the live APIs*
-- [x] **M2** Hide/Show POI (default: hidden)
+  geo-coding, reverse geo-coding and directions
+  → *Legend and providers → M1*, and `npm run test:live`, which calls all eight services for real.
+- [x] **M2** Hide/Show POI — default hidden
+  → *Legend and providers → M2* (two stories). Google draws the airports and Pražský hrad only with points
+  of interest on.
+
+**And one story that turns the lot on at once:** *Map → V2 → Everything at once*.
+
+## How to run it
+
+```bash
+cp storybook/.env.local.example storybook/.env.local   # then paste in your HERE, Mapy.com and Google keys
+npm run storybook                                       # http://localhost:6006 → Map → V2
+```
+
+Without keys the keyless OpenStreetMap provider still draws every story; the vendors with no key are simply
+not offered, and geo-coding falls through to Nominatim.
+
+```bash
+npm test        # typecheck, then 248 unit tests
+npm run build   # the package build, which is also the repo's PR gate
+npm run test:live   # calls the real geo services; needs MAP_HERE_API_KEY, MAP_MAPY_API_KEY, MAP_GOOGLE_API_KEY
+```
+
+## Decisions the issue asked for
+
+- **The pin card** — one contract with three built-in renderers, chosen per pin by the same rules as the
+  icon: the built-in Fluent card, an Adaptive Card behind its own entry point, and an ExecuteFunction that
+  shows nothing and runs a web resource instead. That covers "or a combination", and its nice-to-have.
+- **Search chrome** — the map hosts its own box, **off by default**, so a map inside `DatasetControl` defers
+  to the quick find already in that control's header rather than showing a second one.
+- **How the legend HTML is sanitized** — DOMPurify with its HTML and SVG profiles, `style` allowed because a
+  legend is mostly colour swatches, forms and embeds forbidden, unknown protocols rejected, and every
+  surviving link rewritten to open detached from the app.
 
 ## Provider capability matrix
 
-Verified live against real keys before any code was written.
+Verified against real keys before any code was written, and re-verified by `npm run test:live`.
 
 | | Render | Geocode | Reverse | Directions | POI toggle |
 |---|:--:|:--:|:--:|:--:|:--:|
 | OpenStreetMap (Leaflet) | ✅ | Nominatim | Nominatim | OSRM | ✖ |
-| HERE | ✅ | ✅ | ✅ | Routing v8 | ✖ |
+| HERE | ✅ | ✅ | ✅ | Routing v8 | approximated |
 | Mapy.com | ✅ | ✅ | ✅ | ✅ | ✖ |
 | Google Maps | ✅ | ✅ | ✅ | Routes API † | ✅ |
 
-† The Google key's project has neither the legacy Directions API nor the Routes API enabled, so Google
-road-snapping is implemented but cannot be demonstrated until `routes.googleapis.com` is switched on.
+† **The one thing that cannot be demonstrated on the supplied key.** The Google project has neither the
+legacy Directions API nor the Routes API enabled, so `routes.googleapis.com` answers `PERMISSION_DENIED`.
+Google road-snapping is implemented against the Routes API and will work the moment that api is switched on
+in the console; until then the control reports it and draws a straight line. C2 is demonstrated on HERE,
+Mapy.com and OSRM, all three verified live.
+
+## Bugs found and fixed while building this
+
+Three of these predate V2 and would have shipped unnoticed.
+
+1. **Every Leaflet-backed provider drew a blank map when mounted before layout.** Leaflet measures its
+   container once, at creation, and after that only on a window resize. Mounted at zero width — Storybook, a
+   hidden tab, any host that mounts the control before sizing it — it cached that, `fitBounds` divided by it,
+   and every coordinate it computed afterwards was `NaN`. No tiles were ever requested. The renderer now
+   observes its container and holds off until the map has a real size.
+2. **Nothing redrew after a record was created or edited.** Both report themselves through
+   `onAfterRecordSaved`, not `onNewDataLoaded`, which was the only event the control listened to.
+3. **Draining every page destroyed the provider its records still depended on.** The records read their
+   columns back through it, so every card drawn in `PinLoading: all` silently lost its field labels and its
+   title. The clone's lifetime now belongs to the caller.
+4. **Storybook never registered the Fluent icon set**, so every icon in every control rendered as nothing.
+
+## Known limitation, reported rather than hidden
+
+`adaptivecards-templating` parses expressions with `adaptive-expressions`, which uses `antlr4ts`, which calls
+Node's `assert`. That chain does not survive Vite's dependency optimizer — it throws where the `assert` shim
+is left undefined, and no combination of `optimizeDeps` include, exclude or aliasing fixes it. Rather than
+let a card fail to render because of where it was bundled, `expandAdaptiveCardTemplate` falls back to
+substituting the simple `${...}` bindings and says so once in the console. The full language — repetition,
+conditions, functions — runs wherever the engine does, which includes webpack, rollup and Node, and a test
+asserts the two agree where they overlap. Storybook therefore exercises the fallback path; a PCF built with
+webpack gets the real engine.
+
+## What was added to the repository
+
+- **`npm test`** — Vitest behind a typecheck, 248 tests. The repo had no test runner at all.
+- **`npm run test:live`** — the same geo services against the real APIs, excluded from `npm test`.
+- Dependencies: `supercluster` and `dompurify` as regular ones; `adaptivecards` and
+  `adaptivecards-templating` as **optional peers** behind their own entry point, following the
+  `@vis.gl/react-google-maps` precedent. Verified: nothing but the two adaptive-card modules imports them.
+- `@types/node` bumped from 17 to 22 — Vitest needs ≥18, and CI already runs Node 24.
 
 ## Log
 
