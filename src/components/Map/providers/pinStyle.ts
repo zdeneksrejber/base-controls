@@ -87,13 +87,15 @@ export const getPinSize = (appearance?: IMapPinAppearance, fallback: IMapPinSize
 });
 
 /**
- * Where a pin is anchored on its position: an image or custom markup is centred on it, the shipped shape
- * points at it with its tip.
+ * Where a pin is anchored on its position: the appearance's own `anchor` wins; without one, an image or
+ * custom markup is centred on it and the shipped shape points at it with its tip.
  */
-export const getPinAnchor = (location: IMapLocation, size: IMapPinSize): { x: number; y: number } => ({
-    x: size.width / 2,
-    y: location.pin?.svg || location.pin?.url ? size.height / 2 : size.height
-});
+export const getPinAnchor = (location: IMapLocation, size: IMapPinSize): { x: number; y: number } => {
+    const centered = location.pin?.anchor
+        ? location.pin.anchor === 'center'
+        : !!(location.pin?.svg || location.pin?.url);
+    return { x: size.width / 2, y: centered ? size.height / 2 : size.height };
+};
 
 /**
  * The markup a pin is drawn from. Custom markup wins over an image, an image over a colour, and a colour

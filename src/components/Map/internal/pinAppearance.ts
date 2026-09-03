@@ -17,6 +17,11 @@ export interface IMapPinAppearance {
     /** Size of the image or markup, in pixels. Defaults to the shipped pin size. */
     width?: number;
     height?: number;
+    /**
+     * Where the pin sits on its coordinate: `center` for a badge, `tip` for a marker shape whose
+     * bottom point is the position. An image or markup defaults to `center`.
+     */
+    anchor?: 'center' | 'tip';
     /** Tooltip. Defaults to the record's primary name. */
     title?: string;
 }

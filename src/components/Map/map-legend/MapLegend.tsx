@@ -20,7 +20,8 @@ export interface IMapLegendProps {
  */
 export const MapLegend = (props: IMapLegendProps) => {
     const styles = useMemo(() => getMapLegendStyles(props.theme), [props.theme]);
-    const [isOpen, setIsOpen] = useState(true);
+    //shut until asked for - a legend that opens itself covers the pins it explains
+    const [isOpen, setIsOpen] = useState(false);
 
     if (!props.html) {
         return null;

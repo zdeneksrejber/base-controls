@@ -12,7 +12,7 @@ import {
     ROUTE_STROKE_WEIGHT,
     useMapPinSelection
 } from '../pinStyle';
-import { CARD_MAX_WIDTH } from '../layout';
+import { CARD_MAX_HEIGHT, CARD_MAX_WIDTH } from '../layout';
 import { isMapSurfaceClick } from '../mapClick';
 import { getSafeFitPadding, isFiniteMapViewport, IMapViewport } from '../../internal/viewport';
 import { getLeafletMapProviderStyles } from './styles';
@@ -53,7 +53,8 @@ const getPinIcon = (location: IMapLocation, defaultColor: string) => {
         className: '',
         iconSize: [size.width, size.height],
         iconAnchor: [anchor.x, anchor.y],
-        popupAnchor: [0, -(size.height / 2)],
+        //relative to the anchor point, so the popup opens just above the icon whichever way it is anchored
+        popupAnchor: [0, -anchor.y],
         html: markup ?? getPinImageMarkup(location.pin!.url as string, size)
     });
 };
@@ -263,6 +264,8 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
                         key={openCard.locationId}
                         position={[openCard.coordinates.latitude, openCard.coordinates.longitude]}
                         maxWidth={CARD_MAX_WIDTH}
+                        //one scrollbar, owned by Leaflet's scrolled-popup handling - cards inside must not scroll themselves
+                        maxHeight={CARD_MAX_HEIGHT}
                         onClose={onCloseCard}>
                         {openCard.content}
                     </Popup>}
