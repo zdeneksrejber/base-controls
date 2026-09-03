@@ -31,6 +31,8 @@ export interface IMapViewportOptions {
     singleLocationZoom?: number;
     /** Zoom for an approximate location. Deliberately low - such a location can be off by a city or two. */
     approximateLocationZoom?: number;
+    /** Zoom for a location precise enough to trust, such as one the device reported. */
+    preciseLocationZoom?: number;
     padding?: number;
 }
 
@@ -40,6 +42,7 @@ export const DEFAULT_MAP_VIEWPORT_OPTIONS: Required<IMapViewportOptions> = {
     fallbackZoom: 6,
     singleLocationZoom: 15,
     approximateLocationZoom: 8,
+    preciseLocationZoom: 14,
     padding: 48
 };
 
@@ -100,15 +103,28 @@ export const getMapViewport = (coordinates: IMapCoordinates[], options?: IMapVie
     };
 };
 
-/** Viewport for a roughly known location, for example one resolved from an IP address. */
-export const getApproximateMapViewport = (coordinates: IMapCoordinates, options?: IMapViewportOptions): IMapViewport => {
-    const { approximateLocationZoom, padding } = { ...DEFAULT_MAP_VIEWPORT_OPTIONS, ...options };
+/**
+ * Viewport for a location the control resolved rather than derived from pins.
+ *
+ * @param coordinates The location, and whether it is precise enough to zoom in on.
+ * @param options Viewport option overrides.
+ * @returns A viewport centred on it, zoomed to how much the location can be trusted.
+ */
+export const getResolvedLocationViewport = (
+    coordinates: IMapCoordinates & { isPrecise?: boolean },
+    options?: IMapViewportOptions
+): IMapViewport => {
+    const { approximateLocationZoom, preciseLocationZoom, padding } = { ...DEFAULT_MAP_VIEWPORT_OPTIONS, ...options };
     return {
         center: { latitude: coordinates.latitude, longitude: coordinates.longitude },
-        zoom: approximateLocationZoom,
+        zoom: coordinates.isPrecise ? preciseLocationZoom : approximateLocationZoom,
         padding
     };
 };
+
+/** Viewport for a roughly known location, for example one resolved from an IP address. */
+export const getApproximateMapViewport = (coordinates: IMapCoordinates, options?: IMapViewportOptions): IMapViewport =>
+    getResolvedLocationViewport({ ...coordinates, isPrecise: false }, options);
 
 /**
  * Whether a viewport is safe to hand to a map.

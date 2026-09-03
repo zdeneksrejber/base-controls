@@ -1,9 +1,8 @@
 import { useCallback } from 'react';
-import { IMapFallbackLocationResolver } from './fallbackLocation';
-import { IMapCoordinates } from './viewport';
+import { IMapFallbackLocationResolver, IMapResolvedLocation } from './fallbackLocation';
 
-/** How long the browser is given to answer before the IP fallback is used instead. */
-const GEOLOCATION_TIMEOUT_MS = 8000;
+/** How long the browser is given to answer before the fallback resolver is used instead. */
+const GEOLOCATION_TIMEOUT_MS = 4000;
 
 /**
  * Asks the browser where the user is.
@@ -11,7 +10,7 @@ const GEOLOCATION_TIMEOUT_MS = 8000;
  * @param signal Aborts the wait when the control stops caring.
  * @returns The position, or `null` when the browser has none or the user declined.
  */
-const getBrowserLocation = (signal?: AbortSignal): Promise<IMapCoordinates | null> =>
+const getBrowserLocation = (signal?: AbortSignal): Promise<IMapResolvedLocation | null> =>
     new Promise((resolve) => {
         if (typeof navigator === 'undefined' || !navigator.geolocation) {
             resolve(null);
@@ -20,7 +19,11 @@ const getBrowserLocation = (signal?: AbortSignal): Promise<IMapCoordinates | nul
         const onAbort = () => resolve(null);
         signal?.addEventListener('abort', onAbort, { once: true });
         navigator.geolocation.getCurrentPosition(
-            (position) => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+            (position) => resolve({
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                isPrecise: true
+            }),
             //a decline is an answer, not a failure - the caller falls back to whatever else it has
             () => resolve(null),
             { timeout: GEOLOCATION_TIMEOUT_MS, maximumAge: GEOLOCATION_TIMEOUT_MS }
@@ -45,7 +48,7 @@ export interface IUseUserLocation {
 export const useUserLocation = (props: IUseUserLocation) => {
     const onResolveFallbackLocation = props.onResolveFallbackLocation;
 
-    return useCallback(async (signal?: AbortSignal): Promise<IMapCoordinates | null> => {
+    return useCallback(async (signal?: AbortSignal): Promise<IMapResolvedLocation | null> => {
         const browserLocation = await getBrowserLocation(signal);
         if (browserLocation) {
             return browserLocation;

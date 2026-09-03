@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getApproximateMapViewport, getMapViewport, isFiniteMapViewport } from './viewport';
+import { getApproximateMapViewport, getMapViewport, getResolvedLocationViewport, isFiniteMapViewport } from './viewport';
 
 const PRAGUE = { latitude: 50.0755, longitude: 14.4378 };
 const BRNO = { latitude: 49.1951, longitude: 16.6068 };
@@ -41,6 +41,24 @@ describe('getApproximateMapViewport', () => {
         expect(viewport.center).toEqual(PRAGUE);
         expect(viewport.zoom).toBe(8);
         expect(viewport.bounds).toBeUndefined();
+    });
+});
+
+describe('getResolvedLocationViewport', () => {
+    it('stays zoomed out for a location that was only guessed at', () => {
+        expect(getResolvedLocationViewport({ ...PRAGUE, isPrecise: false }).zoom).toBe(8);
+        expect(getResolvedLocationViewport(PRAGUE).zoom).toBe(8);
+    });
+
+    it('zooms in on a location precise enough to trust', () => {
+        const viewport = getResolvedLocationViewport({ ...PRAGUE, isPrecise: true });
+        expect(viewport.zoom).toBe(14);
+        expect(viewport.center).toEqual(PRAGUE);
+    });
+
+    it('honours overridden zooms', () => {
+        expect(getResolvedLocationViewport({ ...PRAGUE, isPrecise: true }, { preciseLocationZoom: 17 }).zoom).toBe(17);
+        expect(getResolvedLocationViewport(PRAGUE, { approximateLocationZoom: 5 }).zoom).toBe(5);
     });
 });
 

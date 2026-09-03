@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import deepEqual from 'fast-deep-equal/es6';
 import { IMapProvider } from "./providers";
-import { IMapFallbackLocationResolver } from "./fallbackLocation";
-import { getApproximateMapViewport, getMapViewport, IMapCoordinates, IMapViewport, IMapViewportOptions } from "./viewport";
+import { IMapFallbackLocationResolver, IMapResolvedLocation } from "./fallbackLocation";
+import { getMapViewport, getResolvedLocationViewport, IMapCoordinates, IMapViewport, IMapViewportOptions } from "./viewport";
 
 export interface IUseMapViewport {
     locations: IMapCoordinates[];
@@ -16,7 +16,8 @@ export interface IUseMapViewport {
 
 //lets a fast loading dataset win the race and skip the fallback location call entirely
 const FALLBACK_LOCATION_DEBOUNCE_MS = 400;
-const FALLBACK_LOCATION_TIMEOUT_MS = 2500;
+//long enough for a device position to be asked for and declined, and an ip lookup tried after it
+const FALLBACK_LOCATION_TIMEOUT_MS = 12000;
 
 /**
  * Owns where the map looks: derives the viewport from the pins, keeps that decision stable across renders and
@@ -26,7 +27,7 @@ const FALLBACK_LOCATION_TIMEOUT_MS = 2500;
  */
 export const useMapViewport = (props: IUseMapViewport) => {
     const { locations, provider, options, onResolveFallbackLocation, onChange } = props;
-    const [fallbackLocation, setFallbackLocation] = useState<IMapCoordinates>();
+    const [fallbackLocation, setFallbackLocation] = useState<IMapResolvedLocation>();
     const onChangeRef = useRef(onChange);
     onChangeRef.current = onChange;
     //a host has no reason to memoize this, so the effect below must not depend on its identity
@@ -60,7 +61,7 @@ export const useMapViewport = (props: IUseMapViewport) => {
 
     const derivedViewport = useMemo(() => {
         if (!hasLocations && fallbackLocation) {
-            return getApproximateMapViewport(fallbackLocation, options);
+            return getResolvedLocationViewport(fallbackLocation, options);
         }
         return getMapViewport(locations, options);
     }, [locations, hasLocations, fallbackLocation, options]);
