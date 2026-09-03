@@ -24,7 +24,7 @@ Google Maps is the one vendor a wrapper names in code, so its npm peer is only p
 actually wants it:
 
 \`\`\`tsx
-import { googleMapsVendor } from '@talxis/base-controls/components/Map/providers/google-maps';
+import { googleMapsVendor } from '@talxis/base-controls/dist/components/Map/providers/google-maps';
 
 <Map ... onGetMapVendors={() => [googleMapsVendor]} />
 \`\`\`

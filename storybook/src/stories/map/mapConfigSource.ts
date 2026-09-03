@@ -95,25 +95,36 @@ const formatHook = (
     return { inline: name, declaration: `const ${name}${type} = ${source};` }
 }
 
-/** Imports the emitted snippet needs, added only when it actually refers to the thing. */
+/**
+ * Imports the emitted snippet needs, added only when it actually refers to the thing.
+ *
+ * These are the paths a **consumer** installs, which are not the ones the Storybook itself writes: only
+ * `/dist` is published, and this repo's own stories reach the sources through a Vite alias. The deep ones
+ * are deep on purpose - importing an optional peer's entry point from the barrel would pull it into every
+ * build, which is the whole reason it lives behind its own.
+ */
 const IMPORTS: { needle: RegExp; statement: string }[] = [
     {
         needle: /\bADAPTIVE_MAP_CARD_RENDERERS\b/,
-        statement: "import { ADAPTIVE_MAP_CARD_RENDERERS } from '@talxis/base-controls/components/Map/map-card/adaptive-card';"
+        statement: "import { ADAPTIVE_MAP_CARD_RENDERERS } from '@talxis/base-controls/dist/components/Map/map-card/adaptive-card';"
     },
     {
         needle: /\bIMapPinResolver\b/,
-        statement: "import type { IMapPinResolver } from '@talxis/base-controls/components/Map';"
+        statement: "import type { IMapPinResolver } from '@talxis/base-controls';"
     },
     {
         needle: /\bIRecord\b/,
         statement: "import type { IRecord } from '@talxis/client-libraries';"
+    },
+    {
+        needle: /\bresolveLocationFromIpAddress\b/,
+        statement: "import { resolveLocationFromIpAddress } from '@talxis/base-controls';"
     }
 ]
 
 const BASE_IMPORTS = [
-    "import { Map } from '@talxis/base-controls/components/Map';",
-    "import { googleMapsVendor } from '@talxis/base-controls/components/Map/providers/google-maps';"
+    "import { Map } from '@talxis/base-controls';",
+    "import { googleMapsVendor } from '@talxis/base-controls/dist/components/Map/providers/google-maps';"
 ]
 
 export interface IMapConfigSourceOptions {

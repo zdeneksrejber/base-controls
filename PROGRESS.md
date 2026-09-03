@@ -87,7 +87,7 @@ Without keys the keyless OpenStreetMap provider still draws every story; the ven
 not offered, and geo-coding falls through to Nominatim.
 
 ```bash
-npm test        # typecheck, then 261 unit tests
+npm test        # typecheck, then 282 unit tests
 npm run build   # the package build, which is also the repo's PR gate
 npm run test:live   # calls the real geo services; needs MAP_HERE_API_KEY, MAP_MAPY_API_KEY, MAP_GOOGLE_API_KEY
 ```
@@ -417,3 +417,30 @@ markers now wait for the api, which is also the only honest thing for a marker t
   docs page renders every story it has, so leaving it on meant opening **Editing** asked for your location
   while two maps full of pins sat above it. Verified by counting `getCurrentPosition` calls per page: zero
   everywhere, one only when the switch is turned on.
+
+### Third review round — the Code panel told coders nothing, and keys needed a way in
+
+**`onResolvePin={getPinAppearance}`** named a function that does not exist. Rendering the function's own
+source through `toString()` fixed it in development and not at all once published: the minifier turns the
+demo hook into `j=t=>{const a=Number(t.getValue("capacity"))||0,...}`, and transpilation had already thrown
+the type annotations away. The panel now lifts the declaration out of the story's own module text, imported
+with Vite's `?raw`, so it shows the source **as authored** — types, doc comment and all — in every build.
+`extractDeclaration` walks the initializer counting brackets while stepping over strings, template holes and
+comments, so a `}` inside an SVG string does not end it early.
+
+**A sweep for the same defect elsewhere** — documentation showing code that is not the real code — turned up
+one more, in the thing just built. The generated imports used `@talxis/base-controls/components/…`, which is
+the alias this repository's own Storybook resolves to `src`. Only `/dist` is published, so a reader copying
+that line gets a module that does not resolve. Every emitted import is now the consumer's path, matching what
+the README documents, and a test asserts none of them can point anywhere else. The same wrong path was in the
+Providers page prose. `onResolveFallbackLocation` was being passed by the demo host and never shown at all;
+it is now listed with the rest. The Form pages came out clean: their examples are compiled from the same
+string they display, so they cannot drift, and their aliased imports are never shown to a reader.
+
+**Api keys, for someone who will not clone the repository.** The key panel was only reachable from a button
+above each map. It is now the first thing on the **Overview** page, composed into that page's docs template
+by hand so it sits above the map rather than under it. A visitor pastes a key, every map on every page
+redraws, and it survives a reload. Verified against a Storybook built exactly as it publishes — `.env.local`
+moved aside first, and the bundle checked for leaked keys: with no keys the provider picker does not appear
+at all, after saving a Mapy.com key it offers OpenStreetMap and Mapy.com, and after a reload the map opens on
+Mapy.com.

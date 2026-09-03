@@ -110,18 +110,22 @@ export const MapDemo = (props: IMapDemoProps) => {
     useEventEmitter<IDataProviderEventListeners>(props.dataset, 'onRecordsSelected', (ids: string[]) => setSelectedIds(ids ?? []))
     useEffect(() => setSelectedIds(props.dataset.getSelectedRecordIds()), [props.dataset])
 
+    //the ip lookup is a third party call, so only a story that asked to be centred on the user gets one
+    const wantsUserLocation = props.parameters?.PrefillUserLocation?.raw === true
+
     const source = useMemo(() => getMapConfigSource(props.parameters ?? {}, {
         hooks: {
             onResolvePin: props.onResolvePin,
             onGetCardRenderers: props.onGetCardRenderers
         },
         hookSource: props.hookSource,
-        //the same on every page, and defined here rather than in a story, so it is stated rather than read
-        props: { onGetMapVendors: '() => [googleMapsVendor]' }
-    }), [props.parameters, props.onResolvePin, props.onGetCardRenderers, props.hookSource])
-
-    //the ip lookup is a third party call, so only a story that asked to be centred on the user gets one
-    const wantsUserLocation = props.parameters?.PrefillUserLocation?.raw === true
+        //fixed lines rather than functions to read: defined here rather than in a story, and the same on
+        //every page that passes them
+        props: {
+            ...(wantsUserLocation ? { onResolveFallbackLocation: 'resolveLocationFromIpAddress' } : {}),
+            onGetMapVendors: '() => [googleMapsVendor]'
+        }
+    }), [props.parameters, props.onResolvePin, props.onGetCardRenderers, props.hookSource, wantsUserLocation])
 
     const height = props.height ?? 520
 

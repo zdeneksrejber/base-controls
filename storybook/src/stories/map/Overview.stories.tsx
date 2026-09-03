@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react'
+import { Controls, Description, Primary, Title } from '@storybook/addon-docs/blocks'
 import { useMemo } from 'react'
 import { ADAPTIVE_MAP_CARD_RENDERERS } from '@talxis/base-controls/components/Map/map-card/adaptive-card'
+import { MapApiKeyPanel } from './MapApiKeyPanel'
 import { MapDemo } from './MapDemo'
 import { preferredVendor } from './mapApiKeys'
 import { createSampleDataset, getSiteRecords, SAMPLE_ATTRIBUTES } from './mapSampleData'
@@ -74,13 +76,12 @@ Four vendors ship with it — **OpenStreetMap** (the default, and keyless), **HE
 Every switch below is a manifest property. Turn them on and off to see what the control does; each one has a
 page of its own in the sidebar that goes into why it behaves the way it does.
 
-Every page has an **Api keys** button above the map. Paste your own HERE, Mapy.com or Google Maps key
-there to see those vendors, their geo-coding and their routing; the keys stay in your browser and are sent
-only to the vendor they belong to. Without any, the keyless OpenStreetMap provider still draws everything
-and geo-coding falls through to Nominatim. Running the Storybook yourself, a gitignored
-\`storybook/.env.local\` fills them in for you — copy \`.env.local.example\` and add your own.
+**OpenStreetMap needs no key**, so everything here works as it stands. To see the other three vendors, paste
+your own keys into the panel just below — they stay in your browser, and every map on every page redraws with
+them. The same panel is behind the **Api keys** button above each map.
 
-Beside it is a **Code** toggle, which swaps the map for the exact configuration that page hands the control.
+Beside that button is a **Code** toggle, which swaps the map for the exact configuration that page hands the
+control — imports included, so it can be copied straight into a wrapper.
 
 The full API — props, parameters, outputs, the manifest to wrap it in, and how to add a vendor of your own —
 is in [the control's README](https://github.com/TALXIS/base-controls/blob/master/src/components/Map/README.md).
@@ -168,7 +169,23 @@ const meta = {
         showLegend: true,
         allowEditing: false
     },
-    parameters: mapStoryParameters(INTRO)
+    parameters: {
+        ...mapStoryParameters(INTRO),
+        docs: {
+            ...mapStoryParameters(INTRO).docs,
+            //composed by hand so the keys come before the map: a reader of the published Storybook has no
+            //`.env.local` to fill in, and is not going to clone the repository to get one
+            page: () => (
+                <>
+                    <Title />
+                    <Description />
+                    <MapApiKeyPanel isFramed />
+                    <Primary />
+                    <Controls />
+                </>
+            )
+        }
+    }
 } satisfies Meta<typeof OverviewPlayground>
 
 export default meta
