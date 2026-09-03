@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { IColumn, IDataProviderEventListeners, IDataset } from '@talxis/client-libraries'
 import { DataTypes } from '@talxis/client-libraries'
 import { MapDemo } from './MapDemo'
-import { MAP_API_KEYS } from './mapApiKeys'
+import { preferredVendor } from './mapApiKeys'
 import { createSampleDataset, getSiteRecords, SAMPLE_ATTRIBUTES } from './mapSampleData'
 import { ADDRESS_BINDINGS } from './mapSampleConfig'
 import { mapStoryParameters } from './storyHelpers'
@@ -138,7 +138,7 @@ const CreatePins = () => {
                 EnablePinDragging: { raw: true },
                 EnableClustering: { raw: false },
                 CardColumns: { raw: 'address,city,street,streetLine,postalCode,country' },
-                DefaultVendor: { raw: MAP_API_KEYS.here ? 'here' : 'leaflet' }
+                DefaultVendor: { raw: preferredVendor('here') }
             }}>
             <RecordTable dataset={dataset} columns={['streetLine', 'city', 'postalCode', 'country', 'lat', 'lng']} />
         </MapDemo>
@@ -166,14 +166,14 @@ export const CreateAPin: Story = {
     }
 }
 
-const PrefillLocation = () => {
+const PrefillLocation = (props: { prefillUserLocation: boolean }) => {
     const dataset = useMemo(() => createSampleDataset({ records: [] }), [])
     return (
         <MapDemo
             dataset={dataset}
             parameters={{
                 ...COORDINATES,
-                PrefillUserLocation: { raw: true },
+                PrefillUserLocation: { raw: props.prefillUserLocation },
                 EnablePinCreation: { raw: true },
                 DefaultVendor: { raw: 'leaflet' }
             }}
@@ -181,21 +181,32 @@ const PrefillLocation = () => {
     )
 }
 
-export const PrefillUserLocation: Story = {
+export const PrefillUserLocation: StoryObj<typeof PrefillLocation> = {
     name: 'Centre on the user when there is nothing to fit',
-    render: () => <PrefillLocation />,
+    render: (args) => <PrefillLocation {...args} />,
+    argTypes: {
+        prefillUserLocation: {
+            control: 'boolean',
+            table: { category: 'Manifest properties' },
+            description: 'Whether the map centres on the user while the dataset has no pins. It asks for permission, so it starts off here.'
+        }
+    },
+    //a docs page renders every story it has, so nothing on it may ask where you are until you ask it to
+    args: { prefillUserLocation: false },
     parameters: {
         docs: {
             description: {
                 story: [
-                    'With no pins to fit, `PrefillUserLocation` centres the map on the user. The browser is asked',
-                    'first, because it is the only source precise enough to drop a pin on, and the map zooms in',
-                    'close when it answers. A user who declines, or a browser with nothing to say, falls through',
-                    'to `onResolveFallbackLocation` — the opt-in IP lookup this page passes — and the map stays',
-                    'zoomed out, because that answer is only good to a city.',
+                    'With no pins to fit, `PrefillUserLocation` centres the map on the user. **Turn the switch on**',
+                    'to see it: the browser is asked first, because it is the only source precise enough to drop a',
+                    'pin on, and the map zooms in close when it answers. A user who declines, or a browser with',
+                    'nothing to say, falls through to `onResolveFallbackLocation` — an opt-in IP lookup — and the',
+                    'map stays zoomed out, because that answer is only good to a city.',
                     '',
-                    'Off by default, because it prompts for permission. Pin creation is on here too, so the map is',
-                    'a usable starting point rather than an empty one: click to place the first record.'
+                    'It starts off here for the same reason the property is off by default in the control: it',
+                    'prompts for permission, and the two maps above it on this page have no business asking. Pin',
+                    'creation is on either way, so the map is a usable starting point rather than an empty one —',
+                    'click to place the first record.'
                 ].join(' ')
             }
         }

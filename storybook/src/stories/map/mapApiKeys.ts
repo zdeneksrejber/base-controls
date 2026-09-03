@@ -1,14 +1,117 @@
+import { useEffect, useState } from 'react'
+
+/** Vendors whose api key the demo can hold. OpenStreetMap needs none, so it is not one of them. */
+export type IMapApiKeyVendor = 'here' | 'mapy' | 'google'
+
+export type IMapApiKeys = { [vendor in IMapApiKeyVendor]: string }
+
+export interface IMapApiKeyVendorInfo {
+    id: IMapApiKeyVendor
+    label: string
+    /** Manifest property the control reads this key from. */
+    parameterName: string
+    /** Where a reader gets one of their own. */
+    signupUrl: string
+}
+
+export const MAP_API_KEY_VENDORS: IMapApiKeyVendorInfo[] = [
+    { id: 'here', label: 'HERE', parameterName: 'HereApiKey', signupUrl: 'https://platform.here.com/' },
+    { id: 'mapy', label: 'Mapy.com', parameterName: 'MapyApiKey', signupUrl: 'https://developer.mapy.com/' },
+    { id: 'google', label: 'Google Maps', parameterName: 'GoogleApiKey', signupUrl: 'https://console.cloud.google.com/google/maps-apis' }
+]
+
+const STORAGE_KEY = 'talxis.base-controls.storybook.mapApiKeys'
+
+const EMPTY_KEYS: IMapApiKeys = { here: '', mapy: '', google: '' }
+
 /**
- * Api keys the demo hands the control, read from a gitignored `storybook/.env.local`.
+ * Keys baked in at build time from a gitignored `storybook/.env.local`.
  *
- * Copy `.env.local.example` to `.env.local` and fill in your own. A vendor with no key is simply not offered
- * by the control, so the keyless OpenStreetMap provider always works without any setup.
+ * The published Storybook is built without them on purpose - a key in a public bundle is a key someone else
+ * is paying for - so on that build these are all empty and the ones below take over.
  */
-export const MAP_API_KEYS = {
+const ENV_KEYS: IMapApiKeys = {
     here: import.meta.env.VITE_MAP_HERE_API_KEY ?? '',
     mapy: import.meta.env.VITE_MAP_MAPY_API_KEY ?? '',
     google: import.meta.env.VITE_MAP_GOOGLE_API_KEY ?? ''
-};
+}
 
-/** Whether any key at all was configured, so a story can say what is missing rather than look broken. */
-export const hasAnyMapApiKey = Object.values(MAP_API_KEYS).some((key) => !!key);
+const readStoredKeys = (): Partial<IMapApiKeys> => {
+    try {
+        const stored = window.localStorage.getItem(STORAGE_KEY)
+        return stored ? JSON.parse(stored) : {}
+    } catch {
+        //a private window, or storage the browser refuses - the env keys are still a usable answer
+        return {}
+    }
+}
+
+let keys: IMapApiKeys = { ...EMPTY_KEYS, ...ENV_KEYS, ...readStoredKeys() }
+const listeners = new Set<() => void>()
+
+/**
+ * The keys the demo hands the control right now: whatever the reader typed, falling back to the build's own.
+ *
+ * @returns One key per vendor, empty where there is none.
+ */
+export const getMapApiKeys = (): IMapApiKeys => keys
+
+/**
+ * Replaces the keys the reader typed and tells every mounted map to redraw with them.
+ *
+ * @param changed Keys to set. An empty string clears that vendor back to the build's own key.
+ */
+export const setMapApiKeys = (changed: Partial<IMapApiKeys>) => {
+    const stored = { ...readStoredKeys(), ...changed }
+    //an empty entry means "use whatever the build has", which is not the same as storing an empty key
+    const kept = Object.fromEntries(Object.entries(stored).filter(([, value]) => !!value))
+    try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(kept))
+    } catch {
+        //storing is a convenience; the session still gets the keys from the value below
+    }
+    keys = { ...EMPTY_KEYS, ...ENV_KEYS, ...kept }
+    listeners.forEach((listener) => listener())
+}
+
+/** Forgets every key the reader typed, leaving the build's own. */
+export const clearMapApiKeys = () => {
+    try {
+        window.localStorage.removeItem(STORAGE_KEY)
+    } catch {
+        //nothing was stored, so nothing needs removing
+    }
+    keys = { ...EMPTY_KEYS, ...ENV_KEYS }
+    listeners.forEach((listener) => listener())
+}
+
+/** Whether this vendor's key came from the reader rather than from the build. */
+export const isReaderProvidedKey = (vendor: IMapApiKeyVendor): boolean => {
+    const stored = readStoredKeys()
+    return !!stored[vendor] && stored[vendor] !== ENV_KEYS[vendor]
+}
+
+/**
+ * The current keys, re-rendering the caller whenever they change.
+ *
+ * @returns One key per vendor, empty where there is none.
+ */
+export const useMapApiKeys = (): IMapApiKeys => {
+    const [current, setCurrent] = useState(keys)
+    useEffect(() => {
+        const listener = () => setCurrent(getMapApiKeys())
+        listeners.add(listener)
+        listener()
+        return () => { listeners.delete(listener) }
+    }, [])
+    return current
+}
+
+/**
+ * The first of these vendors that has a key, for a story that is best shown on a particular one.
+ *
+ * @param candidates Vendor ids in order of preference.
+ * @returns The first configured candidate, or `leaflet` - which needs no key and always renders.
+ */
+export const preferredVendor = (...candidates: IMapApiKeyVendor[]): string =>
+    candidates.find((vendor) => !!getMapApiKeys()[vendor]) ?? 'leaflet'

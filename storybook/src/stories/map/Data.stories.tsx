@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useMemo } from 'react'
 import { MapDemo } from './MapDemo'
-import { MAP_API_KEYS } from './mapApiKeys'
+import { preferredVendor } from './mapApiKeys'
 import { createSampleDataset, generateSiteRecords, getSiteRecords, SAMPLE_ATTRIBUTES } from './mapSampleData'
 import { mapStoryParameters } from './storyHelpers'
 
@@ -51,7 +51,7 @@ const AddressFallback = () => {
                 ...COORDINATES,
                 FullAddressAttributeName: { raw: SAMPLE_ATTRIBUTES.address },
                 EnableClustering: { raw: false },
-                DefaultVendor: { raw: MAP_API_KEYS.here ? 'here' : 'leaflet' }
+                DefaultVendor: { raw: preferredVendor('here') }
             }}
         />
     )
@@ -204,7 +204,7 @@ const Search = () => {
                 EnableSearch: { raw: true },
                 EnableAddressSearch: { raw: true },
                 EnableClustering: { raw: false },
-                DefaultVendor: { raw: MAP_API_KEYS.mapy ? 'mapy' : 'leaflet' }
+                DefaultVendor: { raw: preferredVendor('mapy') }
             }}
         />
     )

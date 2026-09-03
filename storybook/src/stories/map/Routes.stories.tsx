@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useMemo } from 'react'
 import { MapDemo } from './MapDemo'
-import { MAP_API_KEYS } from './mapApiKeys'
+import { preferredVendor } from './mapApiKeys'
 import { createSampleDataset, getSiteRecords, SAMPLE_ATTRIBUTES } from './mapSampleData'
 import { mapStoryParameters } from './storyHelpers'
 
@@ -75,7 +75,7 @@ export const StraightConnections: Story = {
 
 export const SnappedConnections: Story = {
     name: 'Follow the roads instead',
-    render: () => <Connections snap vendor={MAP_API_KEYS.mapy ? 'mapy' : 'leaflet'} />,
+    render: () => <Connections snap vendor={preferredVendor('mapy')} />,
     parameters: {
         docs: {
             description: {

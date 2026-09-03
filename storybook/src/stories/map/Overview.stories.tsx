@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react'
 import { useMemo } from 'react'
 import { ADAPTIVE_MAP_CARD_RENDERERS } from '@talxis/base-controls/components/Map/map-card/adaptive-card'
 import { MapDemo } from './MapDemo'
-import { MAP_API_KEYS } from './mapApiKeys'
+import { preferredVendor } from './mapApiKeys'
 import { createSampleDataset, getSiteRecords, SAMPLE_ATTRIBUTES } from './mapSampleData'
 import { ADAPTIVE_CARD_TEMPLATE, LEGEND_HTML, PIN_RULES } from './mapSampleConfig'
 import { mapStoryParameters } from './storyHelpers'
@@ -24,7 +24,7 @@ interface IOverviewProps {
     allowEditing: boolean
 }
 
-const Overview = (props: IOverviewProps) => {
+const OverviewPlayground = (props: IOverviewProps) => {
     const dataset = useMemo(() => createSampleDataset({ records: getSiteRecords() }), [])
     return (
         <MapDemo
@@ -69,9 +69,13 @@ Four vendors ship with it — **OpenStreetMap** (the default, and keyless), **HE
 Every switch below is a manifest property. Turn them on and off to see what the control does; each one has a
 page of its own in the sidebar that goes into why it behaves the way it does.
 
-> Api keys for this Storybook come from a gitignored \`storybook/.env.local\` — copy \`.env.local.example\`
-> and fill in your own. Without any, the keyless OpenStreetMap provider still draws everything and
-> geo-coding falls through to Nominatim.
+Every page has an **Api keys** button above the map. Paste your own HERE, Mapy.com or Google Maps key
+there to see those vendors, their geo-coding and their routing; the keys stay in your browser and are sent
+only to the vendor they belong to. Without any, the keyless OpenStreetMap provider still draws everything
+and geo-coding falls through to Nominatim. Running the Storybook yourself, a gitignored
+\`storybook/.env.local\` fills them in for you — copy \`.env.local.example\` and add your own.
+
+Beside it is a **Code** toggle, which swaps the map for the exact configuration that page hands the control.
 
 The full API — props, parameters, outputs, the manifest to wrap it in, and how to add a vendor of your own —
 is in [the control's README](https://github.com/TALXIS/base-controls/blob/master/src/components/Map/README.md).
@@ -79,7 +83,7 @@ is in [the control's README](https://github.com/TALXIS/base-controls/blob/master
 
 const meta = {
     title: 'Map/Overview',
-    component: Overview,
+    component: OverviewPlayground,
     tags: ['autodocs'],
     argTypes: {
         defaultVendor: {
@@ -146,7 +150,7 @@ const meta = {
         }
     },
     args: {
-        defaultVendor: MAP_API_KEYS.mapy ? 'mapy' : 'leaflet',
+        defaultVendor: preferredVendor('mapy', 'here') as IOverviewProps['defaultVendor'],
         letUserSwitch: true,
         showPointsOfInterest: false,
         groupOverlappingPins: true,
@@ -160,11 +164,10 @@ const meta = {
         allowEditing: false
     },
     parameters: mapStoryParameters(INTRO)
-} satisfies Meta<typeof Overview>
+} satisfies Meta<typeof OverviewPlayground>
 
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Playground: Story = {
-    name: 'Overview'
-}
+//the same id the autodocs page takes, so the sidebar shows one row rather than Overview inside Overview
+export const Overview: Story = {}

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useMemo } from 'react'
 import { MapDemo } from './MapDemo'
-import { MAP_API_KEYS } from './mapApiKeys'
+import { preferredVendor } from './mapApiKeys'
 import { createSampleDataset, getSiteRecords, SAMPLE_ATTRIBUTES } from './mapSampleData'
 import { mapStoryParameters } from './storyHelpers'
 
@@ -53,7 +53,7 @@ const Providers = (props: IProvidersProps) => {
                 ShowPointsOfInterest: { raw: props.showPointsOfInterest },
                 LetUserSwitch: { raw: props.letUserSwitch },
                 EnableClustering: { raw: false },
-                DefaultVendor: { raw: MAP_API_KEYS.google ? 'google' : 'here' }
+                DefaultVendor: { raw: preferredVendor('google', 'here') }
             }}
         />
     )
