@@ -14,7 +14,7 @@ import { useMapClientApi } from "./hooks/useMapClientApi";
 import { parseMapCardRules } from "./internal/cards";
 import { useMapCards } from "./hooks/useMapCards";
 import { getMapWebResourceUrl } from "./internal/webResource";
-import { IMapLocation, IMapProviderProps } from "./providers";
+import { IMapClickModifiers, IMapLocation, IMapProviderProps } from "./providers";
 import { EMPTY_MAP_PINS, getMapPins, IMapFallbackCoordinates } from "./internal/pins";
 import { useGeocodedLocations } from "./hooks/useGeocodedLocations";
 import { useMapAttributes } from "./hooks/useMapAttributes";
@@ -319,11 +319,22 @@ export const Map = (props: IMap) => {
     });
 
     const onOpenCard = cards.onOpenCard;
-    const onLocationClick = useCallback((location: IMapLocation) => {
+    const onLocationClick = useCallback((location: IMapLocation, modifiers?: IMapClickModifiers) => {
         //a group has no record to select, so activating one opens the card listing what it stands for
-        if (!location.cluster) {
-            dataset?.setSelectedRecordIds([location.id]);
+        if (location.cluster) {
+            onOpenCard(location);
+            return;
         }
+        //ctrl/cmd toggles the record in the selection without opening a card, so several pins can be
+        //picked straight off the map; a plain click selects the one record and opens its card
+        if (modifiers?.ctrlKey || modifiers?.metaKey) {
+            const selected = dataset?.getSelectedRecordIds() ?? [];
+            dataset?.setSelectedRecordIds(selected.includes(location.id)
+                ? selected.filter((id) => id !== location.id)
+                : [...selected, location.id]);
+            return;
+        }
+        dataset?.setSelectedRecordIds([location.id]);
         onOpenCard(location);
     }, [dataset, onOpenCard]);
 

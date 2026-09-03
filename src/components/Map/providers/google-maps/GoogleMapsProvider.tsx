@@ -77,7 +77,10 @@ const MapPins = (props: IMapPinsProps) => {
                     draggable={isPinDraggable?.(location) ?? false}
                     opacity={selection.getOpacity(location)}
                     zIndex={location.cluster ? 1000 + location.cluster.count : selection.isSelected(location) ? 1 : undefined}
-                    onClick={() => onLocationClick(location)}
+                    onClick={(event) => {
+                        const mouse = event.domEvent as MouseEvent | undefined;
+                        onLocationClick(location, { ctrlKey: mouse?.ctrlKey, metaKey: mouse?.metaKey, shiftKey: mouse?.shiftKey });
+                    }}
                     onDragEnd={onLocationDragEnd && ((event) => {
                         const position = event.latLng;
                         if (position) {

@@ -25,6 +25,13 @@ export interface IMapLocation extends IMapCoordinates {
     pin?: IMapPinAppearance;
 }
 
+/** Modifier keys held while a pin was activated, so the control can offer additive selection. */
+export interface IMapClickModifiers {
+    ctrlKey?: boolean;
+    metaKey?: boolean;
+    shiftKey?: boolean;
+}
+
 export interface IMapRoute {
     /** Value of the `RouteAttributeName` attribute shared by every location on this route. */
     id: string;
@@ -64,7 +71,7 @@ export interface IMapProviderProps {
     theme: ITheme;
     labels: IMapLabels;
     /** Call when the user activates a pin. The control turns it into a dataset selection. */
-    onLocationClick: (location: IMapLocation) => void;
+    onLocationClick: (location: IMapLocation, modifiers?: IMapClickModifiers) => void;
     /** Call when the user pans or zooms. The control reports it as the `Viewport` output. */
     onViewportChange: (viewport: IMapViewport) => void;
     /**

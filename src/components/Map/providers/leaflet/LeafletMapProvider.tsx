@@ -229,7 +229,10 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
     const markerEventHandlers = useMemo(() => {
         const handlers = new Map<string, L.LeafletEventHandlerFnMap>();
         locations.forEach((location) => handlers.set(location.id, {
-            click: () => onLocationClick(location),
+            click: (event) => {
+                const mouse = (event as L.LeafletMouseEvent).originalEvent;
+                onLocationClick(location, { ctrlKey: mouse?.ctrlKey, metaKey: mouse?.metaKey, shiftKey: mouse?.shiftKey });
+            },
             dragend: (event) => {
                 const { lat, lng } = (event.target as L.Marker).getLatLng();
                 onLocationDragEnd?.(location, { latitude: lat, longitude: lng });
