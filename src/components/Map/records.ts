@@ -27,17 +27,25 @@ export interface IMapRecordsResult {
     records: IRecord[];
     /** `true` when the load stopped at the cap or was cancelled, rather than at the end of the data. */
     isTruncated: boolean;
+    /**
+     * Releases the provider the records came from. The records stop working once it is called - they read
+     * their columns and formatted values back through it - so call it only when they are finished with,
+     * which is when a later load has replaced them.
+     */
+    dispose: () => void;
 }
 
 /**
  * Loads every page of a dataset, not just the one the host is showing.
  *
  * The draining runs on a clone of the data provider, so the paging state of the dataset the rest of the app
- * is bound to is left exactly as it was - the same approach the export path takes.
+ * is bound to is left exactly as it was - the same approach the export path takes. That clone has to outlive
+ * the call, because the records it produced read their columns back through it, so releasing it is the
+ * caller's job through `dispose`.
  *
  * @param dataset Dataset to drain.
  * @param options Cap, progress callback and cancellation check.
- * @returns Every record the view returns, and whether the load was cut short.
+ * @returns Every record the view returns, whether the load was cut short, and how to release the clone.
  */
 export const loadAllDatasetRecords = async (
     dataset: IDataset,
@@ -45,6 +53,7 @@ export const loadAllDatasetRecords = async (
 ): Promise<IMapRecordsResult> => {
     const maxRecords = options.maxRecords ?? DEFAULT_MAX_RECORDS;
     const provider: IDataProvider = dataset.getDataProvider().createNewDataProvider();
+    const dispose = () => provider.destroy();
 
     try {
         provider.getPaging().setPageSize(Math.min(options.pageSize ?? ALL_RECORDS_PAGE_SIZE, maxRecords));
@@ -53,15 +62,16 @@ export const loadAllDatasetRecords = async (
 
         while (provider.getPaging().hasNextPage && records.length < maxRecords) {
             if (options.isCancelled?.()) {
-                return { records: records.slice(0, maxRecords), isTruncated: true };
+                return { records: records.slice(0, maxRecords), isTruncated: true, dispose };
             }
             records.push(...await provider.getPaging().loadNextPage());
             options.onProgress?.(records.length);
         }
 
         const isTruncated = records.length > maxRecords || provider.getPaging().hasNextPage;
-        return { records: records.slice(0, maxRecords), isTruncated };
-    } finally {
-        provider.destroy();
+        return { records: records.slice(0, maxRecords), isTruncated, dispose };
+    } catch (error) {
+        dispose();
+        throw error;
     }
 };

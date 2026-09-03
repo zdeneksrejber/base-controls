@@ -230,3 +230,12 @@ where they overlap. Storybook exercises the fallback path.
   neither reached the page, `window.legendWasExecuted` was never set, and the surviving link came out with
   `target="_blank" rel="noopener noreferrer"`. And Google drawing the airports and Pražský hrad only with
   points of interest turned on.
+
+### Phase 7 — the showcase, and a bug it exposed
+- **Map/V2/Everything at once** turns the whole checklist on over one map, so the features can be seen not to
+  fight each other.
+- Building it exposed a real bug: draining every page runs on a clone of the data provider, and the clone was
+  being destroyed as soon as the drain finished - while the records it produced were still in use. Those
+  records read their columns back through it, so every card drawn in `PinLoading: all` lost its field labels
+  and its title. The clone's lifetime now belongs to the caller and is released only once a later load has
+  replaced its records, or the control goes away.

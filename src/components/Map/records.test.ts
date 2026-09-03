@@ -34,10 +34,21 @@ describe('loadAllDatasetRecords', () => {
         const dataset = await createDataset(250, 25);
         expect(dataset.getRecords()).toHaveLength(25);
 
-        const { records, isTruncated } = await loadAllDatasetRecords(dataset);
+        const { records, isTruncated, dispose } = await loadAllDatasetRecords(dataset);
 
         expect(records).toHaveLength(250);
         expect(isTruncated).toBe(false);
+        dispose();
+    });
+
+    it('hands back records that still know their columns, so a card can label them', async () => {
+        const dataset = await createDataset(60, 25);
+
+        const { records, dispose } = await loadAllDatasetRecords(dataset);
+
+        expect(records[0].getColumns().map((column) => column.displayName)).toContain('Latitude');
+        expect(records[0].getFormattedValue('name')).toBe('row-0');
+        dispose();
     });
 
     it('leaves the bound dataset showing exactly what it was', async () => {

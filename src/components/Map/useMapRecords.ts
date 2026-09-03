@@ -44,14 +44,24 @@ export const useMapRecords = (options: IUseMapRecords): IMapRecordsState => {
     });
     //bumped on every load so an earlier one that is still running knows to stop and to drop its result
     const loadIdRef = useRef(0);
+    //the drained records read their columns back through the provider they came from, so it is released
+    //only once a later load has replaced them
+    const disposeRef = useRef<() => void>();
+
+    const releasePrevious = useCallback((dispose?: () => void) => {
+        disposeRef.current?.();
+        disposeRef.current = dispose;
+    }, []);
 
     const load = useCallback(() => {
         const loadId = ++loadIdRef.current;
         if (!dataset) {
+            releasePrevious(undefined);
             setState({ records: EMPTY_RECORDS, isLoading: false, loadedCount: 0, isTruncated: false });
             return;
         }
         if (loading !== 'all') {
+            releasePrevious(undefined);
             //a fresh array, so a save that changed a value in place still reaches the pins
             const records = [...dataset.getRecords()];
             setState({ records, isLoading: false, loadedCount: records.length, isTruncated: false });
@@ -64,10 +74,13 @@ export const useMapRecords = (options: IUseMapRecords): IMapRecordsState => {
             onProgress: (loadedCount) => setState((current) =>
                 loadIdRef.current === loadId ? { ...current, loadedCount } : current)
         })
-            .then(({ records, isTruncated }) => {
-                if (loadIdRef.current === loadId) {
-                    setState({ records, isLoading: false, loadedCount: records.length, isTruncated });
+            .then(({ records, isTruncated, dispose }) => {
+                if (loadIdRef.current !== loadId) {
+                    dispose();
+                    return;
                 }
+                releasePrevious(dispose);
+                setState({ records, isLoading: false, loadedCount: records.length, isTruncated });
             })
             .catch((error) => {
                 console.warn('Map: failed to load every page of the dataset, drawing the loaded page instead:', error);
@@ -76,11 +89,17 @@ export const useMapRecords = (options: IUseMapRecords): IMapRecordsState => {
                     setState({ records, isLoading: false, loadedCount: records.length, isTruncated: true });
                 }
             });
-    }, [dataset, loading, maxRecords]);
+    }, [dataset, loading, maxRecords, releasePrevious]);
 
     useEffect(() => {
         load();
     }, [load]);
+
+    //the last clone outlives the last render, so it is released when the control goes away
+    useEffect(() => () => {
+        disposeRef.current?.();
+        disposeRef.current = undefined;
+    }, []);
 
     //a create or an edit reports itself as a saved record rather than as newly loaded data, and the map has
     //to redraw for both
