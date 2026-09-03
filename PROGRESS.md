@@ -31,13 +31,13 @@ delivery log.
 - [x] **C2** Optional: snap the line to roads via the provider's directions service
 
 ### Map legend
-- [ ] **L1** Render simple HTML as a legend, loadable from a web resource, sanitized
+- [x] **L1** Render simple HTML as a legend, loadable from a web resource, sanitized
 
 ### Map provider
 - [x] **M1** Switch between Google Maps, OpenStreetMap, Mapy.com and Here.com, with provider-agnostic
   geo-coding, reverse geo-coding and directions — *provider switching already shipped; this adds the two
   geo service contracts and eight implementations, all verified against the live APIs*
-- [ ] **M2** Hide/Show POI (default: hidden)
+- [x] **M2** Hide/Show POI (default: hidden)
 
 ## Provider capability matrix
 
@@ -213,3 +213,20 @@ where they overlap. Storybook exercises the fallback path.
   shared stop.
 - Verified in Storybook: three runs drawn blue, red and green in stop order despite the records arriving
   sorted by name, then the same three following the road network through live Mapy.com routing.
+
+### Phase 6 — L1 and M2, legend and points of interest
+- `Legend` takes markup and shows it over the map, collapsible; `LegendWebResourceName` loads the same
+  markup from a web resource instead, and wins once it does - so a legend moves out of the manifest without
+  anything else changing.
+- **How the HTML is sanitized** (the decision the issue asked for): DOMPurify with its HTML and SVG profiles,
+  with `style` explicitly allowed because a legend is mostly colour swatches, forms and embeds forbidden
+  outright, unknown protocols rejected, and a hook that rewrites every surviving link to open detached from
+  the app. Cleaning happens in the control, so nothing downstream ever holds markup that has not been
+  through it.
+- `ShowPointsOfInterest` is **off by default**, so the only pins on the map are the records. Google switches
+  it properly through a map style; HERE approximates it with a lower detail style; the raster tile services
+  that cannot express it ignore the property rather than pretending.
+- Verified in Storybook: a legend whose markup deliberately ends in a `<script>` and an `<img onerror>` -
+  neither reached the page, `window.legendWasExecuted` was never set, and the surviving link came out with
+  `target="_blank" rel="noopener noreferrer"`. And Google drawing the airports and Pražský hrad only with
+  points of interest turned on.

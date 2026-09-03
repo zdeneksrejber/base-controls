@@ -127,6 +127,13 @@ export interface IMapParameters extends IParameters {
     /** Attribute the resolved postal code is written to. */
     PostalCodeAttributeName?: IStringProperty;
     /**
+     * Legend markup, shown over the map. Cleaned before it is inserted: scripts, event handlers and anything
+     * that can load or submit are removed, while formatting, tables, images and inline SVG survive.
+     */
+    Legend?: IStringProperty;
+    /** Web resource holding that markup instead. Wins over `Legend` once it loads. */
+    LegendWebResourceName?: IStringProperty;
+    /**
      * Whether the map draws the points of interest its vendor knows about. **Hidden by default**, so the
      * only pins are the records. Only Google Maps can switch this properly; HERE approximates it with a
      * lower detail style, and the other raster tile services ignore it.

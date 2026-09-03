@@ -23,10 +23,12 @@ import { useMapFiltering } from "./useMapFiltering";
 import { useMapProviders } from "./useMapProviders";
 import { useMapRecords } from "./useMapRecords";
 import { useMapRoutePaths } from "./useMapRoutePaths";
+import { useMapLegend } from "./useMapLegend";
 import { useMapSearch } from "./useMapSearch";
 import { useMapViewport } from "./useMapViewport";
 import { mapTranslations } from "./translations";
 import { getMapStyles } from "./styles";
+import { MapLegend } from "./map-legend";
 import { MapOverlay } from "./map-overlay";
 import { MapFilterPanel } from "./map-filter-panel";
 import { MapProviderPicker } from "./map-provider-picker";
@@ -69,6 +71,8 @@ export const Map = (props: IMap) => {
         StreetNameAttributeName,
         StreetNumberAttributeName,
         PostalCodeAttributeName,
+        Legend,
+        LegendWebResourceName,
         ShowPointsOfInterest,
         EnableClustering,
         ClusteringOptions,
@@ -258,6 +262,11 @@ export const Map = (props: IMap) => {
         language
     });
 
+    const legendHtml = useMapLegend({
+        html: Legend?.raw ?? undefined,
+        webResourceName: LegendWebResourceName?.raw ?? undefined
+    });
+
     const onZoomToCluster = useCallback((location: IMapLocation) => {
         onFocusViewport({
             center: { latitude: location.latitude, longitude: location.longitude },
@@ -367,6 +376,9 @@ export const Map = (props: IMap) => {
                     theme={theme}
                     onToggle={filtering.onToggle}
                     onClear={filtering.onClear} />
+            </MapOverlay>
+            <MapOverlay position='bottom-right' theme={theme}>
+                <MapLegend html={legendHtml} labels={labels} theme={theme} />
             </MapOverlay>
             {options.length > 1 &&
                 <MapProviderPicker

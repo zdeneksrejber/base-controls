@@ -86,6 +86,14 @@ export const mapTranslations = {
         1033: "Saving...",
         1029: "Ukládání..."
     },
+    legend: {
+        1033: "Legend",
+        1029: "Legenda"
+    },
+    legendCollapse: {
+        1033: "Collapse the legend",
+        1029: "Sbalit legendu"
+    },
     pinsTruncated: {
         1033: "Showing the first {{count}} pins of this view.",
         1029: "Zobrazeno prvních {{count}} bodů tohoto pohledu."
