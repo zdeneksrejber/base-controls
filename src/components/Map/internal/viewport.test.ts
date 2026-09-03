@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getMapViewport, getResolvedLocationViewport, isFiniteMapViewport } from './viewport';
+import { getMapViewport, getResolvedLocationViewport, getSafeFitPadding, isFiniteMapViewport } from './viewport';
 
 const PRAGUE = { latitude: 50.0755, longitude: 14.4378 };
 const BRNO = { latitude: 49.1951, longitude: 16.6068 };
@@ -77,5 +77,20 @@ describe('isFiniteMapViewport', () => {
 
     it('accepts a viewport with no bounds at all', () => {
         expect(isFiniteMapViewport({ center: PRAGUE, zoom: 6, padding: 0 })).toBe(true);
+    });
+});
+
+describe('getSafeFitPadding', () => {
+    it('keeps the asked padding when the container has room for it', () => {
+        expect(getSafeFitPadding(323, 528, 48)).toBe(48);
+    });
+
+    it('shrinks the padding when the container is smaller than twice of it', () => {
+        expect(getSafeFitPadding(100, 400, 48)).toBe(34);
+    });
+
+    it('never returns a negative padding, even for a container of no size', () => {
+        expect(getSafeFitPadding(0, 0, 48)).toBe(0);
+        expect(getSafeFitPadding(10, 10, 48)).toBe(0);
     });
 });

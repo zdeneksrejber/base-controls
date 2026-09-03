@@ -244,8 +244,15 @@ export const Map = (props: IMap) => {
         language
     });
 
+    //filtered before snapping, so a hidden route never costs a directions request
+    const onFilterRoutes = props.onFilterRoutes;
+    const visibleRoutes = useMemo(
+        () => (onFilterRoutes ? pins.routes.filter((route) => onFilterRoutes(route)) : pins.routes),
+        [pins.routes, onFilterRoutes]
+    );
+
     const routePaths = useMapRoutePaths({
-        routes: pins.routes,
+        routes: visibleRoutes,
         enabled: SnapRoutesToRoads?.raw === true,
         directions,
         language

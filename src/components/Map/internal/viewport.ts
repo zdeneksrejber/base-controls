@@ -116,6 +116,19 @@ export const getResolvedLocationViewport = (
     };
 };
 
+/** Pixels of map that must survive the fit padding, so the zoom math always has a positive span to work on. */
+const MIN_PADDED_SPAN_PX = 32;
+
+/**
+ * Clamps a fit padding to the container it pads. A tile map subtracts the padding from the container size
+ * before computing the zoom for bounds, and a container the browser is still laying out can be smaller than
+ * twice the padding - the negative span then turns the zoom `NaN`, which poisons the map for good.
+ */
+export const getSafeFitPadding = (containerWidth: number, containerHeight: number, padding: number): number => {
+    const room = Math.floor((Math.min(containerWidth, containerHeight) - MIN_PADDED_SPAN_PX) / 2);
+    return Math.max(0, Math.min(padding, room));
+};
+
 /**
  * Whether a viewport is safe to hand to a map. Coordinates reach the control off an unvalidated dataset,
  * and a map asked to look at a value that is not a number answers with an invalid state it never recovers

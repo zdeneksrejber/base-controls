@@ -14,7 +14,7 @@ import {
 } from '../pinStyle';
 import { CARD_MAX_WIDTH } from '../layout';
 import { isMapSurfaceClick } from '../mapClick';
-import { isFiniteMapViewport, IMapViewport } from '../../internal/viewport';
+import { getSafeFitPadding, isFiniteMapViewport, IMapViewport } from '../../internal/viewport';
 import { getLeafletMapProviderStyles } from './styles';
 import 'leaflet/dist/leaflet.css';
 
@@ -116,12 +116,20 @@ const ApplyViewport = (props: Pick<IMapProviderProps, 'viewport'>) => {
         }
         try {
             if (bounds) {
-                map.fitBounds(toLeafletBounds(bounds), { padding: [padding, padding] });
-                return;
+                //clamped to the container, so a box mid-layout cannot drive Leaflet's zoom math to NaN
+                const size = map.getSize();
+                const safePadding = getSafeFitPadding(size.x, size.y, padding);
+                map.fitBounds(toLeafletBounds(bounds), { padding: [safePadding, safePadding] });
+            } else {
+                map.setView([center.latitude, center.longitude], zoom);
             }
-            map.setView([center.latitude, center.longitude], zoom);
         } catch (error) {
             console.warn('LeafletMapProvider: failed to apply the requested viewport:', error);
+        }
+        //a fit measured while the browser was still laying the container out can still leave the zoom NaN,
+        //and Leaflet never recovers on its own - fall back to the plain centre and zoom
+        if (!Number.isFinite(map.getZoom())) {
+            map.setView([center.latitude, center.longitude], zoom);
         }
     }, [map, props.viewport, hasSize]);
 

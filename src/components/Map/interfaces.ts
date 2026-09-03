@@ -2,7 +2,7 @@ import { IParameters, IStringProperty, ITwoOptionsProperty, IWholeNumberProperty
 import { IControl, IOutputs } from "@interfaces/context";
 import { IDataset } from "@talxis/client-libraries";
 import { IMapTranslations } from "./translations";
-import { IMapProviderOption, IMapProviderProps, IMapVendor } from "./providers";
+import { IMapProviderOption, IMapProviderProps, IMapRoute, IMapVendor } from "./providers";
 import { IMapFallbackLocationResolver } from "./internal/fallbackLocation";
 import { IMapPinResolver } from "./hooks/useMapClientApi";
 import { IMapCardRenderers, IMapCardType } from "./internal/cards";
@@ -27,6 +27,11 @@ export interface IMap extends IControl<IMapParameters, IMapOutputs, IMapTranslat
      * `resolveLocationFromIpAddress` to opt into the third party call.
      */
     onResolveFallbackLocation?: IMapFallbackLocationResolver;
+    /**
+     * Decides, per route, whether its line is drawn at all. Absent draws every route. Filtering happens
+     * before road snapping, so a route the host hides never costs a directions request either.
+     */
+    onFilterRoutes?: (route: IMapRoute) => boolean;
     /**
      * Works out how a record's pin looks, in code. Takes precedence over the Client API web resource and the
      * `PinIcons` rules, and returning nothing for a record falls through to them.
