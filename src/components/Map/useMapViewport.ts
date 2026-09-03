@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import deepEqual from 'fast-deep-equal/es6';
 import { IMapProvider } from "./providers";
-import { IMapFallbackLocationResolver, IMapResolvedLocation } from "./fallbackLocation";
+import { IMapFallbackLocationResolver, IMapResolvedLocation, shouldResolveFallbackLocation } from "./fallbackLocation";
 import { getMapViewport, getResolvedLocationViewport, IMapCoordinates, IMapViewport, IMapViewportOptions } from "./viewport";
 
 export interface IUseMapViewport {
@@ -10,6 +10,12 @@ export interface IUseMapViewport {
     provider: IMapProvider;
     options?: IMapViewportOptions;
     onResolveFallbackLocation?: IMapFallbackLocationResolver;
+    /** Whether the host is still fetching records, so an empty map is not yet an answer. */
+    isDatasetLoading?: boolean;
+    /** Whether the control is still draining the remaining pages of the view. */
+    isLoadingAllRecords?: boolean;
+    /** Whether addresses are still being geo-coded into coordinates. */
+    isGeocoding?: boolean;
     /** Called with what the provider reports, deduplicated. */
     onChange: (viewport: IMapViewport) => void;
 }
@@ -27,6 +33,7 @@ const FALLBACK_LOCATION_TIMEOUT_MS = 12000;
  */
 export const useMapViewport = (props: IUseMapViewport) => {
     const { locations, provider, options, onResolveFallbackLocation, onChange } = props;
+    const { isDatasetLoading, isLoadingAllRecords, isGeocoding } = props;
     const [fallbackLocation, setFallbackLocation] = useState<IMapResolvedLocation>();
     const onChangeRef = useRef(onChange);
     onChangeRef.current = onChange;
@@ -34,9 +41,16 @@ export const useMapViewport = (props: IUseMapViewport) => {
     const onResolveFallbackLocationRef = useRef(onResolveFallbackLocation);
     onResolveFallbackLocationRef.current = onResolveFallbackLocation;
     const hasLocations = locations.length > 0;
+    //an empty map is only an answer once nothing is still working on filling it - see the rule for why
+    const canResolveFallback = shouldResolveFallbackLocation({
+        hasLocations,
+        isDatasetLoading: !!isDatasetLoading,
+        isLoadingAllRecords: !!isLoadingAllRecords,
+        isGeocoding: !!isGeocoding
+    });
 
     useEffect(() => {
-        if (!onResolveFallbackLocationRef.current || hasLocations) {
+        if (!onResolveFallbackLocationRef.current || !canResolveFallback) {
             return;
         }
         const controller = new AbortController();
@@ -56,8 +70,8 @@ export const useMapViewport = (props: IUseMapViewport) => {
             clearTimeout(debounce);
             controller.abort();
         };
-        //only hasLocations should restart this - an unmemoized resolver prop must not debounce forever
-    }, [hasLocations]);
+        //only the rule above should restart this - an unmemoized resolver prop must not debounce forever
+    }, [canResolveFallback]);
 
     const derivedViewport = useMemo(() => {
         if (!hasLocations && fallbackLocation) {

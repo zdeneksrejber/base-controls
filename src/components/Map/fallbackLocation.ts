@@ -15,6 +15,35 @@ export interface IMapResolvedLocation extends IMapCoordinates {
  */
 export type IMapFallbackLocationResolver = (signal: AbortSignal) => Promise<IMapResolvedLocation | null>;
 
+export interface IMapFallbackLocationState {
+    /** Whether the map already has something to fit. */
+    hasLocations: boolean;
+    /** Whether the host is still fetching records. */
+    isDatasetLoading: boolean;
+    /** Whether the control is still draining the remaining pages of the view. */
+    isLoadingAllRecords: boolean;
+    /** Whether addresses are still being geo-coded into coordinates. */
+    isGeocoding: boolean;
+}
+
+/**
+ * Whether the control should resolve a fallback location at all.
+ *
+ * A map with pins never needs one - and neither does a map that might still be about to have some. Those two
+ * look identical from the outside and mean opposite things, so anything that could still produce a pin counts
+ * as "not yet", never as "nothing". Getting this wrong is not a cosmetic bug: the fallback is what asks the
+ * browser where the user is, and a permission prompt raised over a dataset that was merely slow is one the
+ * user should never have been shown.
+ *
+ * @param state What the map has, and what is still working on giving it more.
+ * @returns True only when the dataset has had its say and there is still nothing to fit.
+ */
+export const shouldResolveFallbackLocation = (state: IMapFallbackLocationState): boolean =>
+    !state.hasLocations
+    && !state.isDatasetLoading
+    && !state.isLoadingAllRecords
+    && !state.isGeocoding;
+
 const GEOJS_ENDPOINT = 'https://get.geojs.io/v1/ip/geo.json';
 
 /**

@@ -22,6 +22,7 @@ import { useMapClusters } from "./useMapClusters";
 import { useMapFiltering } from "./useMapFiltering";
 import { useMapProviders } from "./useMapProviders";
 import { useMapRecords } from "./useMapRecords";
+import { useDatasetLoading } from "./useDatasetLoading";
 import { useMapRoutePaths } from "./useMapRoutePaths";
 import { useMapLegend } from "./useMapLegend";
 import { useMapSearch } from "./useMapSearch";
@@ -151,6 +152,8 @@ export const Map = (props: IMap) => {
     );
     useMapAttributes({ dataset, paths: attributePaths, enabled: EnableAttributeLinking?.raw !== false });
 
+    const isDatasetLoading = useDatasetLoading(dataset);
+
     const { records: loadedRecords, isLoading, loadedCount, isTruncated } = useMapRecords({
         dataset,
         loading: PinLoading?.raw === 'all' ? 'all' : 'page',
@@ -220,6 +223,9 @@ export const Map = (props: IMap) => {
         onResolveFallbackLocation: PrefillUserLocation?.raw === true
             ? resolveUserLocation
             : props.onResolveFallbackLocation,
+        isDatasetLoading,
+        isLoadingAllRecords: isLoading,
+        isGeocoding: geocoded.isResolving,
         onChange: (changedViewport) => onNotifyOutputChanged({ Viewport: changedViewport })
     });
 
