@@ -14,8 +14,9 @@ export interface IMapLegendProps {
 /**
  * The legend, over the map.
  *
- * The markup is whatever a maker put in the `Legend` property or the web resource it names, cleaned before
- * it gets here. Collapsible, because a legend explains a map rather than replaces it.
+ * The markup is whatever a maker put in the `Legend` property or the web resource it names, cleaned before it
+ * gets here. Its button stays beside the provider picker whether the legend is open or shut, and the panel
+ * drops below that row - a legend explains a map rather than replaces it.
  *
  * @param props Cleaned markup, the labels and the host theme.
  * @returns The legend, or nothing when there is no markup.
@@ -28,34 +29,19 @@ export const MapLegend = (props: IMapLegendProps) => {
         return null;
     }
 
-    if (!isOpen) {
-        return (
-            <IconButton
-                iconProps={{ iconName: 'Info' }}
-                title={props.labels.legend()}
-                ariaLabel={props.labels.legend()}
-                styles={{
-                    root: {
-                        borderRadius: props.theme.effects.roundedCorner4,
-                        boxShadow: props.theme.effects.elevation8,
-                        backgroundColor: props.theme.semanticColors.bodyBackground
-                    }
-                }}
-                onClick={() => setIsOpen(true)} />
-        );
-    }
-
+    const label = isOpen ? props.labels.legendCollapse() : props.labels.legend();
     return (
         <div className={styles.root}>
-            <div className={styles.header}>
-                <span>{props.labels.legend()}</span>
-                <IconButton
-                    iconProps={{ iconName: 'ChevronDown' }}
-                    title={props.labels.legendCollapse()}
-                    ariaLabel={props.labels.legendCollapse()}
-                    onClick={() => setIsOpen(false)} />
-            </div>
-            <div className={styles.content} dangerouslySetInnerHTML={{ __html: props.html }} />
+            <IconButton
+                className={styles.button}
+                iconProps={{ iconName: 'Info' }}
+                checked={isOpen}
+                aria-expanded={isOpen}
+                title={label}
+                ariaLabel={label}
+                onClick={() => setIsOpen((current) => !current)} />
+            {isOpen &&
+                <div className={styles.content} dangerouslySetInnerHTML={{ __html: props.html }} />}
         </div>
     );
 };

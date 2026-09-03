@@ -1,5 +1,5 @@
 import { ITheme, mergeStyleSets } from '@fluentui/react';
-import { IMapOverlayPosition } from './MapOverlay';
+import { IMapOverlayDirection, IMapOverlayPosition } from './MapOverlay';
 
 /** Distance, in pixels, the chrome keeps from the edge of the map. */
 const EDGE_GAP = 8;
@@ -11,25 +11,42 @@ const EDGE_GAP = 8;
  */
 const ZOOM_CONTROL_CLEARANCE = 44;
 
-/**
- * Where each corner sits. Above the map's own panes and below the provider picker, so the picker stays
- * reachable however much chrome a maker turns on.
- */
+/** Where each corner sits. */
 const POSITIONS: { [position in IMapOverlayPosition]: object } = {
-    'top-left': { top: EDGE_GAP, left: EDGE_GAP + ZOOM_CONTROL_CLEARANCE, alignItems: 'flex-start' },
-    'top-right': { top: EDGE_GAP, right: EDGE_GAP, alignItems: 'flex-end' },
-    'bottom-left': { bottom: EDGE_GAP, left: EDGE_GAP + ZOOM_CONTROL_CLEARANCE, alignItems: 'flex-start' },
-    'bottom-right': { bottom: EDGE_GAP, right: EDGE_GAP, alignItems: 'flex-end' }
+    'top-left': { top: EDGE_GAP, left: EDGE_GAP + ZOOM_CONTROL_CLEARANCE },
+    'top-right': { top: EDGE_GAP, right: EDGE_GAP },
+    'bottom-left': { bottom: EDGE_GAP, left: EDGE_GAP + ZOOM_CONTROL_CLEARANCE },
+    'bottom-right': { bottom: EDGE_GAP, right: EDGE_GAP }
 };
 
-export const getMapOverlayStyles = (theme: ITheme, position: IMapOverlayPosition) => {
+/**
+ * How the chrome packs across the axis it does not run along.
+ *
+ * A stack hugs the edge it hangs off, so nothing drifts into the middle of the map. A row instead keeps its
+ * children level with the top or bottom edge, so a piece of chrome that grows - a legend being opened - grows
+ * away from the map's corner rather than pushing what sits beside it.
+ *
+ * @param position Corner the chrome is anchored to.
+ * @param direction Axis it runs along.
+ * @returns The `align-items` value for that combination.
+ */
+const getAlignItems = (position: IMapOverlayPosition, direction: IMapOverlayDirection) => {
+    if (direction === 'row') {
+        return position.startsWith('top') ? 'flex-start' : 'flex-end';
+    }
+    return position.endsWith('right') ? 'flex-end' : 'flex-start';
+};
+
+export const getMapOverlayStyles = (theme: ITheme, position: IMapOverlayPosition, direction: IMapOverlayDirection) => {
     return mergeStyleSets({
         root: {
             position: 'absolute',
             display: 'flex',
-            flexDirection: 'column',
+            flexDirection: direction,
+            alignItems: getAlignItems(position, direction),
             gap: 8,
-            zIndex: 900,
+            //leaflet draws its own controls on 800
+            zIndex: 1000,
             //the container itself must not swallow drags meant for the map, only its contents take events
             pointerEvents: 'none',
             '> *': {

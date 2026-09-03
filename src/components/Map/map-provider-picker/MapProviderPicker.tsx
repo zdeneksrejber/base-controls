@@ -1,4 +1,4 @@
-import { Dropdown, IDropdownOption, ThemeProvider } from "@fluentui/react";
+import { Dropdown, IDropdownOption } from "@fluentui/react";
 import { useMemo } from "react";
 import { ITheme } from "@legacy";
 import { IMapProviderOption } from "../providers/IMapProvider";
@@ -14,7 +14,8 @@ export interface IMapProviderPickerProps {
 
 /**
  * Chrome the Map control renders over the map when there is more than one provider. Deliberately not part of
- * the provider contract - a map vendor should not have to know it can be swapped.
+ * the provider contract - a map vendor should not have to know it can be swapped. Positioned by the overlay
+ * it sits in, alongside the rest of the control's chrome.
  */
 export const MapProviderPicker = (props: IMapProviderPickerProps) => {
     const { theme } = props;
@@ -25,7 +26,7 @@ export const MapProviderPicker = (props: IMapProviderPickerProps) => {
     })), [props.options]);
 
     return (
-        <ThemeProvider theme={theme} applyTo="none" className={styles.root}>
+        <div className={styles.root}>
             <Dropdown
                 ariaLabel={props.label}
                 title={props.label}
@@ -33,6 +34,6 @@ export const MapProviderPicker = (props: IMapProviderPickerProps) => {
                 //null, not undefined, so the dropdown stays controlled while the selection is resolving
                 selectedKey={props.selectedId ?? null}
                 onChange={(_event, option) => option && props.onChange(`${option.key}`)} />
-        </ThemeProvider>
+        </div>
     );
 };

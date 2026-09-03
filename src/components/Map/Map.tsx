@@ -377,16 +377,16 @@ export const Map = (props: IMap) => {
                     onToggle={filtering.onToggle}
                     onClear={filtering.onClear} />
             </MapOverlay>
-            <MapOverlay position='bottom-right' theme={theme}>
+            <MapOverlay position='top-right' direction='row' theme={theme}>
+                {options.length > 1 &&
+                    <MapProviderPicker
+                        options={options}
+                        selectedId={selectedId}
+                        label={labels.mapProvider()}
+                        theme={theme}
+                        onChange={onPickProvider} />}
                 <MapLegend html={legendHtml} labels={labels} theme={theme} />
             </MapOverlay>
-            {options.length > 1 &&
-                <MapProviderPicker
-                    options={options}
-                    selectedId={selectedId}
-                    label={labels.mapProvider()}
-                    theme={theme}
-                    onChange={onPickProvider} />}
         </div>
     );
 };
