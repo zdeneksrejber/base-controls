@@ -1,5 +1,6 @@
 export * from './geoServices';
 export * from './IMapProvider';
+export * from './mapClick';
 export * from './layout';
 export * from './pinStyle';
 export * from './providerCache';

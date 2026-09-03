@@ -13,6 +13,7 @@ import {
     ROUTE_STROKE_WEIGHT,
     useMapPinSelection
 } from '../pinStyle';
+import { isMapSurfaceClick } from '../mapClick';
 import { isFiniteMapViewport, IMapViewport } from '../../viewport';
 import { getLeafletMapProviderStyles } from './styles';
 import 'leaflet/dist/leaflet.css';
@@ -175,7 +176,12 @@ const ReportViewport = (props: Pick<IMapProviderProps, 'viewport' | 'onViewportC
 
 const ReportMapClick = (props: { onMapClick: (coordinates: { latitude: number; longitude: number }) => void }) => {
     useMapEvents({
-        click: (event) => props.onMapClick({ latitude: event.latlng.lat, longitude: event.latlng.lng })
+        click: (event) => {
+            if (!isMapSurfaceClick(event.originalEvent?.target)) {
+                return;
+            }
+            props.onMapClick({ latitude: event.latlng.lat, longitude: event.latlng.lng });
+        }
     });
 
     return null;

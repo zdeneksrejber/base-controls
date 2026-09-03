@@ -2,6 +2,7 @@ import { APIProvider, ColorScheme, InfoWindow, Map as GoogleMap, MapCameraChange
 import { useCallback, useEffect, useMemo } from 'react';
 import { createGoogleMapsDirectionsService } from './directions';
 import { createGoogleMapsGeocoder } from './geocoder';
+import { isMapSurfaceClick } from '../mapClick';
 import { IMapLocation, IMapProvider, IMapProviderProps } from '../IMapProvider';
 import { getClusterPinSize, getClusterPinSvg, getPinSize, getPinSvg, ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
 import { IMapVendor } from '../vendors';
@@ -90,7 +91,7 @@ const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
                     onCameraChanged={onCameraChanged}
                     onClick={onMapClick && ((event) => {
                         const position = event.detail.latLng;
-                        if (position) {
+                        if (position && isMapSurfaceClick(event.domEvent?.target)) {
                             onMapClick({ latitude: position.lat, longitude: position.lng });
                         }
                     })}
