@@ -3,10 +3,25 @@ import { useMemo } from 'react'
 import { MapDemo } from './MapDemo'
 import { MAP_API_KEYS } from './mapApiKeys'
 import { createSampleDataset, getSiteRecords, SAMPLE_ATTRIBUTES } from './mapSampleData'
+import { mapStoryParameters } from './storyHelpers'
+
+const INTRO = `
+Pins that belong together can be drawn **connected**. Three attributes decide it, and all three are optional:
+
+| Property | What it does |
+| --- | --- |
+| \`RouteAttributeName\` | Groups the pins. Records sharing a non-empty value become one line. |
+| \`RouteSequenceAttributeName\` | Orders the pins along it. Without one they are drawn in dataset order. |
+| \`RouteColorAttributeName\` | Colours it. The first pin on the line that has a value wins. |
+
+A group of fewer than two pins is not a line and is dropped. Sequence sorts as a number where it is one, so
+stop 10 follows stop 9 rather than stop 1.
+`
 
 const meta = {
-    title: 'Map/V2/Pin connections',
-    parameters: { layout: 'fullscreen' }
+    title: 'Map/Routes',
+    tags: ['autodocs'],
+    parameters: mapStoryParameters(INTRO)
 } satisfies Meta
 
 export default meta
@@ -21,11 +36,10 @@ const ROUTE_PARAMETERS = {
     EnableClustering: { raw: false }
 }
 
-/** The sites that belong to a run, shuffled so the sequence attribute has something to prove. */
-const getRouteRecords = () => {
-    const withRoutes = getSiteRecords().filter((record) => !!record.route)
-    return [...withRoutes].sort((left, right) => `${left.name}`.localeCompare(`${right.name}`))
-}
+/** The sites that belong to a run, ordered by name so the sequence attribute has something to prove. */
+const getRouteRecords = () => getSiteRecords()
+    .filter((record) => !!record.route)
+    .sort((left, right) => `${left.name}`.localeCompare(`${right.name}`))
 
 const Connections = ({ snap, vendor }: { snap: boolean; vendor: string }) => {
     const dataset = useMemo(() => createSampleDataset({ records: getRouteRecords() }), [])
@@ -42,19 +56,17 @@ const Connections = ({ snap, vendor }: { snap: boolean; vendor: string }) => {
 }
 
 export const StraightConnections: Story = {
-    name: 'C1 — connect pins into a line, ordered and coloured by attributes',
+    name: 'Connect pins into a line',
     render: () => <Connections snap={false} vendor='leaflet' />,
     parameters: {
         docs: {
             description: {
                 story: [
-                    'Three delivery runs. `RouteAttributeName` groups the pins into lines,',
-                    '`RouteSequenceAttributeName` orders each line by its stop number - the records are handed',
-                    'over sorted by name, so without it the lines would zigzag - and `RouteColorAttributeName`',
-                    'colours them: north blue, south red, west green.',
+                    'Three delivery runs. The records are handed over sorted by name, so without the sequence',
+                    'attribute the lines would zigzag; with it each run goes depot → stop 2 → stop 3 → stop 4.',
+                    'North is blue, south red, west green, each colour read off the records themselves.',
                     '',
-                    'A run of fewer than two pins is not a line and is dropped. A number sorts as a number, so',
-                    'stop 10 follows stop 9 rather than stop 1.'
+                    'Four of the fifteen sites belong to no run and are drawn as plain pins.'
                 ].join(' ')
             }
         }
@@ -62,24 +74,24 @@ export const StraightConnections: Story = {
 }
 
 export const SnappedConnections: Story = {
-    name: 'C2 — snap those lines to the roads',
+    name: 'Follow the roads instead',
     render: () => <Connections snap vendor={MAP_API_KEYS.mapy ? 'mapy' : 'leaflet'} />,
     parameters: {
         docs: {
             description: {
                 story: [
                     'The same three runs with `SnapRoutesToRoads` on, resolved through whichever configured vendor',
-                    'has a directions service - Mapy.com here, OSRM when no key is set. The lines now follow the',
+                    'has a directions service — Mapy.com here, OSRM when no key is set. The lines now follow the',
                     'road network rather than cutting across country.',
                     '',
                     'Optional in every sense: a control that does not ask for it draws straight lines, a vendor',
                     'with no directions service leaves them straight, and a single run the service cannot resolve',
                     'stays straight while the others are snapped. A straight line is a worse drawing of the same',
-                    'truth, never a wrong one.',
+                    'truth, never a wrong one. It costs one request per route, which is why it is off by default.',
                     '',
                     'Google is the one vendor this cannot be shown on with the demo key: its project has neither',
-                    'the legacy Directions API nor the Routes API enabled, so the control reports that and leaves',
-                    'the lines straight.'
+                    'the legacy Directions API nor the Routes API enabled, so the control reports that in the',
+                    'console and leaves the lines straight.'
                 ].join(' ')
             }
         }

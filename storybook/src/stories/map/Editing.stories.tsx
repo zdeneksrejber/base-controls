@@ -1,47 +1,47 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useEffect, useMemo, useState } from 'react'
-import type { IDataProviderEventListeners, IDataset } from '@talxis/client-libraries'
+import type { IColumn, IDataProviderEventListeners, IDataset } from '@talxis/client-libraries'
+import { DataTypes } from '@talxis/client-libraries'
 import { MapDemo } from './MapDemo'
 import { MAP_API_KEYS } from './mapApiKeys'
 import { createSampleDataset, getSiteRecords, SAMPLE_ATTRIBUTES } from './mapSampleData'
-
-const meta = {
-    title: 'Map/V2/Interaction',
-    parameters: { layout: 'fullscreen' }
-} satisfies Meta
-
-export default meta
-type Story = StoryObj<typeof meta>
+import { ADDRESS_BINDINGS } from './mapSampleConfig'
+import { mapStoryParameters } from './storyHelpers'
 
 const COORDINATES = {
     LatitudeAttributeName: { raw: SAMPLE_ATTRIBUTES.latitude },
     LongitudeAttributeName: { raw: SAMPLE_ATTRIBUTES.longitude }
 }
 
-/** The address components a created or moved pin writes back, as a wrapper would bind them. */
-const ADDRESS_BINDINGS = {
-    FullAddressAttributeName: { raw: 'address' },
-    CountryAttributeName: { raw: 'country' },
-    AdministrativeAreaAttributeName: { raw: 'region' },
-    LocalityAttributeName: { raw: 'city' },
-    SublocalityAttributeName: { raw: 'district' },
-    StreetAttributeName: { raw: 'street' },
-    StreetNameAttributeName: { raw: 'streetLine' },
-    StreetNumberAttributeName: { raw: 'streetNumber' },
-    PostalCodeAttributeName: { raw: 'postalCode' }
-}
+const INTRO = `
+The map can **write** as well as draw. Both ways in are off unless a manifest property turns them on, because
+a map that moves records when a finger slips is worse than one that does not move them at all.
 
-const ADDRESS_COLUMNS = [
-    { name: 'country', alias: 'country', displayName: 'Country', dataType: 'SingleLine.Text', order: 20, visualSizeFactor: 120 },
-    { name: 'region', alias: 'region', displayName: 'Region', dataType: 'SingleLine.Text', order: 21, visualSizeFactor: 120 },
-    { name: 'district', alias: 'district', displayName: 'District', dataType: 'SingleLine.Text', order: 22, visualSizeFactor: 120 },
-    { name: 'street', alias: 'street', displayName: 'Street', dataType: 'SingleLine.Text', order: 23, visualSizeFactor: 140 },
-    { name: 'streetLine', alias: 'streetLine', displayName: 'Street line', dataType: 'SingleLine.Text', order: 24, visualSizeFactor: 160 },
-    { name: 'streetNumber', alias: 'streetNumber', displayName: 'Number', dataType: 'SingleLine.Text', order: 25, visualSizeFactor: 100 },
-    { name: 'postalCode', alias: 'postalCode', displayName: 'Postal code', dataType: 'SingleLine.Text', order: 26, visualSizeFactor: 100 }
-] as any[]
+Everything a record gains from the map — the coordinates it was dropped at, and the address that point turned
+out to be — goes through \`record.setValue\` and \`record.save()\` on the bound dataset, so the host's own
+validation, auditing and business rules run exactly as they would for a form.
+`
 
-/** Shows what the records actually hold, which is the only way to see a write-back land. */
+const meta = {
+    title: 'Map/Editing',
+    tags: ['autodocs'],
+    parameters: mapStoryParameters(INTRO)
+} satisfies Meta
+
+export default meta
+type Story = StoryObj<typeof meta>
+
+const ADDRESS_COLUMNS: IColumn[] = [
+    { name: 'country', alias: 'country', displayName: 'Country', dataType: DataTypes.SingleLineText, order: 20, visualSizeFactor: 120 },
+    { name: 'region', alias: 'region', displayName: 'Region', dataType: DataTypes.SingleLineText, order: 21, visualSizeFactor: 120 },
+    { name: 'district', alias: 'district', displayName: 'District', dataType: DataTypes.SingleLineText, order: 22, visualSizeFactor: 120 },
+    { name: 'street', alias: 'street', displayName: 'Street', dataType: DataTypes.SingleLineText, order: 23, visualSizeFactor: 140 },
+    { name: 'streetLine', alias: 'streetLine', displayName: 'Street line', dataType: DataTypes.SingleLineText, order: 24, visualSizeFactor: 160 },
+    { name: 'streetNumber', alias: 'streetNumber', displayName: 'Number', dataType: DataTypes.SingleLineText, order: 25, visualSizeFactor: 100 },
+    { name: 'postalCode', alias: 'postalCode', displayName: 'Postal code', dataType: DataTypes.SingleLineText, order: 26, visualSizeFactor: 100 }
+]
+
+/** Shows what the records actually hold, which is the only way to watch a write-back land. */
 const RecordTable = ({ dataset, columns }: { dataset: IDataset; columns: string[] }) => {
     const [, setVersion] = useState(0)
     useEffect(() => {
@@ -79,10 +79,7 @@ const RecordTable = ({ dataset, columns }: { dataset: IDataset; columns: string[
 }
 
 const DragPins = () => {
-    const dataset = useMemo(() => createSampleDataset({
-        records: getSiteRecords().slice(0, 5),
-        columns: undefined
-    }), [])
+    const dataset = useMemo(() => createSampleDataset({ records: getSiteRecords().slice(0, 5) }), [])
     return (
         <MapDemo
             dataset={dataset}
@@ -99,7 +96,7 @@ const DragPins = () => {
 }
 
 export const DragAPin: Story = {
-    name: 'I1 — drag a pin to move its record',
+    name: 'Move a record by dragging its pin',
     render: () => <DragPins />,
     parameters: {
         docs: {
@@ -109,8 +106,9 @@ export const DragAPin: Story = {
                     'the record and saves. The table under the map is the dataset, so you can watch the values',
                     'change as you drop a pin.',
                     '',
-                    'It is **off by default**: a map that moves records when a finger slips is worse than one that',
-                    'does not move them at all.'
+                    'The write is not allowed to bounce the pin: the control remembers what it just saved and',
+                    'ignores the dataset change that its own write causes, so the pin stays where you dropped it',
+                    'instead of jumping while the save round-trips.'
                 ].join(' ')
             }
         }
@@ -121,13 +119,13 @@ const CreatePins = () => {
     const dataset = useMemo(() => createSampleDataset({
         records: [],
         columns: [
-            { name: 'name', alias: 'name', displayName: 'Name', dataType: 'SingleLine.Text', order: 0, visualSizeFactor: 160, isPrimary: true },
-            { name: 'address', alias: 'address', displayName: 'Address', dataType: 'SingleLine.Text', order: 1, visualSizeFactor: 240 },
-            { name: 'city', alias: 'city', displayName: 'City', dataType: 'SingleLine.Text', order: 2, visualSizeFactor: 120 },
+            { name: 'name', alias: 'name', displayName: 'Name', dataType: DataTypes.SingleLineText, order: 0, visualSizeFactor: 160, isPrimary: true },
+            { name: 'address', alias: 'address', displayName: 'Address', dataType: DataTypes.SingleLineText, order: 1, visualSizeFactor: 240 },
+            { name: 'city', alias: 'city', displayName: 'City', dataType: DataTypes.SingleLineText, order: 2, visualSizeFactor: 120 },
             ...ADDRESS_COLUMNS,
-            { name: 'lat', alias: 'lat', displayName: 'Latitude', dataType: 'Decimal', order: 30, visualSizeFactor: 100 },
-            { name: 'lng', alias: 'lng', displayName: 'Longitude', dataType: 'Decimal', order: 31, visualSizeFactor: 100 }
-        ] as any[]
+            { name: 'lat', alias: 'lat', displayName: 'Latitude', dataType: DataTypes.Decimal, order: 30, visualSizeFactor: 100 },
+            { name: 'lng', alias: 'lng', displayName: 'Longitude', dataType: DataTypes.Decimal, order: 31, visualSizeFactor: 100 }
+        ]
     }), [])
     return (
         <MapDemo
@@ -148,7 +146,7 @@ const CreatePins = () => {
 }
 
 export const CreateAPin: Story = {
-    name: 'I2 — click the map to create a record, with its address filled in',
+    name: 'Create a record by clicking the map',
     render: () => <CreatePins />,
     parameters: {
         docs: {
@@ -156,15 +154,12 @@ export const CreateAPin: Story = {
                 story: [
                     '`EnablePinCreation` turns a click on empty map into a new record in the bound dataset. The',
                     'control reverse geo-codes the point and writes the components back to whichever attributes',
-                    'are bound - `fullAddress`, `country`, `administrativeArea`, `locality`, `sublocality`,',
-                    '`street`, `streetName`, `streetNumber` and `postalCode` - so a click is a usable way to fill',
-                    'in an address. Watch the table fill in.',
+                    'are bound — full address, country, region, town, district, street, street line, house number',
+                    'and postal code — so a click is a usable way to fill an address in. Watch the table fill.',
                     '',
-                    'Opening the pin the map created shows a **Delete** button on its card. A component the',
-                    'service could not resolve is written as empty rather than skipped, so moving a pin from a',
-                    'street address into a field clears the street instead of leaving the old one behind.',
-                    '',
-                    'Off by default, like dragging.'
+                    'Opening the pin the map created shows a **Delete** button on its card. A component the service',
+                    'could not resolve is written as empty rather than skipped, so moving a pin from a street',
+                    'address into a field clears the street instead of leaving the old one behind.'
                 ].join(' ')
             }
         }
@@ -187,18 +182,20 @@ const PrefillLocation = () => {
 }
 
 export const PrefillUserLocation: Story = {
-    name: 'I2 — centre on the user while the dataset is empty',
+    name: 'Centre on the user when there is nothing to fit',
     render: () => <PrefillLocation />,
     parameters: {
         docs: {
             description: {
                 story: [
                     'With no pins to fit, `PrefillUserLocation` centres the map on the user. The browser is asked',
-                    'first, because it is the only source precise enough to drop a pin on; a user who declines, or',
-                    'a browser with nothing to say, falls through to `onResolveFallbackLocation` - the opt-in IP',
-                    'lookup this page passes, which is approximate and deliberately so.',
+                    'first, because it is the only source precise enough to drop a pin on, and the map zooms in',
+                    'close when it answers. A user who declines, or a browser with nothing to say, falls through',
+                    'to `onResolveFallbackLocation` — the opt-in IP lookup this page passes — and the map stays',
+                    'zoomed out, because that answer is only good to a city.',
                     '',
-                    'Off by default, because it prompts for permission.'
+                    'Off by default, because it prompts for permission. Pin creation is on here too, so the map is',
+                    'a usable starting point rather than an empty one: click to place the first record.'
                 ].join(' ')
             }
         }

@@ -8,80 +8,86 @@ what was delivered, how to see it, and what was found along the way.
 
 ## Every requested feature, and where to watch it work
 
-Run `npm run storybook`, open **Map → V2**, and each story below demonstrates the item next to it. Every one
-was driven in a browser against the live provider APIs, not just typechecked.
+Run `npm run storybook` and open **Map**. The sidebar is written for someone meeting the control for the
+first time, so the pages are named after what they do rather than after the checklist; the mapping is below.
+Every story was driven in a browser against the live provider APIs, not just typechecked.
 
-### Data
+### Data — *Map → Data*
 - [x] **D1** Full address geo-coding as fallback when coordinates are not available
-  → *Data → D1*. Eight of fifteen sites keep coordinates; the other seven are placed from their postal
-  address alone, through live HERE.
+  → *Addresses without coordinates*. Half the sites have had their coordinates removed and are placed from
+  their postal address alone, through live HERE.
 - [x] **D2** Filtering by `IRecord` attributes
-  → *Data → D2*. The panel offers the values the records hold — store 9, service 4, depot 2 — and picking
-  depot leaves exactly those two pins.
+  → *Filtering by record attributes*. The panel offers the values the records hold — store 9, service 4,
+  depot 2 — and picking depot leaves exactly those two pins.
 - [x] **D3** Full text search by address, using the entity's quick find query
-  → *Data → D3*. `Brno` filters fifteen pins to one through quick find; picking `Ostrava, Czechia` off the
-  live Mapy.com suggestions moves the map to 49.835, 18.282 at zoom 15.
+  → *Searching records, or an address*. `Brno` filters fifteen pins to one through quick find; picking a
+  place off the live Mapy.com suggestions moves the map there instead.
 - [x] **D4** Paging — display all records, not only the current dataset page
-  → *Data → D4* (two stories). Fifteen sites in a dataset paged four at a time, drawn one page then all.
+  → *The page the host loaded* and *Every page of the view*. Fifteen sites in a dataset paged four at a time,
+  drawn one page then all fifteen.
 - [x] **D5** The control must handle datasets of thousands of pins
-  → *Data → D5* (two stories). Five thousand records draw as 22 pins and re-group to 75 on pan.
+  → *Thousands of pins*. Five thousand records drawn as grouped pins, re-grouped against the viewport on
+  every pan.
 - [x] **D6** Resolve any bound attribute through expands, using dot notation
-  → Exercised by every story through the shared resolver; unit-tested against the flat aliased key, the
-  nested expand and the array form.
+  → Exercised by every story through the shared resolver, and documented at the top of the Data page;
+  unit-tested against the flat aliased key, the nested expand and the array form.
 
-### Interaction
+### Interaction — *Map → Editing*
 - [x] **I1** Update coordinates by drag and drop of a pin — default disabled
-  → *Interaction → I1*. Dragging Brno depot wrote `49.6107 / 17.3804` back to the dataset, visible in the
-  table under the map.
+  → *Move a record by dragging its pin*. Dropping a pin writes the new coordinates back to the record, and
+  the table under the map shows it land.
 - [x] **I2** Place a marker by clicking the map — default disabled, with reverse geo-coding, the nine
   address components, deletion, and `prefillUserLocation`
-  → *Interaction → I2* (two stories). A click created a record filled in as `273 / Lhotka / 277 31 /
-  Czechia` from live HERE, and its card offered Delete.
+  → *Create a record by clicking the map* and *Centre on the user when there is nothing to fit*. A click
+  created a record filled in as `Hradiště ev. č. 9 / Hradiště / 338 08 / Czechia` from live HERE, its card
+  offered Delete, and deleting left it deleted.
 
-### Pins
+### Pins — *Map → Pins*
 - [x] **P1** Custom icons — colour / URL / web resource / custom renderer, chosen by conditional rules
-  → *Pins → P1* (two stories). Depots red, service points green, stores blue by rule; and every site drawn
-  as a capacity donut through the code hook.
+  → *A different pin per category* and *A chart drawn per record*. Depots red, service points green, stores
+  blue by rule; and every site drawn as a capacity donut through the code hook.
 - [x] **P2** Popup card on pin click, localized, with `ExecuteFunction()` buttons, one card at a time
-  → *Pins → P2* (two stories). The fields card with two working ExecuteFunction buttons, and an Adaptive
-  Card whose Capacity fact resolves through the renamed `_label` annotation.
+  → *A card on pin click* and *An Adaptive Card instead*. The fields card with two working ExecuteFunction
+  buttons, and an Adaptive Card whose Capacity fact resolves through the renamed `_label` annotation.
 - [x] **P3** Automated group-by on pin overlap in the current viewport, with a count and a grouped card
-  → *Pins → P3*. Six warehouses drawn as one pin carrying `6`, opening a card listing all six.
+  → *Pins that land on the same spot*. Six warehouses drawn as one pin carrying `6`, opening a card listing
+  all six with a button to zoom to where they come apart.
 
-### Pin connections
+### Pin connections — *Map → Routes*
 - [x] **C1** Connect a group of pins into a line — ordered, grouped and coloured by attributes
-  → *Pin connections → C1*. Three runs drawn blue, red and green in stop order, despite the records
+  → *Connect pins into a line*. Three runs drawn blue, red and green in stop order, despite the records
   arriving sorted by name.
 - [x] **C2** Optional: snap the line to roads via the provider's directions service
-  → *Pin connections → C2*. The same three runs following the road network through live Mapy.com routing.
+  → *Follow the roads instead*. The same three runs following the road network through live Mapy.com routing.
 
-### Map legend
+### Map legend — *Map → Legend*
 - [x] **L1** Render simple HTML as a legend, loadable from a web resource, sanitized
-  → *Legend and providers → L1*. The markup deliberately ends in a `<script>` and an `<img onerror>`;
-  neither reached the page, and the surviving link came out with `target="_blank" rel="noopener noreferrer"`.
+  → *A legend over the map*. The markup deliberately ends in a `<script>` and an `<img onerror>`; neither
+  reached the page, and the surviving link came out with `target="_blank" rel="noopener noreferrer"`.
 
-### Map provider
+### Map provider — *Map → Providers*
 - [x] **M1** Switch between Google Maps, OpenStreetMap, Mapy.com and Here.com, with provider-agnostic
   geo-coding, reverse geo-coding and directions
-  → *Legend and providers → M1*, and `npm run test:live`, which calls all eight services for real.
+  → *Switching, and points of interest*, and `npm run test:live`, which calls all eight services for real.
 - [x] **M2** Hide/Show POI — default hidden
-  → *Legend and providers → M2* (two stories). Google draws the airports and Pražský hrad only with points
-  of interest on.
+  → the same page: **showPointsOfInterest** is a switch on it. Off, Prague is bare basemap and two record
+  pins; on, Pražský hrad, Karlův most, the museums and the arenas all come back.
 
-**And one story that turns the lot on at once:** *Map → V2 → Everything at once*.
+**And one page that turns the lot on at once:** *Map → Overview*, the front page, where every feature is a
+switch over a single map.
 
 ## How to run it
 
 ```bash
 cp storybook/.env.local.example storybook/.env.local   # then paste in your HERE, Mapy.com and Google keys
-npm run storybook                                       # http://localhost:6006 → Map → V2
+npm run storybook                                       # http://localhost:6006 → Map
 ```
 
 Without keys the keyless OpenStreetMap provider still draws every story; the vendors with no key are simply
 not offered, and geo-coding falls through to Nominatim.
 
 ```bash
-npm test        # typecheck, then 248 unit tests
+npm test        # typecheck, then 255 unit tests
 npm run build   # the package build, which is also the repo's PR gate
 npm run test:live   # calls the real geo services; needs MAP_HERE_API_KEY, MAP_MAPY_API_KEY, MAP_GOOGLE_API_KEY
 ```
@@ -342,3 +348,46 @@ where they overlap. Storybook exercises the fallback path.
   records read their columns back through it, so every card drawn in `PinLoading: all` lost its field labels
   and its title. The clone's lifetime now belongs to the caller and is released only once a later load has
   replaced its records, or the control goes away.
+
+### Review round — the Storybook rewritten for a reader, and four bugs you found
+
+You reviewed the delivered build and reported six things. All six are done.
+
+- **The ungrouped five-thousand-pin story lagged.** Removed. Grouping is what makes a dataset that size
+  usable, so a story showing it turned off was demonstrating the problem rather than the feature.
+- **Searching `Smíchov` crashed** with `props.record is undefined`. A card open when the dataset narrows
+  under it left `MapCard` holding a record that had left the dataset, handed over through an `as IRecord`
+  cast that hid exactly this. Three guards now: the renderer returns nothing for a missing record, a card
+  whose record has gone is not rendered at all, and the open pin is dropped from state rather than left
+  hanging. Reproduced and re-verified in the browser: with a card open on Ostrava, searching narrows the
+  dataset, the card closes, nothing throws.
+- **A deleted pin came straight back.** Leaflet decides a click was not meant for the map by walking up from
+  the event target looking for its own opt-out marker — but a Delete button unmounts *itself* as it is
+  pressed, so by the time the click finished bubbling the target was detached from the document, the walk
+  found nothing, and the map fired `click`, which created a record at the very point the deleted one had
+  been. New `isMapSurfaceClick` ignores a click whose target has already left the document; both renderers
+  ask it before reporting a map click, and it has its own unit tests.
+- **Centring on the user "was not working".** It was centring — but always at the approximate zoom, because
+  a device position and an IP lookup were reported as the same kind of answer. A resolved location now
+  carries `isPrecise`, a device position zooms to street level and an IP lookup stays at city level, and the
+  two timeouts were rebalanced (geolocation 8s → 4s, fallback 2.5s → 12s) so the IP lookup actually gets its
+  turn after a declined prompt instead of being aborted first.
+- **The legend button was invisible.** The provider picker positioned itself absolutely and drew straight
+  over it. Both now live in one overlay, the picker and the legend button sit in a row, and the legend panel
+  drops below that row — so the button is beside the picker whether the legend is open or shut.
+- **The Storybook was written for whoever built it.** Rewritten for whoever reads it: no `V2`, no `D5`, no
+  `L1`. Seven pages named after what they do — **Overview**, **Data**, **Pins**, **Editing**, **Routes**,
+  **Legend**, **Providers** — following the structure the Form control's own pages use: one autodocs page
+  per topic, a prose introduction explaining *why* the control behaves the way it does, and stories named as
+  sentences. *Providers* carries the points-of-interest switch, so switching vendors and hiding their POIs
+  are one page rather than two. *Overview* is the front page, with every feature as a labelled manifest
+  property you can toggle over a single map.
+
+**And one more bug, found while verifying the above.** Google Maps drew its own red default marker for any
+pin the control had resolved no appearance for, while every other provider drew the shipped pin in the
+theme's colour — so switching vendors silently changed what the same record looked like. Google now draws the
+shipped pin too. Making that unconditional exposed a second, worse one: building an icon touches
+`google.maps.Size` and `google.maps.Point`, which do not exist until the Maps script has loaded, and the
+markers were being rendered before it had. It only ever worked because the early return happened to skip that
+line — meaning a `PinIcons` configuration on Google was one render-order coin-flip away from throwing. The
+markers now wait for the api, which is also the only honest thing for a marker to do.
