@@ -9,6 +9,7 @@ import { usePcfContext } from '@talxis/base-controls/utils'
 import { baseEditorOptions } from '../../form/shared/monacoEditor'
 import { MapApiKeyPanel } from './MapApiKeyPanel'
 import { MAP_API_KEY_VENDORS, useMapApiKeys } from './mapApiKeys'
+import { getSampleDatasetOptions } from './mapSampleData'
 import { getMapConfigSource } from './mapConfigSource'
 
 const theme = getTheme()
@@ -113,6 +114,15 @@ export const MapDemo = (props: IMapDemoProps) => {
     //the ip lookup is a third party call, so only a story that asked to be centred on the user gets one
     const wantsUserLocation = props.parameters?.PrefillUserLocation?.raw === true
 
+    const sampleDataset = useMemo(() => {
+        const built = getSampleDatasetOptions(props.dataset)
+        return built && {
+            records: built.records as { [key: string]: unknown }[],
+            metadata: built.metadata,
+            pageSize: built.pageSize
+        }
+    }, [props.dataset])
+
     const source = useMemo(() => getMapConfigSource(props.parameters ?? {}, {
         hooks: {
             onResolvePin: props.onResolvePin,
@@ -123,9 +133,18 @@ export const MapDemo = (props: IMapDemoProps) => {
         //every page that passes them
         props: {
             ...(wantsUserLocation ? { onResolveFallbackLocation: 'resolveLocationFromIpAddress' } : {}),
-            onGetMapVendors: '() => [googleMapsVendor]'
-        }
-    }), [props.parameters, props.onResolvePin, props.onGetCardRenderers, props.hookSource, wantsUserLocation])
+            onGetMapVendors: {
+                value: '() => [googleMapsVendor]',
+                note: [
+                    'OpenStreetMap, HERE and Mapy.com need no registration - the control builds them itself',
+                    'from the api keys above. Google Maps is handed over instead, because importing it is what',
+                    'pulls the optional @vis.gl/react-google-maps peer into the build, and a consumer who does',
+                    'not want Google should not be made to carry it.'
+                ].join('\n')
+            }
+        },
+        sampleDataset
+    }), [props.parameters, props.onResolvePin, props.onGetCardRenderers, props.hookSource, wantsUserLocation, sampleDataset])
 
     const height = props.height ?? 520
 

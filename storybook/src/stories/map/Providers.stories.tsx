@@ -20,8 +20,12 @@ Rendering, geo-coding and directions are **separate capabilities** — a vendor 
 three. A provider missing one borrows from another configured vendor rather than the feature switching off,
 so a Mapy-rendered map can still geo-code through HERE when that key is set.
 
-Google Maps is the one vendor a wrapper names in code, so its npm peer is only pulled in by an app that
-actually wants it:
+**Three of the four need no registration.** OpenStreetMap, HERE and Mapy.com are built into the control,
+which constructs them itself from the api keys above — they are Leaflet with a different tile url and cost a
+consumer nothing. Google Maps is the exception, and it is the exception because its dependency is: importing
+it is what pulls the optional \`@vis.gl/react-google-maps\` peer into the build. Making the control import it
+would put that dependency in every app whether or not it draws a Google map, so the host hands it over
+instead:
 
 \`\`\`tsx
 import { googleMapsVendor } from '@talxis/base-controls/dist/components/Map/providers/google-maps';

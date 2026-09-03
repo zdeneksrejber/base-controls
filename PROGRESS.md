@@ -87,7 +87,7 @@ Without keys the keyless OpenStreetMap provider still draws every story; the ven
 not offered, and geo-coding falls through to Nominatim.
 
 ```bash
-npm test        # typecheck, then 282 unit tests
+npm test        # typecheck, then 289 unit tests
 npm run build   # the package build, which is also the repo's PR gate
 npm run test:live   # calls the real geo services; needs MAP_HERE_API_KEY, MAP_MAPY_API_KEY, MAP_GOOGLE_API_KEY
 ```
@@ -444,3 +444,21 @@ redraws, and it survives a reload. Verified against a Storybook built exactly as
 moved aside first, and the bundle checked for leaked keys: with no keys the provider picker does not appear
 at all, after saving a Mapy.com key it offers OpenStreetMap and Mapy.com, and after a reload the map opens on
 Mapy.com.
+
+### Fourth review round — the samples had no data, and one asymmetry went unexplained
+
+**The snippet bound a dataset it never showed.** `Dataset: dataset` named an identifier that appeared
+nowhere, and without the records there was no way to see why `LatitudeAttributeName` is bound to `lat`. The
+panel now writes the dataset out above the configuration: a couple of records in full, a count of the rest,
+and the real `new Dataset(new MemoryDataProvider({ ... }))` that built them — not an invented helper, which
+would have been the same defect this round was meant to remove. The records are read back off the dataset the
+page is actually using, through a weak map `createSampleDataset` fills in, so they cannot drift from what is
+drawn. A page that made its dataset page shows its page size too, which is what explains four pins.
+
+**Why Google Maps is registered by hand and the other three are not.** The answer was in the Providers page
+and in the README, but not where a reader meets the line. A fixed prop can now carry a note, written as a
+comment above it in the emitted snippet: OpenStreetMap, HERE and Mapy.com are built into the control and
+constructed from the manifest api keys, because they are Leaflet with a different tile url and cost a
+consumer nothing; Google Maps is the exception because its dependency is, and importing it is what pulls the
+optional `@vis.gl/react-google-maps` peer into every build that names it. Both prose sources now say this in
+those terms rather than leaving it implied.

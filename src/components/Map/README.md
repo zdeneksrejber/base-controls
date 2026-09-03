@@ -273,8 +273,11 @@ that logic probably belongs in the control so every provider benefits from it.
 - A deliberate switch remounts the map, but the new provider is handed the view the old one last reported,
   so the user is not pulled back to the pins.
 
-Google Maps is the one vendor the wrapper has to name in code, because importing it is what pulls the
-optional `@vis.gl/react-google-maps` peer dependency into the build:
+OpenStreetMap, HERE and Mapy.com need no registration: the control builds all three itself from the api keys
+in the manifest, because they are Leaflet with a different tile url and cost a consumer nothing. Google Maps
+is the one vendor the wrapper has to name in code, and it is the exception because its dependency is —
+importing it is what pulls the optional `@vis.gl/react-google-maps` peer into the build, and a consumer who
+never draws a Google map should not be made to carry it:
 
 ```tsx
 import { googleMapsVendor } from '@talxis/base-controls/dist/components/Map/providers/google-maps';

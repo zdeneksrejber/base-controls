@@ -183,7 +183,7 @@ const PrefillLocation = (props: { prefillUserLocation: boolean }) => {
 
 export const PrefillUserLocation: StoryObj<typeof PrefillLocation> = {
     name: 'Centre on the user when there is nothing to fit',
-    render: (args) => <PrefillLocation {...args} />,
+    render: (args: { prefillUserLocation: boolean }) => <PrefillLocation {...args} />,
     argTypes: {
         prefillUserLocation: {
             control: 'boolean',

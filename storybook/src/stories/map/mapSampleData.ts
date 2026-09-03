@@ -1,4 +1,4 @@
-import { Dataset, DataTypes, IColumn, IRawRecord, MemoryDataProvider } from '@talxis/client-libraries'
+import { Dataset, DataTypes, IColumn, IDataset, IRawRecord, MemoryDataProvider } from '@talxis/client-libraries'
 
 export interface ISampleSite {
     name: string
@@ -78,23 +78,42 @@ export interface ISampleDatasetOptions {
  * @param options Records, columns, page size and quick find columns.
  * @returns A dataset ready to hand to the control as its `Dataset` parameter.
  */
+/**
+ * What each demo dataset was built from, so the Code panel can show the records behind a map without the
+ * stories having to hand them over a second time. Keyed weakly, so a dataset is still collectable.
+ */
+const sampleDatasetOptions = new WeakMap<IDataset, ISampleDatasetBuild>()
+
+export interface ISampleDatasetBuild extends ISampleDatasetOptions {
+    /** Entity metadata the provider was given, so the Code panel can show the real construction. */
+    metadata: { [key: string]: unknown }
+}
+
+/**
+ * The options a demo dataset was built from.
+ *
+ * @param dataset Dataset to look up.
+ * @returns What it was built from, or nothing when it did not come from `createSampleDataset`.
+ */
+export const getSampleDatasetOptions = (dataset: IDataset): ISampleDatasetBuild | undefined =>
+    sampleDatasetOptions.get(dataset)
+
 export const createSampleDataset = (options: ISampleDatasetOptions) => {
-    const provider = new MemoryDataProvider({
-        dataSource: options.records,
-        metadata: {
-            PrimaryIdAttribute: 'name',
-            PrimaryNameAttribute: 'name',
-            LogicalName: 'site',
-            EntitySetName: 'sites',
-            QuickFindColumns: options.quickFindColumns ?? ['name', 'city', 'address']
-        }
-    })
+    const metadata = {
+        PrimaryIdAttribute: 'name',
+        PrimaryNameAttribute: 'name',
+        LogicalName: 'site',
+        EntitySetName: 'sites',
+        QuickFindColumns: options.quickFindColumns ?? ['name', 'city', 'address']
+    }
+    const provider = new MemoryDataProvider({ dataSource: options.records, metadata })
     const dataset = new Dataset(provider)
     dataset.setColumns(options.columns ?? SITE_COLUMNS)
     if (options.pageSize) {
         dataset.paging.setPageSize(options.pageSize)
     }
     void dataset.refresh()
+    sampleDatasetOptions.set(dataset, { ...options, metadata })
     return dataset
 }
 

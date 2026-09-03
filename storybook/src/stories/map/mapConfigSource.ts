@@ -119,6 +119,10 @@ const IMPORTS: { needle: RegExp; statement: string }[] = [
     {
         needle: /\bresolveLocationFromIpAddress\b/,
         statement: "import { resolveLocationFromIpAddress } from '@talxis/base-controls';"
+    },
+    {
+        needle: /\bMemoryDataProvider\b/,
+        statement: "import { Dataset, MemoryDataProvider } from '@talxis/client-libraries';"
     }
 ]
 
@@ -126,6 +130,80 @@ const BASE_IMPORTS = [
     "import { Map } from '@talxis/base-controls';",
     "import { googleMapsVendor } from '@talxis/base-controls/dist/components/Map/providers/google-maps';"
 ]
+
+/** Records shown in full before the rest are summarised, enough to see the shape without flooding it. */
+const SAMPLE_RECORD_LIMIT = 2
+
+/** A property name only needs quoting when it is not a plain identifier. */
+const formatKey = (key: string) => /^[A-Za-z_$][\w$]*$/.test(key) ? key : quote(key)
+
+/**
+ * Writes a value as the TypeScript literal a reader would type, rather than as JSON.
+ *
+ * @param value Value to write.
+ * @param indentBy Columns the value is nested at, so a multi-line one lines up.
+ * @returns The literal.
+ */
+const formatLiteral = (value: unknown, indentBy: number): string => {
+    const pad = ' '.repeat(indentBy)
+    if (typeof value === 'string') {
+        return quote(value)
+    }
+    if (value === null || typeof value !== 'object') {
+        return `${value}`
+    }
+    if (Array.isArray(value)) {
+        //an array of plain values reads better on one line than as a column of them
+        return `[${value.map((item) => formatLiteral(item, indentBy)).join(', ')}]`
+    }
+    const entries = Object.entries(value as { [key: string]: unknown })
+        //an annotation is real data but it is not what a reader is here to look at
+        .filter(([key]) => !key.includes('@'))
+        .map(([key, item]) => `${pad}    ${formatKey(key)}: ${formatLiteral(item, indentBy + 4)}`)
+    return `{\n${entries.join(',\n')}\n${pad}}`
+}
+
+/** Writes one record as an object literal, a property per line so the attribute names are easy to find. */
+const formatRecord = (record: { [key: string]: unknown }, indentBy: number): string =>
+    `${' '.repeat(indentBy)}${formatLiteral(record, indentBy)}`
+
+export interface IMapSampleDataset {
+    /** Raw records the demo dataset was built from. */
+    records: { [key: string]: unknown }[]
+    /** Entity metadata the in-memory provider was given. */
+    metadata: { [key: string]: unknown }
+    /** Records the dataset shows at once, where the page deliberately made it page. */
+    pageSize?: number
+}
+
+/**
+ * The dataset behind the map, written out as the demo builds it.
+ *
+ * A real host binds this - the control never constructs one - but a reader cannot make sense of
+ * `LatitudeAttributeName: { raw: 'lat' }` without seeing that a record has a `lat`. So the records come with
+ * the configuration, capped at a couple with a count of the rest.
+ *
+ * @param sample Records the demo used, and the page size where it set one.
+ * @returns A declaration block, or an empty string when there is nothing to show.
+ */
+const formatDataset = (sample?: IMapSampleDataset): string => {
+    if (!sample?.records.length) {
+        return ''
+    }
+    const shown = sample.records.slice(0, SAMPLE_RECORD_LIMIT)
+    const remaining = sample.records.length - shown.length
+    const rest = remaining > 0 ? `,\n    //...${remaining} more like these` : ''
+    return [
+        '//a PCF host binds the dataset; this page builds the same thing in memory from the records below',
+        `const records = [\n${shown.map((record) => formatRecord(record, 4)).join(',\n')}${rest}\n];`,
+        '',
+        'const dataset = new Dataset(new MemoryDataProvider({',
+        '    dataSource: records,',
+        `    metadata: ${formatLiteral(sample.metadata, 4)}`,
+        '}));',
+        ...(sample.pageSize ? [`dataset.paging.setPageSize(${sample.pageSize});`] : [])
+    ].join('\n')
+}
 
 export interface IMapConfigSourceOptions {
     /**
@@ -140,9 +218,11 @@ export interface IMapConfigSourceOptions {
     hookSource?: string
     /**
      * Props whose value is a fixed line rather than a function to read - what a wrapper writes verbatim,
-     * the same on every page.
+     * the same on every page. A value may carry a `note`, which is written above it as a comment.
      */
-    props?: { [propName: string]: string }
+    props?: { [propName: string]: string | { value: string; note: string } }
+    /** Records behind the map, so the attribute bindings above can be matched to real data. */
+    sampleDataset?: IMapSampleDataset
 }
 
 /**
@@ -190,10 +270,17 @@ export const getMapConfigSource = (
         hookLines.push(`    ${propName}={${inline}}`)
     })
 
-    Object.entries(options.props ?? {}).forEach(([propName, value]) =>
-        hookLines.push(`    ${propName}={${value}}`))
+    Object.entries(options.props ?? {}).forEach(([propName, value]) => {
+        const { value: written, note } = typeof value === 'string' ? { value, note: undefined } : value
+        //a comment inside a JSX opening tag is valid, and this is the one place a reader needs one
+        note?.split('\n').forEach((line) => hookLines.push(`    //${line}`))
+        hookLines.push(`    ${propName}={${written}}`)
+    })
+
+    const dataset = formatDataset(options.sampleDataset)
 
     const body = [
+        ...(dataset ? [dataset, ''] : []),
         ...(declarations.length ? [declarations.join('\n\n'), ''] : []),
         '<Map',
         '    context={context}',

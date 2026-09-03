@@ -91,3 +91,60 @@ describe('getMapConfigSource', () => {
         expect(source).toContain('onGetMapVendors={() => [googleMapsVendor]}');
     });
 });
+
+describe('the dataset it writes out', () => {
+    const sample = {
+        records: [
+            { name: 'Praha depot', lat: 50.1, lng: 14.48, capacity: 1200 },
+            { name: 'Brno depot', lat: 49.19, lng: 16.6, capacity: 900 },
+            { name: 'Plzeň', lat: 49.73, lng: 13.37, capacity: 260 }
+        ],
+        metadata: { PrimaryIdAttribute: 'name', QuickFindColumns: ['name', 'city'] }
+    };
+
+    it('shows the records behind the map, so a binding can be matched to real data', () => {
+        const source = getMapConfigSource(COORDINATES, { sampleDataset: sample });
+        expect(source).toContain("name: 'Praha depot'");
+        expect(source).toContain('lat: 50.1');
+        expect(source).toContain("LatitudeAttributeName: { raw: 'lat' }");
+    });
+
+    it('caps the list and counts what it left out', () => {
+        const source = getMapConfigSource(COORDINATES, { sampleDataset: sample });
+        expect(source).not.toContain('Plzeň');
+        expect(source).toContain('//...1 more like these');
+    });
+
+    it('builds the dataset with something a reader can actually import', () => {
+        const source = getMapConfigSource(COORDINATES, { sampleDataset: sample });
+        expect(source).toContain("import { Dataset, MemoryDataProvider } from '@talxis/client-libraries';");
+        expect(source).toContain('new Dataset(new MemoryDataProvider({');
+    });
+
+    it('writes literals as typescript rather than json', () => {
+        const source = getMapConfigSource(COORDINATES, { sampleDataset: sample });
+        expect(source).toContain("PrimaryIdAttribute: 'name'");
+        expect(source).toContain("QuickFindColumns: ['name', 'city']");
+        expect(source).not.toContain('"PrimaryIdAttribute"');
+    });
+
+    it('mentions the page size only where the page set one', () => {
+        expect(getMapConfigSource(COORDINATES, { sampleDataset: sample }))
+            .not.toContain('setPageSize');
+        expect(getMapConfigSource(COORDINATES, { sampleDataset: { ...sample, pageSize: 4 } }))
+            .toContain('dataset.paging.setPageSize(4);');
+    });
+
+    it('leaves the block out entirely when there is no sample to show', () => {
+        expect(getMapConfigSource(COORDINATES)).not.toContain('const records');
+    });
+});
+
+describe('a fixed prop that carries its reason', () => {
+    it('writes the reason as a comment above the prop', () => {
+        const source = getMapConfigSource(COORDINATES, {
+            props: { onGetMapVendors: { value: '() => [googleMapsVendor]', note: 'why it is here\nsecond line' } }
+        });
+        expect(source).toContain('    //why it is here\n    //second line\n    onGetMapVendors={() => [googleMapsVendor]}');
+    });
+});
