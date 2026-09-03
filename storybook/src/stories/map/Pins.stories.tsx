@@ -7,6 +7,8 @@ import { IExecutedFunction, installMapHostShim } from './mapHostShim'
 import { createSampleDataset, getSiteRecords, SAMPLE_ATTRIBUTES } from './mapSampleData'
 import { ADAPTIVE_CARD_TEMPLATE, PIN_RULES } from './mapSampleConfig'
 import { mapStoryParameters, StoryNote } from './storyHelpers'
+//the Code panel reads the demo hooks below out of this very file, so it shows them as they were written
+import hookSource from './Pins.stories.tsx?raw'
 
 const COORDINATES = {
     LatitudeAttributeName: { raw: SAMPLE_ATTRIBUTES.latitude },
@@ -111,6 +113,7 @@ const ChartPins = () => {
             dataset={dataset}
             parameters={{ ...COORDINATES, EnableClustering: { raw: false }, DefaultVendor: { raw: 'leaflet' } }}
             onResolvePin={getCapacityPin}
+            hookSource={hookSource}
         />
     )
 }
@@ -198,6 +201,8 @@ export const DetailCard: Story = {
     }
 }
 
+const getAdaptiveCardRenderers = () => ADAPTIVE_MAP_CARD_RENDERERS
+
 const AdaptiveCards = () => {
     const dataset = useMemo(() => createSampleDataset({
         //the annotation an Adaptive Card cannot bind until the control renames it
@@ -217,7 +222,8 @@ const AdaptiveCards = () => {
                 EnableClustering: { raw: false },
                 DefaultVendor: { raw: 'leaflet' }
             }}
-            onGetCardRenderers={() => ADAPTIVE_MAP_CARD_RENDERERS}>
+            hookSource={hookSource}
+            onGetCardRenderers={getAdaptiveCardRenderers}>
             <ExecutedNote executed={executed} hint="open a pin and press Plan a visit" />
         </MapDemo>
     )

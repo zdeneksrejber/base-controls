@@ -11,9 +11,6 @@ import { MapApiKeyPanel } from './MapApiKeyPanel'
 import { MAP_API_KEY_VENDORS, useMapApiKeys } from './mapApiKeys'
 import { getMapConfigSource } from './mapConfigSource'
 
-//the one vendor a wrapper must name in code: importing it is what pulls in the optional Google Maps peer
-const HOST_VENDORS = [googleMapsVendor]
-
 const theme = getTheme()
 
 const styles = mergeStyleSets({
@@ -75,6 +72,11 @@ export interface IMapDemoProps {
     /** Code hooks the story demonstrates, passed straight through to the control. */
     onResolvePin?: IMap['onResolvePin']
     onGetCardRenderers?: IMap['onGetCardRenderers']
+    /**
+     * Raw text of the story module, as `import source from './Whatever.stories.tsx?raw'`. The Code panel
+     * uses it to show a hook the way it was written rather than the way the bundler left it.
+     */
+    hookSource?: string
 }
 
 const formatViewport = (viewport: IMapViewport) =>
@@ -102,18 +104,21 @@ export const MapDemo = (props: IMapDemoProps) => {
     const [showCode, setShowCode] = useState(false)
     const [showKeys, setShowKeys] = useState(false)
     const [providerId, setProviderId] = useState<string | undefined>(props.parameters?.DefaultVendor?.raw ?? undefined)
-    const onGetMapVendors = useMemo(() => () => HOST_VENDORS, [])
+    //the one vendor a wrapper must name in code: importing it is what pulls in the optional Google Maps peer
+    const onGetMapVendors = useMemo(() => () => [googleMapsVendor], [])
 
     useEventEmitter<IDataProviderEventListeners>(props.dataset, 'onRecordsSelected', (ids: string[]) => setSelectedIds(ids ?? []))
     useEffect(() => setSelectedIds(props.dataset.getSelectedRecordIds()), [props.dataset])
 
     const source = useMemo(() => getMapConfigSource(props.parameters ?? {}, {
-        props: {
-            ...(props.onResolvePin ? { onResolvePin: 'getPinAppearance' } : {}),
-            ...(props.onGetCardRenderers ? { onGetCardRenderers: '() => ADAPTIVE_MAP_CARD_RENDERERS' } : {}),
-            onGetMapVendors: '() => [googleMapsVendor]'
-        }
-    }), [props.parameters, props.onResolvePin, props.onGetCardRenderers])
+        hooks: {
+            onResolvePin: props.onResolvePin,
+            onGetCardRenderers: props.onGetCardRenderers
+        },
+        hookSource: props.hookSource,
+        //the same on every page, and defined here rather than in a story, so it is stated rather than read
+        props: { onGetMapVendors: '() => [googleMapsVendor]' }
+    }), [props.parameters, props.onResolvePin, props.onGetCardRenderers, props.hookSource])
 
     //the ip lookup is a third party call, so only a story that asked to be centred on the user gets one
     const wantsUserLocation = props.parameters?.PrefillUserLocation?.raw === true

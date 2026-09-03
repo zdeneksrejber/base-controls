@@ -1,4 +1,5 @@
 import type { IMapParameters } from '@talxis/base-controls/components/Map'
+import { readHookDeclaration } from './sourceExtract'
 
 /** Values long enough to bury the configuration they sit in are lifted out above it. */
 const INLINE_LENGTH_LIMIT = 60
@@ -52,20 +53,96 @@ const formatValue = (propertyName: string, raw: unknown): IFormattedValue => {
     return { inline: quote(raw) }
 }
 
+/** A one-line arrow reads better in the JSX than as a constant above it. */
+const isOneLiner = (source: string) => !source.includes('\n')
+
+/**
+ * The type each hook prop declares.
+ *
+ * A function's own source comes back from the bundler with its type annotations already stripped, so the
+ * signature is put back from the prop it is passed to - which is where it was declared in the first place.
+ */
+const HOOK_TYPES: { [propName: string]: string } = {
+    onResolvePin: 'IMapPinResolver'
+}
+
+/**
+ * How one code hook is written out: its own source, either inline in the JSX or lifted above it.
+ *
+ * The source comes from the function itself rather than from a snippet kept beside it, so what a reader
+ * copies is what the page is actually running.
+ */
+const formatHook = (
+    propName: string,
+    hook: (...args: any[]) => any,
+    moduleSource?: string
+): IFormattedValue => {
+    //what the story wrote, complete with its types and its comment, before anything transpiled it
+    const authored = readHookDeclaration(moduleSource, hook.name)
+    if (authored) {
+        //a one-line hook reads better in the JSX than as a named constant above it
+        const oneLine = isOneLiner(authored) && /^const [^=]+= (.+)$/.exec(authored)
+        return oneLine
+            ? { inline: oneLine[1] }
+            : { inline: hook.name, declaration: authored }
+    }
+    const source = hook.toString()
+    if (isOneLiner(source)) {
+        return { inline: source }
+    }
+    const name = hook.name || `${propName.replace(/^on/, '')[0].toLowerCase()}${propName.replace(/^on/, '').slice(1)}`
+    const type = HOOK_TYPES[propName] ? `: ${HOOK_TYPES[propName]}` : ''
+    return { inline: name, declaration: `const ${name}${type} = ${source};` }
+}
+
+/** Imports the emitted snippet needs, added only when it actually refers to the thing. */
+const IMPORTS: { needle: RegExp; statement: string }[] = [
+    {
+        needle: /\bADAPTIVE_MAP_CARD_RENDERERS\b/,
+        statement: "import { ADAPTIVE_MAP_CARD_RENDERERS } from '@talxis/base-controls/components/Map/map-card/adaptive-card';"
+    },
+    {
+        needle: /\bIMapPinResolver\b/,
+        statement: "import type { IMapPinResolver } from '@talxis/base-controls/components/Map';"
+    },
+    {
+        needle: /\bIRecord\b/,
+        statement: "import type { IRecord } from '@talxis/client-libraries';"
+    }
+]
+
+const BASE_IMPORTS = [
+    "import { Map } from '@talxis/base-controls/components/Map';",
+    "import { googleMapsVendor } from '@talxis/base-controls/components/Map/providers/google-maps';"
+]
+
 export interface IMapConfigSourceOptions {
-    /** Code hooks the page passes, named as the story passes them. */
+    /**
+     * Code hooks the page passes, keyed by prop name. Each is rendered from its own source, so the panel
+     * cannot drift from the function it is describing.
+     */
+    hooks?: { [propName: string]: ((...args: any[]) => any) | undefined }
+    /**
+     * Raw text of the module those hooks were written in, as imported with Vite's `?raw`. With it a hook is
+     * shown as it was authored; without it, as the bundler left it.
+     */
+    hookSource?: string
+    /**
+     * Props whose value is a fixed line rather than a function to read - what a wrapper writes verbatim,
+     * the same on every page.
+     */
     props?: { [propName: string]: string }
 }
 
 /**
  * Writes out the configuration a page hands the control, as the TSX a wrapper would contain.
  *
- * This is generated from the parameters the story actually passed rather than kept alongside them, so what a
- * reader inspects cannot drift from what they are looking at.
+ * Generated from the parameters and the functions the story actually passed rather than kept alongside them,
+ * so what a reader inspects cannot drift from what they are looking at.
  *
  * @param parameters Manifest properties the page set, `Dataset` excluded - it is the bound records.
- * @param options Code hooks to show alongside them.
- * @returns TSX, ready to render read only.
+ * @param options Code hooks to render alongside them.
+ * @returns TSX with its imports, ready to render read only.
  */
 export const getMapConfigSource = (
     parameters: Partial<IMapParameters>,
@@ -90,10 +167,22 @@ export const getMapConfigSource = (
         lines.push(`        ${propertyName}: { raw: ${indent(inline, 8)} },`)
     })
 
-    const hooks = Object.entries(options.props ?? {})
-        .map(([propName, value]) => `    ${propName}={${value}}`)
+    const hookLines: string[] = []
+    Object.entries(options.hooks ?? {}).forEach(([propName, hook]) => {
+        if (!hook) {
+            return
+        }
+        const { inline, declaration } = formatHook(propName, hook, options.hookSource)
+        if (declaration) {
+            declarations.push(declaration)
+        }
+        hookLines.push(`    ${propName}={${inline}}`)
+    })
 
-    return [
+    Object.entries(options.props ?? {}).forEach(([propName, value]) =>
+        hookLines.push(`    ${propName}={${value}}`))
+
+    const body = [
         ...(declarations.length ? [declarations.join('\n\n'), ''] : []),
         '<Map',
         '    context={context}',
@@ -101,7 +190,14 @@ export const getMapConfigSource = (
         '        Dataset: dataset,',
         ...lines,
         '    }}',
-        ...hooks,
+        ...hookLines,
         '/>'
     ].join('\n')
+
+    const imports = [
+        ...BASE_IMPORTS,
+        ...IMPORTS.filter(({ needle }) => needle.test(body)).map(({ statement }) => statement)
+    ]
+
+    return `${imports.join('\n')}\n\n${body}`
 }

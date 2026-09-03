@@ -97,6 +97,10 @@ const config: StorybookConfig = {
       },
     ];
 
+    //the Code panel on the map pages looks a demo hook up in its own module by name, which the minifier
+    //would otherwise have shortened to a single letter
+    config.esbuild = { ...(config.esbuild || {}), keepNames: true };
+
     //adaptivecards and adaptivecards-templating are CommonJS, so they need pre-bundling to import by name.
     //adaptive-expressions, which the templating engine parses with, does not survive it - see the note on
     //expandAdaptiveCardTemplate for what the control does about that.

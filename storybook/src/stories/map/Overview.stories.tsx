@@ -6,6 +6,8 @@ import { preferredVendor } from './mapApiKeys'
 import { createSampleDataset, getSiteRecords, SAMPLE_ATTRIBUTES } from './mapSampleData'
 import { ADAPTIVE_CARD_TEMPLATE, LEGEND_HTML, PIN_RULES } from './mapSampleConfig'
 import { mapStoryParameters } from './storyHelpers'
+//the Code panel reads this page's own hooks back out of this file, so it shows them as they were written
+import hookSource from './Overview.stories.tsx?raw'
 
 const MANIFEST = 'Manifest properties'
 
@@ -23,6 +25,8 @@ interface IOverviewProps {
     showLegend: boolean
     allowEditing: boolean
 }
+
+const getAdaptiveCardRenderers = () => ADAPTIVE_MAP_CARD_RENDERERS
 
 const OverviewPlayground = (props: IOverviewProps) => {
     const dataset = useMemo(() => createSampleDataset({ records: getSiteRecords() }), [])
@@ -52,7 +56,8 @@ const OverviewPlayground = (props: IOverviewProps) => {
                 EnablePinDragging: { raw: props.allowEditing },
                 EnablePinCreation: { raw: props.allowEditing }
             }}
-            onGetCardRenderers={() => ADAPTIVE_MAP_CARD_RENDERERS}
+            hookSource={hookSource}
+            onGetCardRenderers={getAdaptiveCardRenderers}
         />
     )
 }

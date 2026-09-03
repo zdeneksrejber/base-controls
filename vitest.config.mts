@@ -22,7 +22,8 @@ export default defineConfig({
     test: {
         environment: 'jsdom',
         setupFiles: ['./vitest.setup.ts'],
-        include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+        //the storybook's own helpers are part of the repo and get the same gate as the control's
+        include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'storybook/src/**/*.test.ts'],
         //the live suite spends api quota, so it needs asking for by name
         exclude: ['**/node_modules/**', 'src/**/*.live.test.ts'],
         restoreMocks: true
