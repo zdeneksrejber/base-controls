@@ -1,4 +1,4 @@
-import { APIProvider, ColorScheme, Map as GoogleMap, MapCameraChangedEvent, Marker, Polyline, useMap } from '@vis.gl/react-google-maps';
+import { APIProvider, ColorScheme, InfoWindow, Map as GoogleMap, MapCameraChangedEvent, Marker, Polyline, useMap } from '@vis.gl/react-google-maps';
 import { useCallback, useEffect, useMemo } from 'react';
 import { createGoogleMapsDirectionsService } from './directions';
 import { createGoogleMapsGeocoder } from './geocoder';
@@ -7,6 +7,9 @@ import { getClusterPinSize, getClusterPinSvg, getPinSize, getPinSvg, ROUTE_STROK
 import { IMapVendor } from '../vendors';
 import { IMapViewport } from '../../viewport';
 import { getGoogleMapsProviderStyles } from './styles';
+
+/** Widest a card is allowed to be, so it never covers the map it is anchored on. */
+const CARD_MAX_WIDTH = 340;
 
 export interface IGoogleMapsConfig {
     apiKey: string;
@@ -37,7 +40,7 @@ const ApplyViewport = (props: { viewport: IMapViewport }) => {
 };
 
 const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
-    const { apiKey, locations, routes, viewport, selectedLocationIds, theme, onLocationClick, onViewportChange } = props;
+    const { apiKey, locations, routes, viewport, selectedLocationIds, theme, openCard, onLocationClick, onViewportChange, onCloseCard } = props;
     const styles = useMemo(() => getGoogleMapsProviderStyles(), []);
     const selection = useMapPinSelection(selectedLocationIds);
 
@@ -62,6 +65,16 @@ const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
                     onCameraChanged={onCameraChanged}
                     className={styles.map}>
                     <ApplyViewport viewport={viewport} />
+                    {openCard &&
+                        <InfoWindow
+                            key={openCard.locationId}
+                            position={{ lat: openCard.coordinates.latitude, lng: openCard.coordinates.longitude }}
+                            maxWidth={CARD_MAX_WIDTH}
+                            //Google steals focus into the window otherwise, which pulls the page around
+                            shouldFocus={false}
+                            onCloseClick={onCloseCard}>
+                            {openCard.content}
+                        </InfoWindow>}
                     {routes.map((route) => (
                         <Polyline
                             key={route.id}

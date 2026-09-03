@@ -97,6 +97,16 @@ const config: StorybookConfig = {
       },
     ];
 
+    //adaptivecards and adaptivecards-templating are CommonJS, so they need pre-bundling to import by name.
+    //adaptive-expressions, which the templating engine parses with, does not survive it - see the note on
+    //expandAdaptiveCardTemplate for what the control does about that.
+    config.optimizeDeps ??= {};
+    config.optimizeDeps.include = [
+      ...(config.optimizeDeps.include ?? []),
+      'adaptivecards',
+      'adaptivecards-templating'
+    ];
+
     config.server ??= {};
     config.server.fs ??= {};
     config.server.fs.allow = [

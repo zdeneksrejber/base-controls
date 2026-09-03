@@ -35,6 +35,9 @@ export interface ILeafletMapConfig {
 /** Builds the config from what the control handed the provider, for tiles that depend on it - a dark style, say. */
 export type ILeafletMapConfigResolver = (props: IMapProviderProps) => ILeafletMapConfig;
 
+/** Widest a card is allowed to be, so it never covers the map it is anchored on. */
+const CARD_MAX_WIDTH = 340;
+
 const DEFAULT_TILE_LAYER_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const DEFAULT_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
@@ -175,7 +178,7 @@ const ReportViewport = (props: Pick<IMapProviderProps, 'viewport' | 'onViewportC
  * a tile url and whatever chrome its licence asks for.
  */
 export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
-    const { locations, routes, viewport, selectedLocationIds, theme, onLocationClick, onViewportChange } = props;
+    const { locations, routes, viewport, selectedLocationIds, theme, openCard, onLocationClick, onViewportChange, onCloseCard } = props;
     const tileLayerUrl = props.tileLayerUrl ?? DEFAULT_TILE_LAYER_URL;
     const attribution = props.attribution ?? DEFAULT_ATTRIBUTION;
     const invertTiles = !!theme.isInverted && (props.invertTilesInDarkTheme ?? true);
@@ -219,6 +222,15 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
                     maxZoom={props.maxZoom} />
                 <ApplyViewport viewport={viewport} />
                 <ReportViewport viewport={viewport} onViewportChange={onViewportChange} />
+                {openCard &&
+                    <Popup
+                        //a popup with no parent marker opens as it mounts, and closes whichever was open
+                        key={openCard.locationId}
+                        position={[openCard.coordinates.latitude, openCard.coordinates.longitude]}
+                        maxWidth={CARD_MAX_WIDTH}
+                        onClose={onCloseCard}>
+                        {openCard.content}
+                    </Popup>}
                 {routes.map((route) => (
                     <Polyline
                         key={route.id}
@@ -226,6 +238,7 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
                         color={theme.palette.themePrimary}
                         weight={ROUTE_STROKE_WEIGHT} />
                 ))}
+                {/* the label lives on the marker's tooltip; the card the control opens is the popup below */}
                 {locations.map((location) => (
                     <Marker
                         key={location.id}
@@ -233,9 +246,7 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
                         icon={getIcon(location)}
                         title={location.pin?.title ?? location.label}
                         opacity={selection.getOpacity(location)}
-                        eventHandlers={markerEventHandlers.get(location.id)}>
-                        {location.label && !location.cluster && <Popup>{location.label}</Popup>}
-                    </Marker>
+                        eventHandlers={markerEventHandlers.get(location.id)} />
                 ))}
             </MapContainer>
             {props.overlay}

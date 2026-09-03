@@ -8,6 +8,8 @@ import { getDistinctAttributePaths } from "./attributes";
 import { getMapLanguageTag } from "./language";
 import { getMapPinAppearance, parseMapPinRules } from "./pinAppearance";
 import { useMapClientApi } from "./clientApi";
+import { parseMapCardRules } from "./cards";
+import { useMapCards } from "./useMapCards";
 import { getMapWebResourceUrl } from "./webResource";
 import { IMapLocation, IMapProviderProps } from "./providers";
 import { EMPTY_MAP_PINS, getMapPins, IMapFallbackCoordinates } from "./pins";
@@ -45,6 +47,10 @@ export const Map = (props: IMap) => {
         PinIcons,
         ClientApiWebresourceName,
         ClientApiFunctionName,
+        Cards,
+        CardColumns,
+        CardType,
+        CardPayload,
         EnableClustering,
         ClusteringOptions,
         FilterAttributeNames,
@@ -169,18 +175,41 @@ export const Map = (props: IMap) => {
 
     useEventEmitter<IDataProviderEventListeners>(dataset, 'onRecordsSelected', (ids: string[]) => setSelectedLocationIds(ids ?? []));
 
+    const onZoomToCluster = useCallback((location: IMapLocation) => {
+        onFocusViewport({
+            center: { latitude: location.latitude, longitude: location.longitude },
+            zoom: location.cluster?.expansionZoom ?? viewport.zoom + 2,
+            padding: viewport.padding
+        });
+    }, [onFocusViewport, viewport.padding, viewport.zoom]);
+
+    const cardRules = useMemo(() => parseMapCardRules(Cards?.raw), [Cards?.raw]);
+    const cardFallback = useMemo(() => ({
+        type: CardType?.raw ?? 'fields',
+        columns: (CardColumns?.raw ?? '').split(',').map((name) => name.trim()).filter(Boolean),
+        payload: CardPayload?.raw ?? undefined
+    }), [CardType?.raw, CardColumns?.raw, CardPayload?.raw]);
+    const onGetCardRenderers = props.onGetCardRenderers;
+    const cardRenderers = useMemo(() => onGetCardRenderers?.(), [onGetCardRenderers]);
+
+    const cards = useMapCards({
+        records,
+        rules: cardRules,
+        fallback: cardFallback,
+        renderers: cardRenderers,
+        context: props.context,
+        theme,
+        labels,
+        onZoomToCluster
+    });
+
     const onLocationClick = useCallback((location: IMapLocation) => {
-        //a group has no record to select, so activating one zooms to where it comes apart instead
-        if (location.cluster) {
-            onFocusViewport({
-                center: { latitude: location.latitude, longitude: location.longitude },
-                zoom: location.cluster.expansionZoom,
-                padding: viewport.padding
-            });
-            return;
+        //a group has no record to select, so activating one opens the card listing what it stands for
+        if (!location.cluster) {
+            dataset?.setSelectedRecordIds([location.id]);
         }
-        dataset?.setSelectedRecordIds([location.id]);
-    }, [dataset, onFocusViewport, viewport.padding]);
+        cards.onOpenCard(location);
+    }, [dataset, cards]);
 
     const providerProps = useMemo<IMapProviderProps>(() => ({
         locations: drawnLocations,
@@ -190,9 +219,11 @@ export const Map = (props: IMap) => {
         context: props.context,
         theme,
         labels,
+        openCard: cards.openCard,
         onLocationClick,
-        onViewportChange
-    }), [drawnLocations, pins.routes, viewport, selectedLocationIds, props.context, theme, labels, onLocationClick, onViewportChange]);
+        onViewportChange,
+        onCloseCard: cards.onCloseCard
+    }), [drawnLocations, pins.routes, viewport, selectedLocationIds, props.context, theme, labels, cards.openCard, cards.onCloseCard, onLocationClick, onViewportChange]);
 
     const status = isLoading
         ? { message: labels.loadingPins({ count: `${loadedCount}` }), isBusy: true }

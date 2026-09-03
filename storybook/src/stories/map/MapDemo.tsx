@@ -21,6 +21,7 @@ export interface IMapDemoProps {
     children?: ReactNode
     /** Code hooks the story demonstrates, passed straight through to the control. */
     onResolvePin?: IMap['onResolvePin']
+    onGetCardRenderers?: IMap['onGetCardRenderers']
 }
 
 const formatViewport = (viewport: IMapViewport) =>
@@ -58,6 +59,7 @@ export const MapDemo = (props: IMapDemoProps) => {
                     } as IMapParameters}
                     onGetMapVendors={onGetMapVendors}
                     onResolvePin={props.onResolvePin}
+                    onGetCardRenderers={props.onGetCardRenderers}
                     onResolveFallbackLocation={resolveLocationFromIpAddress}
                     onNotifyOutputChanged={(changed: IMapOutputs) => {
                         setOutputs((current) => ({ ...current, ...changed }))

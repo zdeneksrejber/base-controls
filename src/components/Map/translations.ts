@@ -54,6 +54,30 @@ export const mapTranslations = {
         1033: "Close the filters",
         1029: "Zavřít filtry"
     },
+    cardNoDetails: {
+        1033: "No details to show.",
+        1029: "Nejsou k dispozici žádné podrobnosti."
+    },
+    cardTemplateFailed: {
+        1033: "This card could not be rendered.",
+        1029: "Tuto kartu se nepodařilo vykreslit."
+    },
+    cardGroup: {
+        1033: "{{count}} records here",
+        1029: "Počet záznamů zde: {{count}}"
+    },
+    cardGroupMore: {
+        1033: "and {{count}} more - zoom in to see them",
+        1029: "a další ({{count}}) - přibližte pro zobrazení"
+    },
+    cardZoomIn: {
+        1033: "Zoom in",
+        1029: "Přiblížit"
+    },
+    cardClose: {
+        1033: "Close",
+        1029: "Zavřít"
+    },
     pinsTruncated: {
         1033: "Showing the first {{count}} pins of this view.",
         1029: "Zobrazeno prvních {{count}} bodů tohoto pohledu."

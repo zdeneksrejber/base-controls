@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { IRecord } from '@talxis/client-libraries'
+import { ADAPTIVE_MAP_CARD_RENDERERS } from '@talxis/base-controls/components/Map/map-card/adaptive-card'
 import { MapDemo } from './MapDemo'
+import { installMapHostShim, IExecutedFunction } from './mapHostShim'
 import { createSampleDataset, getSiteRecords, SAMPLE_ATTRIBUTES } from './mapSampleData'
 
 const meta = {
@@ -50,7 +52,7 @@ export const ConditionalColours: Story = {
                     'an appearance - `color`, `url`, `webResourceName`, `svg` - plus the `attributeName` and',
                     '`value` a record has to match. The first matching rule wins, so the entry with no',
                     '`attributeName` is the fallback and belongs last.',
-                    '',
+                    'to zoom to where the group comes apart.',
                     'Depots are red, service points green, everything else blue. The attribute is read through the',
                     'same dot-notation resolver as every other binding, so a rule can test an attribute on a',
                     'related record.'
@@ -111,6 +113,190 @@ export const CustomRenderer: Story = {
                     'The same seam is reachable from a Client API web resource through',
                     '`ClientApiWebresourceName` and `ClientApiFunctionName`, which is how a customizer writes these',
                     'rules without touching the wrapper - exactly as the dataset control already lets them.'
+                ].join(' ')
+            }
+        }
+    }
+}
+
+const CARD_COLUMNS = 'name,category,city,address,capacity'
+
+const CARD_ACTIONS = JSON.stringify([{
+    type: 'fields',
+    columns: CARD_COLUMNS.split(','),
+    actions: [
+        { label: 'Plan a visit', webResourceName: 'ntg_map.js', functionName: 'TALXIS.Map.planVisit' },
+        { label: 'Open record', webResourceName: 'ntg_map.js', functionName: 'TALXIS.Map.openRecord' }
+    ]
+}])
+
+/** Shows what the control asked the host to run, so an ExecuteFunction button has something to prove. */
+const useHostShim = () => {
+    const [executed, setExecuted] = useState<IExecutedFunction[]>([])
+    useEffect(() => {
+        const shim = installMapHostShim({ onExecute: (entry) => setExecuted((current) => [...current, entry]) })
+        return shim.restore
+    }, [])
+    return executed
+}
+
+const FieldsCard = () => {
+    const dataset = useMemo(() => createSampleDataset({ records: getSiteRecords() }), [])
+    const executed = useHostShim()
+    return (
+        <MapDemo
+            dataset={dataset}
+            parameters={{
+                ...COORDINATES,
+                Cards: { raw: CARD_ACTIONS },
+                EnableClustering: { raw: false },
+                DefaultVendor: { raw: 'leaflet' }
+            }}>
+            <p style={{ fontFamily: 'monospace', fontSize: 12, margin: 0 }}>
+                ExecuteFunction calls: {executed.length
+                    ? executed.map((entry) => `${entry.functionName}(${entry.args[0]?.recordId})`).join(', ')
+                    : 'none yet - open a pin and press a button'}
+            </p>
+        </MapDemo>
+    )
+}
+
+export const CardOnPinClick: Story = {
+    name: 'P2 — a card on pin click, with ExecuteFunction buttons',
+    render: () => <FieldsCard />,
+    parameters: {
+        docs: {
+            description: {
+                story: [
+                    'Clicking a pin opens one card, and opening another closes it - the control holds a single',
+                    'open pin rather than asking providers to close each other\'s.',
+                    '',
+                    'The default card shows the attributes the rule names, read through the same dot-notation',
+                    'resolver as every other binding, and renders the buttons it was given. A button runs a',
+                    'function in a web resource through `ExecuteFunction`; this page installs a stand-in for the',
+                    'Dataverse host so you can see what it would have called.'
+                ].join(' ')
+            }
+        }
+    }
+}
+
+const ADAPTIVE_TEMPLATE = JSON.stringify({
+    type: 'AdaptiveCard',
+    $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
+    version: '1.5',
+    body: [
+        { type: 'TextBlock', text: '${$root.name}', weight: 'Bolder', size: 'Medium', wrap: true },
+        { type: 'TextBlock', text: '${$root.address}', isSubtle: true, wrap: true, spacing: 'None' },
+        {
+            type: 'FactSet',
+            facts: [
+                { title: 'Category', value: '${$root.category}' },
+                { title: 'Capacity', value: '${$root.capacity_label}' },
+                { title: 'Opened', value: '${$root.openedOn}' }
+            ]
+        }
+    ],
+    actions: [{
+        type: 'Action.Submit',
+        title: 'Plan a visit',
+        data: { webResourceName: 'ntg_map.js', functionName: 'TALXIS.Map.planVisit' }
+    }]
+})
+
+const AdaptiveCards = () => {
+    const dataset = useMemo(() => createSampleDataset({
+        //the annotation an Adaptive Card cannot bind until the control renames it
+        records: getSiteRecords().map((record) => ({
+            ...record,
+            'capacity@OData.Community.Display.V1.FormattedValue': `${record.capacity} pallets`
+        }))
+    }), [])
+    const executed = useHostShim()
+    return (
+        <MapDemo
+            dataset={dataset}
+            parameters={{
+                ...COORDINATES,
+                CardType: { raw: 'adaptiveCard' },
+                CardPayload: { raw: ADAPTIVE_TEMPLATE },
+                EnableClustering: { raw: false },
+                DefaultVendor: { raw: 'leaflet' }
+            }}
+            onGetCardRenderers={() => ADAPTIVE_MAP_CARD_RENDERERS}>
+            <p style={{ fontFamily: 'monospace', fontSize: 12, margin: 0 }}>
+                ExecuteFunction calls: {executed.length
+                    ? executed.map((entry) => `${entry.functionName}(${entry.args[0]?.recordId})`).join(', ')
+                    : 'none yet - open a pin and press Plan a visit'}
+            </p>
+        </MapDemo>
+    )
+}
+
+export const AdaptiveCardOnPinClick: Story = {
+    name: 'P2 — an Adaptive Card instead',
+    render: () => <AdaptiveCards />,
+    parameters: {
+        docs: {
+            description: {
+                story: [
+                    'The same click, rendered through an Adaptive Card template in `CardPayload`. The renderer',
+                    'lives behind its own entry point, so `adaptivecards` and `adaptivecards-templating` stay',
+                    'optional peer dependencies - this page registers it through `onGetCardRenderers`.',
+                    '',
+                    'Note the **Capacity** fact: it binds `${$root.capacity_label}`. The record holds that value',
+                    'under `capacity@OData.Community.Display.V1.FormattedValue`, which no Adaptive Cards binding',
+                    'expression can address - so the control renames every annotation before expanding the',
+                    'template, exactly as the legacy MapPicker did.'
+                ].join(' ')
+            }
+        }
+    }
+}
+
+const GroupedCard = () => {
+    //six warehouses on one site, plus the rest of the country - so the map fits wide and the six overlap
+    const dataset = useMemo(() => createSampleDataset({
+        records: [
+            ...Array.from({ length: 6 }, (_, index) => ({
+                name: `Praha warehouse ${index + 1}`,
+                category: index % 2 ? 'store' : 'depot',
+                city: 'Praha',
+                address: `Kolbenova ${900 + index}, 190 00 Praha 9`,
+                capacity: 100 + index * 40,
+                openedOn: `202${index}-03-01`,
+                lat: 50.1038 + index * 0.0004,
+                lng: 14.4806 + index * 0.0004
+            })),
+            ...getSiteRecords().filter((record) => record.city !== 'Praha')
+        ]
+    }), [])
+    return (
+        <MapDemo
+            dataset={dataset}
+            parameters={{
+                ...COORDINATES,
+                CardColumns: { raw: 'name,category,capacity' },
+                EnableClustering: { raw: true },
+                DefaultVendor: { raw: 'leaflet' }
+            }}
+        />
+    )
+}
+
+export const GroupedPinCard: Story = {
+    name: 'P3 — a grouped pin opens every record behind it',
+    render: () => <GroupedCard />,
+    parameters: {
+        docs: {
+            description: {
+                story: [
+                    'Six warehouses on one Praha site, drawn among the rest of the country so the map fits wide',
+                    'enough that they overlap. The control draws them as a single pin carrying the count.',
+                    '',
+                    'Clicking it opens a card listing every record behind it - each rendered by whichever card its',
+                    'own rules chose - with a button to zoom to where the group comes apart. A group can stand for',
+                    'thousands of records, so the card lists what the clusterer reported and counts the rest.'
                 ].join(' ')
             }
         }

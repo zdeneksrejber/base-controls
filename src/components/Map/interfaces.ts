@@ -5,6 +5,7 @@ import { IMapTranslations } from "./translations";
 import { IMapProviderOption, IMapProviderProps, IMapVendor } from "./providers";
 import { IMapFallbackLocationResolver } from "./fallbackLocation";
 import { IMapPinResolver } from "./clientApi";
+import { IMapCardRenderers, IMapCardType } from "./cards";
 import { IMapClusteringOptions } from "./clustering";
 import { IMapFilterMode } from "./mapFilters";
 import { IMapPinLoading } from "./records";
@@ -31,6 +32,12 @@ export interface IMap extends IControl<IMapParameters, IMapOutputs, IMapTranslat
      * `PinIcons` rules, and returning nothing for a record falls through to them.
      */
     onResolvePin?: IMapPinResolver;
+    /**
+     * Card renderers on top of the built-in ones, keyed by card type. This is how Adaptive Cards are added:
+     * import `ADAPTIVE_MAP_CARD_RENDERERS` from `.../Map/map-card/adaptive-card` and return it here, the way
+     * Google Maps is registered through `onGetMapVendors`.
+     */
+    onGetCardRenderers?: () => IMapCardRenderers;
 }
 
 export interface IMapParameters extends IParameters {
@@ -65,6 +72,20 @@ export interface IMapParameters extends IParameters {
     ClientApiWebresourceName?: IStringProperty;
     /** Function inside that web resource. Both are needed for the Client API to run. */
     ClientApiFunctionName?: IStringProperty;
+    /**
+     * Card rules as a JSON array, matched exactly like `PinIcons`. Each entry says what activating a pin
+     * does - `fields`, `adaptiveCard`, `function` or `none` - plus whatever that type needs, and the
+     * `attributeName` and `value` a record must match for it.
+     */
+    Cards?: IStringProperty;
+    /**
+     * Attributes the default card shows, comma separated. Empty shows the dataset's first visible columns.
+     */
+    CardColumns?: IStringProperty;
+    /** Card every pin opens unless a `Cards` rule says otherwise. Defaults to `fields`. */
+    CardType?: Omit<ComponentFramework.PropertyTypes.EnumProperty<IMapCardType>, 'type'>;
+    /** Adaptive Card template the default card renders, when `CardType` is `adaptiveCard`. */
+    CardPayload?: IStringProperty;
     /**
      * Whether pins that overlap in the current view are drawn as one, carrying the number of records behind
      * it. Defaults to true - it is what keeps a dataset of thousands readable.

@@ -1,5 +1,5 @@
 import { IRecord } from '@talxis/client-libraries';
-import { getRecordValue } from './attributes';
+import { findMatchingMapRule, IMapRuleCondition, parseMapRules } from './rules';
 
 /** How one pin is drawn, once the control has worked out which rule applies to its record. */
 export interface IMapPinAppearance {
@@ -24,16 +24,9 @@ export interface IMapPinAppearance {
 /**
  * One entry of the `PinIcons` parameter: an appearance, and the condition a record has to meet for it.
  *
- * Rules are tried in order and the first match wins, so the fallback - a rule with no `attributeName` -
- * belongs last. This is the shape the legacy MapPicker's `pinIcons` used, so an existing configuration
- * carries over.
+ * This is the shape the legacy MapPicker's `pinIcons` used, so an existing configuration carries over.
  */
-export interface IMapPinRule extends IMapPinAppearance {
-    /** Attribute the rule tests, in dot notation. Omit for a rule that matches every record. */
-    attributeName?: string;
-    /** Value the attribute has to equal, compared as text. Omit to match any non empty value. */
-    value?: string | number | boolean | null;
-}
+export interface IMapPinRule extends IMapPinAppearance, IMapRuleCondition { }
 
 /** Resolves a web resource name to a url the browser can load. */
 export type IMapWebResourceResolver = (webResourceName: string) => string | undefined;
@@ -47,41 +40,7 @@ export type IMapWebResourceResolver = (webResourceName: string) => string | unde
  * @param json The `PinIcons` value.
  * @returns The rules, or none when there is nothing usable to read.
  */
-export const parseMapPinRules = (json?: string | null): IMapPinRule[] => {
-    if (!json?.trim()) {
-        return [];
-    }
-    try {
-        const parsed = JSON.parse(json);
-        const rules = Array.isArray(parsed) ? parsed : [parsed];
-        return rules.filter((rule): rule is IMapPinRule => !!rule && typeof rule === 'object');
-    } catch (error) {
-        console.warn('Map: PinIcons is not valid JSON, so no pin rules are applied:', error);
-        return [];
-    }
-};
-
-/**
- * Whether a rule applies to a record.
- *
- * @param record Record to test.
- * @param rule Rule to test it against.
- * @returns `true` for a rule with no attribute, or when the attribute matches.
- */
-const matchesRule = (record: IRecord, rule: IMapPinRule): boolean => {
-    if (!rule.attributeName) {
-        return true;
-    }
-    const value = getRecordValue(record, rule.attributeName);
-    if (value === undefined || value === null || value === '') {
-        return false;
-    }
-    //a rule naming no value matches any record that has one, which is how "has a category" is expressed
-    if (rule.value === undefined || rule.value === null) {
-        return true;
-    }
-    return `${value}` === `${rule.value}`;
-};
+export const parseMapPinRules = (json?: string | null): IMapPinRule[] => parseMapRules<IMapPinRule>(json, 'PinIcons');
 
 /**
  * Works out how a record's pin should look.
@@ -96,7 +55,7 @@ export const getMapPinAppearance = (
     rules: IMapPinRule[],
     resolveWebResourceUrl?: IMapWebResourceResolver
 ): IMapPinAppearance | undefined => {
-    const rule = rules.find((candidate) => matchesRule(record, candidate));
+    const rule = findMatchingMapRule(record, rules);
     if (!rule) {
         return undefined;
     }

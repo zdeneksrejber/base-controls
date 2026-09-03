@@ -1,4 +1,4 @@
-import { ComponentType } from 'react';
+import { ComponentType, ReactNode } from 'react';
 import { IContext } from '@interfaces';
 import { ITheme } from '@legacy';
 import { IMapClusterInfo } from '../clustering';
@@ -57,6 +57,22 @@ export interface IMapProviderProps {
     onLocationClick: (location: IMapLocation) => void;
     /** Call when the user pans or zooms. The control reports it as the `Viewport` output. */
     onViewportChange: (viewport: IMapViewport) => void;
+    /**
+     * The one card that is open, if any. The control decides what a card contains; a provider only anchors
+     * it at the given point and calls `onCloseCard` when the user dismisses it.
+     */
+    openCard?: IMapOpenCard;
+    /** Call when the user dismisses the open card. */
+    onCloseCard?: () => void;
+}
+
+/** A card the control wants anchored on the map. */
+export interface IMapOpenCard {
+    /** Id of the pin it belongs to, so a provider can key on it. */
+    locationId: string;
+    /** Where to anchor it. */
+    coordinates: IMapCoordinates;
+    content: ReactNode;
 }
 
 export type IMapProvider = ComponentType<IMapProviderProps>;

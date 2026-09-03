@@ -23,9 +23,8 @@ delivery log.
 
 ### Pins
 - [x] **P1** Custom icons — colour / URL / web resource / custom renderer, chosen by conditional rules
-- [ ] **P2** Popup card on pin click, localized, with `ExecuteFunction()` buttons, one card at a time
-- [~] **P3** Automated group-by on pin overlap in the current viewport, with a count and a grouped card —
-  *grouping and the count are done; the grouped card lands with P2*
+- [x] **P2** Popup card on pin click, localized, with `ExecuteFunction()` buttons, one card at a time
+- [x] **P3** Automated group-by on pin overlap in the current viewport, with a count and a grouped card
 
 ### Pin connections
 - [ ] **C1** Connect a group of pins into a line — ordered, grouped and coloured by attributes
@@ -161,3 +160,28 @@ wrapped because an unlaid-out map throws rather than answering.
 - Both renderers cache icons per appearance, so panning a large map does not rebuild one per pin per frame.
 - Verified in Storybook: depots red, service points green, everything else blue; and a second story draws
   every site as a capacity donut through the code hook.
+
+### Phase 4 — P2 and the card half of P3
+- One contract, `IMapCardRenderer`, with three built-in types and the Adaptive Card behind its own entry
+  point. Which one a pin uses is chosen by the same rule matching as its icon, so "depots open an Adaptive
+  Card, service points run a function" is one line of `Cards` configuration.
+- `fields` shows the record's attributes and whatever buttons the card was given; `function` shows nothing
+  and runs a web resource instead; `none` leaves the pin to selection alone.
+- The Adaptive Card renderer carries the legacy `@OData.Community.Display.V1.FormattedValue` →
+  `<attribute>_label` rename, so an existing template binds `${$root.name_label}` unchanged - and it copies
+  rather than mutates, so rendering a card never touches the dataset.
+- Card buttons and Adaptive Card `Action.Submit` both run `ExecuteFunction` through `executeFunctionAsync`.
+- One card at a time is enforced by the control holding a single open pin, rather than by asking providers
+  to close each other's.
+- A grouped pin opens a card listing every record behind it, each rendered by its own rules, with a button
+  to zoom to where the group comes apart.
+- Verified in Storybook against live behaviour: the fields card with two working ExecuteFunction buttons, an
+  Adaptive Card whose Capacity fact resolves through the renamed annotation, and a six-record grouped card.
+
+**Known limitation, reported rather than hidden.** `adaptivecards-templating` parses expressions with
+`adaptive-expressions`, which uses `antlr4ts`, which calls Node's `assert`. That chain does not survive
+Vite's dependency optimizer - it throws where the `assert` shim is left undefined. Rather than let a card
+fail to render because of where it was bundled, `expandAdaptiveCardTemplate` falls back to substituting the
+simple `${...}` bindings and says so once in the console. The full engine - repetition, conditions,
+functions - runs wherever it can, which includes webpack, rollup and Node; a test asserts the two agree
+where they overlap. Storybook exercises the fallback path.
