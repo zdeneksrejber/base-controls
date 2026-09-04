@@ -29,6 +29,11 @@ export interface IMapGeocodingOptions {
  * answering - and a vendor without one simply does not build a geocoder.
  */
 export interface IMapGeocoder {
+    /**
+     * Whether the service may be asked as someone types. Defaults to `true`; a service whose terms forbid a
+     * call a keystroke says `false`, and the search box then only asks it once a query is submitted.
+     */
+    allowsTypeAhead?: boolean;
     /** Places matching an address, best first. An address the service does not know resolves to none. */
     geocode(query: string, options?: IMapGeocodingOptions): Promise<IMapPlace[]>;
     /** The place covering a point, or `null` when the service knows of none. */
@@ -62,6 +67,7 @@ export const withGeocodingCache = (geocoder: IMapGeocoder, maxEntries = 500): IM
     const reverse = createResultCache<Promise<IMapPlace | null>>(maxEntries);
 
     return {
+        allowsTypeAhead: geocoder.allowsTypeAhead,
         geocode: (query, options) => {
             const key = `${options?.language ?? ''}|${options?.limit ?? ''}|${query}`;
             const cached = forward.get(key);

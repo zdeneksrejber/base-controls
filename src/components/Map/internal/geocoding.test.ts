@@ -89,4 +89,9 @@ describe('withGeocodingCache', () => {
         await expect(cached.geocode('Praha')).resolves.toEqual([place('Praha')]);
         expect(inner.geocode).toHaveBeenCalledTimes(2);
     });
+
+    it('keeps a service that refuses type-ahead refusing it through the cache', () => {
+        expect(withGeocodingCache({ ...createGeocoder(), allowsTypeAhead: false }).allowsTypeAhead).toBe(false);
+        expect(withGeocodingCache(createGeocoder()).allowsTypeAhead).toBeUndefined();
+    });
 });

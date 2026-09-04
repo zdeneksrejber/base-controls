@@ -91,9 +91,11 @@ where the filter lands: `pins` (the default) filters what the map draws and work
 pushes an `In` expression to the bound dataset so every control sharing it follows.
 
 `EnableSearch` puts a search box on the map. Committing what is typed runs the entity's **quick find**, the
-same call the dataset control's own header makes. Typing also offers **places** from the geo-coding service,
-and picking one moves the map without touching the dataset. It is off by default, because a map hosted
-inside `DatasetControl` already has quick find in that control's header.
+same call the dataset control's own header makes. The geo-coding service also offers **places**, and picking
+one moves the map without touching the dataset. Those follow the typing where the service takes type-ahead;
+where it does not — the public Nominatim instance forbids an auto-complete built on it — they follow the same
+submit the quick find runs on. It is off by default, because a map hosted inside `DatasetControl` already has
+quick find in that control's header.
 
 ---
 
@@ -355,9 +357,12 @@ The shipped geocoders are `createGoogleMapsGeocoder`, `createHereMapsGeocoder`, 
 in-flight lookup rather than duplicating it, and forgets a failure rather than caching it.
 
 > **Nominatim and OSRM are public services with usage policies.** The client holds Nominatim to its one call
-> a second and identifies the application on every request, because it refuses a caller it cannot attribute.
-> Point them at your own instances for anything but development — `createNominatimGeocoder({ searchUrl,
-> reverseUrl })` and `createOsrmDirections({ baseUrl })` — the same caveat the OpenStreetMap tiles carry.
+> a second, identifies the application on every request because it refuses a caller it cannot attribute, and
+> answers the search box only on a submit, because its policy forbids an auto-complete built on the public
+> instance. Point them at your own instances for anything but development — `createNominatimGeocoder({
+> searchUrl, reverseUrl })` and `createOsrmDirections({ baseUrl })` — the same caveat the OpenStreetMap tiles
+> carry. A private Nominatim is under no such policy, so it may take `allowsTypeAhead: true` and suggest as
+> someone types.
 
 `npm run test:live` calls all of them against the real services, with keys from the environment.
 

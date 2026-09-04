@@ -60,6 +60,11 @@ export interface INominatimGeocoderConfig {
      * this only takes effect where the control runs outside one.
      */
     applicationName?: string;
+    /**
+     * Whether the service may be asked as someone types. Defaults to `false`, because the public instance's
+     * usage policy forbids an auto-complete built on it. Only turn it on for an instance you run.
+     */
+    allowsTypeAhead?: boolean;
 }
 
 /**
@@ -100,8 +105,10 @@ export const getNominatimPlace = (result: INominatimResult): IMapPlace | undefin
  * Builds the OpenStreetMap geocoder, backed by Nominatim.
  *
  * The public service is rate limited to one call a second by its usage policy, which this client enforces,
- * and refuses a caller it cannot attribute - so every call identifies the application. Production traffic
- * belongs on your own instance, configured through `searchUrl` and `reverseUrl`.
+ * and refuses a caller it cannot attribute - so every call identifies the application. Its policy also
+ * forbids driving it from an auto-complete, so the geocoder declines type-ahead and is only asked once a
+ * query is submitted. Production traffic belongs on your own instance, configured through `searchUrl` and
+ * `reverseUrl` - one of those lifts both restrictions, so a private instance may say `allowsTypeAhead`.
  */
 export const createNominatimGeocoder = (config: INominatimGeocoderConfig = {}): IMapGeocoder => {
     const searchUrl = config.searchUrl ?? SEARCH_URL;
@@ -109,6 +116,7 @@ export const createNominatimGeocoder = (config: INominatimGeocoderConfig = {}): 
     const headers = { 'User-Agent': config.applicationName ?? DEFAULT_APPLICATION_NAME };
 
     return withGeocodingCache({
+        allowsTypeAhead: config.allowsTypeAhead ?? false,
         geocode: async (query, options) => {
             if (!query.trim()) {
                 return [];

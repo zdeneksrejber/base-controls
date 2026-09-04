@@ -36,7 +36,8 @@ export interface ILeafletMapConfig {
 /** Builds the config from what the control handed the provider, for tiles that depend on it - a dark style, say. */
 export type ILeafletMapConfigResolver = (props: IMapProviderProps) => ILeafletMapConfig;
 
-const DEFAULT_TILE_LAYER_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+//the usage policy asks for exactly this host - the a/b/c subdomains it used to serve can be withdrawn without notice
+const DEFAULT_TILE_LAYER_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const DEFAULT_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 /**

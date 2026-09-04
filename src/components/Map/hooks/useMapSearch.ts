@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IColumn, IDataset, IInternalDataProvider } from '@talxis/client-libraries';
 import { IMapGeocoder, IMapPlace } from '../internal/geocoding';
 
-/** How long typing has to pause before the geo-coding service is asked about it. */
+/** How long typing has to pause before a service that takes type-ahead is asked about it. */
 const SUGGESTION_DEBOUNCE_MS = 350;
 
 /** Shortest query worth sending to a geo-coding service. */
@@ -15,7 +15,7 @@ export interface IUseMapSearch {
     dataset?: IDataset;
     /** Geocoder used for the place suggestions. Without one the box only searches the dataset. */
     geocoder?: IMapGeocoder;
-    /** Whether typing also offers places from the geo-coding service. */
+    /** Whether the box also offers places from the geo-coding service. */
     enableAddressSearch: boolean;
     language?: string;
 }
@@ -26,7 +26,7 @@ export interface IMapSearchState {
     onQueryChange: (query: string) => void;
     /** Runs the entity's quick find over the bound dataset. */
     onSearch: (query?: string) => void;
-    /** Places matching what is typed, for the suggestion list. */
+    /** Places the geo-coding service matched, for the suggestion list. */
     suggestions: IMapPlace[];
     isSuggesting: boolean;
     /** Columns the entity's quick find searches, so the box can say what it actually looks at. */
@@ -37,8 +37,12 @@ export interface IMapSearchState {
  * Owns the map's search box.
  *
  * Two searches share one input: committing a query runs the entity's quick find, which filters the records
- * and so the pins; typing also offers places from the geo-coding service, which move the map without
- * touching the dataset.
+ * and so the pins; the geo-coding service also offers places, which move the map without touching the
+ * dataset.
+ *
+ * When the service takes type-ahead the places follow the typing; when it does not - the public Nominatim
+ * instance forbids an auto-complete built on it - they follow a submit, the same Enter or search button the
+ * quick find already runs on.
  */
 export const useMapSearch = (props: IUseMapSearch): IMapSearchState => {
     const { dataset, geocoder, enableAddressSearch, language } = props;
@@ -47,19 +51,73 @@ export const useMapSearch = (props: IUseMapSearch): IMapSearchState => {
     const [isSuggesting, setIsSuggesting] = useState(false);
     const datasetQuery = dataset?.getSearchQuery?.() ?? '';
     const suggestionIdRef = useRef(0);
+    const suggestionAbortRef = useRef<AbortController>();
+    const canSuggest = enableAddressSearch && !!geocoder;
+    const suggestsOnType = canSuggest && geocoder?.allowsTypeAhead !== false;
 
     //a host clearing the query, or another control searching the same dataset, is reflected in the box
     useEffect(() => {
         setQuery(datasetQuery);
     }, [datasetQuery]);
 
+    /** Drops whatever the service was asked, and the answer it already gave. */
+    const cancelSuggestions = useCallback(() => {
+        //a later answer must not land on an older query, so the id moves whether or not a call is in flight
+        ++suggestionIdRef.current;
+        suggestionAbortRef.current?.abort();
+        suggestionAbortRef.current = undefined;
+        setSuggestions((current) => (current.length ? [] : current));
+        setIsSuggesting(false);
+    }, []);
+
+    const suggestPlaces = useCallback((searched: string) => {
+        cancelSuggestions();
+        if (!enableAddressSearch || !geocoder || searched.trim().length < MINIMUM_SUGGESTION_LENGTH) {
+            return;
+        }
+        const suggestionId = suggestionIdRef.current;
+        const controller = new AbortController();
+        suggestionAbortRef.current = controller;
+        setIsSuggesting(true);
+        geocoder.geocode(searched, { language, limit: SUGGESTION_LIMIT, signal: controller.signal })
+            .then((places) => {
+                if (suggestionIdRef.current === suggestionId) {
+                    setSuggestions(places);
+                }
+            })
+            .catch((error) => {
+                //a superseded query aborts its own fetch, which is not a failure worth logging
+                if ((error as Error)?.name !== 'AbortError') {
+                    console.warn('Map: the address search failed:', error);
+                }
+            })
+            .finally(() => {
+                if (suggestionIdRef.current === suggestionId) {
+                    setIsSuggesting(false);
+                }
+            });
+    }, [cancelSuggestions, enableAddressSearch, geocoder, language]);
+
+    const onQueryChange = useCallback((next: string) => {
+        setQuery(next);
+        //places found for a submitted query say nothing about the one being typed over it
+        if (!suggestsOnType) {
+            cancelSuggestions();
+        }
+    }, [suggestsOnType, cancelSuggestions]);
+
     const onSearch = useCallback((searched?: string) => {
+        const next = searched ?? '';
+        setQuery(next);
+        //a service that refuses type-ahead is asked here instead, which is the only place it is asked at all
+        if (suggestsOnType) {
+            cancelSuggestions();
+        } else {
+            suggestPlaces(next);
+        }
         if (!dataset) {
             return;
         }
-        const next = searched ?? '';
-        setQuery(next);
-        setSuggestions([]);
         const provider = dataset.getDataProvider() as IInternalDataProvider;
         const run = () => {
             dataset.setSearchQuery?.(next);
@@ -71,47 +129,27 @@ export const useMapSearch = (props: IUseMapSearch): IMapSearchState => {
             return;
         }
         run();
-    }, [dataset]);
+    }, [dataset, suggestsOnType, cancelSuggestions, suggestPlaces]);
 
     useEffect(() => {
-        const suggestionId = ++suggestionIdRef.current;
-        if (!enableAddressSearch || !geocoder || query.trim().length < MINIMUM_SUGGESTION_LENGTH) {
-            setSuggestions([]);
-            setIsSuggesting(false);
+        if (!suggestsOnType) {
+            //turning the address search off, or swapping in a service that refuses type-ahead, takes the list away
+            if (!canSuggest) {
+                cancelSuggestions();
+            }
             return;
         }
-        const controller = new AbortController();
-        const debounce = setTimeout(() => {
-            setIsSuggesting(true);
-            geocoder.geocode(query, { language, limit: SUGGESTION_LIMIT, signal: controller.signal })
-                .then((places) => {
-                    if (suggestionIdRef.current === suggestionId) {
-                        setSuggestions(places);
-                    }
-                })
-                .catch((error) => {
-                    //the cleanup below aborts the fetch on every keystroke, which is not a failure worth logging
-                    if ((error as Error)?.name !== 'AbortError') {
-                        console.warn('Map: the address search failed:', error);
-                    }
-                })
-                .finally(() => {
-                    if (suggestionIdRef.current === suggestionId) {
-                        setIsSuggesting(false);
-                    }
-                });
-        }, SUGGESTION_DEBOUNCE_MS);
+        const debounce = setTimeout(() => suggestPlaces(query), SUGGESTION_DEBOUNCE_MS);
+        return () => clearTimeout(debounce);
+    }, [query, canSuggest, suggestsOnType, suggestPlaces, cancelSuggestions]);
 
-        return () => {
-            clearTimeout(debounce);
-            controller.abort();
-        };
-    }, [query, enableAddressSearch, geocoder, language]);
+    //an unmount must not leave a call running against a service that counts them
+    useEffect(() => () => suggestionAbortRef.current?.abort(), []);
 
     const quickFindColumns = useMemo(() => {
         const provider = dataset?.getDataProvider();
         return typeof provider?.getQuickFindColumns === 'function' ? provider.getQuickFindColumns() : [];
     }, [dataset]);
 
-    return { query, onQueryChange: setQuery, onSearch, suggestions, isSuggesting, quickFindColumns };
+    return { query, onQueryChange, onSearch, suggestions, isSuggesting, quickFindColumns };
 };
