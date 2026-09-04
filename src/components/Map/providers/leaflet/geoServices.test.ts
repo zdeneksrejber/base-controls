@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getNominatimPlace, INominatimResult } from './geocoder';
+import { createNominatimGeocoder, getNominatimPlace, INominatimResult } from './geocoder';
 import { getOsrmRoutePath } from './directions';
 
 //trimmed from a live Nominatim reverse response for 50.0755, 14.4378
@@ -82,5 +82,26 @@ describe('getOsrmRoutePath', () => {
 
     it('routes nothing when the response carries no geometry', () => {
         expect(getOsrmRoutePath({ code: 'Ok', routes: [] })).toBeNull();
+    });
+});
+
+describe('createNominatimGeocoder', () => {
+    it('holds the public instance to what its usage policy allows', () => {
+        const geocoder = createNominatimGeocoder();
+
+        //the policy forbids an auto-complete built on it, and calls a long run of lookups heavy use
+        expect(geocoder.allowsTypeAhead).toBe(false);
+        expect(geocoder.maxBulkRequests).toBe(25);
+    });
+
+    it('lets an instance you run set its own limits, because the policy is not about that one', () => {
+        const geocoder = createNominatimGeocoder({
+            searchUrl: 'https://nominatim.example.org/search',
+            allowsTypeAhead: true,
+            maxBulkRequests: 5000
+        });
+
+        expect(geocoder.allowsTypeAhead).toBe(true);
+        expect(geocoder.maxBulkRequests).toBe(5000);
     });
 });

@@ -20,6 +20,13 @@ const NOMINATIM_MINIMUM_INTERVAL_MS = 1000;
 
 const nominatimQueue = createRequestQueue(NOMINATIM_MINIMUM_INTERVAL_MS);
 
+/**
+ * Addresses one view may spend on the public instance. Its policy calls a long run of lookups heavy use and
+ * asks that bulk geo-coding go to an instance of your own, so a view that needs more than this is a view
+ * whose coordinates belong on the records rather than a bigger number here.
+ */
+const NOMINATIM_MAX_BULK_REQUESTS = 25;
+
 /** How the control identifies itself to Nominatim, which refuses a caller it cannot attribute. */
 const DEFAULT_APPLICATION_NAME = '@talxis/base-controls Map (https://github.com/TALXIS/base-controls)';
 
@@ -65,6 +72,11 @@ export interface INominatimGeocoderConfig {
      * usage policy forbids an auto-complete built on it. Only turn it on for an instance you run.
      */
     allowsTypeAhead?: boolean;
+    /**
+     * Addresses one set of records may spend. Defaults to a number the public instance's policy tolerates,
+     * which is far below what the control would otherwise resolve. Only raise it for an instance you run.
+     */
+    maxBulkRequests?: number;
 }
 
 /**
@@ -107,8 +119,9 @@ export const getNominatimPlace = (result: INominatimResult): IMapPlace | undefin
  * The public service is rate limited to one call a second by its usage policy, which this client enforces,
  * and refuses a caller it cannot attribute - so every call identifies the application. Its policy also
  * forbids driving it from an auto-complete, so the geocoder declines type-ahead and is only asked once a
- * query is submitted. Production traffic belongs on your own instance, configured through `searchUrl` and
- * `reverseUrl` - one of those lifts both restrictions, so a private instance may say `allowsTypeAhead`.
+ * query is submitted, and calls a long run of lookups heavy use, so it takes only a small part of a view's
+ * addresses. Production traffic belongs on your own instance, configured through `searchUrl` and
+ * `reverseUrl` - one of those lifts every restriction here, so a private instance may raise all three.
  */
 export const createNominatimGeocoder = (config: INominatimGeocoderConfig = {}): IMapGeocoder => {
     const searchUrl = config.searchUrl ?? SEARCH_URL;
@@ -117,6 +130,7 @@ export const createNominatimGeocoder = (config: INominatimGeocoderConfig = {}): 
 
     return withGeocodingCache({
         allowsTypeAhead: config.allowsTypeAhead ?? false,
+        maxBulkRequests: config.maxBulkRequests ?? NOMINATIM_MAX_BULK_REQUESTS,
         geocode: async (query, options) => {
             if (!query.trim()) {
                 return [];

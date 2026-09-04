@@ -158,8 +158,21 @@ export interface IMapParameters extends IParameters {
      * geo-coding it, through whichever configured vendor has a geo-coding service. Unset turns that off.
      */
     FullAddressAttributeName?: IStringProperty;
-    /** Addresses to geo-code before stopping, per set of records. Defaults to 250. */
+    /**
+     * Addresses to geo-code before stopping, per set of records. Overrides both the control's own default of
+     * 250 and the lower number a public service asks for where its coordinates cannot be written back.
+     */
     MaxGeocodingRequests?: Omit<IWholeNumberProperty, 'attributes'>;
+    /**
+     * Whether a geo-coded coordinate is saved to its record, through the same latitude and longitude
+     * attributes the map reads. Defaults to true: it is what makes an address cost one lookup ever instead
+     * of one per person who opens the map, which is what a public service's usage policy asks of a caller.
+     *
+     * Turn it off where the map may not write - the coordinate attributes are calculated, the reader has no
+     * privilege on them, or the churn on `modifiedon` is not wanted - and coordinates are then remembered
+     * for the lifetime of the control alone.
+     */
+    PersistGeocodedCoordinates?: Omit<ITwoOptionsProperty, 'attributes'>;
     /**
      * Attributes the filter panel offers, comma separated. Each becomes a list of the values the loaded
      * records actually hold. Empty hides the panel.

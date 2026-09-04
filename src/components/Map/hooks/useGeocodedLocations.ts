@@ -1,27 +1,40 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { IRecord } from '@talxis/client-libraries';
 import { getRecordValue } from '../internal/attributes';
-import { IMapGeocoder } from '../internal/geocoding';
-import { runWithConcurrency } from '../internal/http';
+import { getGeocodingRequestLimit, IMapGeocoder } from '../internal/geocoding';
 import { IMapFallbackCoordinates } from '../internal/pins';
 import { IMapCoordinates } from '../internal/viewport';
 
-/** Addresses resolved at once. Enough to fill a map quickly, few enough to stay inside a service's limits. */
-const DEFAULT_CONCURRENCY = 4;
-
-/** Addresses resolved per set of records, so one unscoped view cannot spend a whole geo-coding quota. */
+/**
+ * Addresses resolved per set of records when a coordinate can be written back, so a first visit to a large
+ * view spreads its backfill over several rather than holding a service for an hour.
+ */
 export const DEFAULT_MAX_GEOCODING_REQUESTS = 250;
+
+/**
+ * Saves that may fail before the run gives up. A service refusing one write refuses them all - a missing
+ * privilege, a calculated attribute - and carrying on would spend a lookup per record for nothing.
+ */
+const PERSIST_FAILURE_LIMIT = 3;
 
 export interface IUseGeocodedLocations {
     /** Records no coordinates could be read from. */
     records: IRecord[];
     /** Attribute holding the full address. Nothing here turns the fallback off entirely. */
     addressAttribute?: string;
+    /** Attributes a resolved coordinate is written back to. Both are needed to write anything. */
+    latitudeAttribute?: string;
+    longitudeAttribute?: string;
+    /**
+     * Whether a resolved coordinate is saved to its record, which is what keeps an address from being
+     * resolved twice. Off falls back to remembering coordinates for the lifetime of the control alone.
+     */
+    persistCoordinates?: boolean;
     /** Geocoder to resolve with, from whichever configured vendor has one. */
     geocoder?: IMapGeocoder;
     /** Language the addresses should be resolved in. */
     language?: string;
-    /** Addresses to resolve before stopping. */
+    /** Addresses to resolve before stopping. Overrides both the default and whatever the service asks for. */
     maxRequests?: number;
 }
 
@@ -32,6 +45,13 @@ export interface IGeocodedLocationsState {
     isResolving: boolean;
     /** How many are still waiting. */
     pendingCount: number;
+    /** How many have been resolved since the queue last stood empty, so the map can count progress. */
+    resolvedCount: number;
+    /**
+     * Records left without a pin because the cap stopped the queue short of them. A map drawing fewer pins
+     * than the view holds has to be able to say so, or the missing ones read as records that do not exist.
+     */
+    unplacedCount: number;
 }
 
 interface IGeocodingAttempt {
@@ -43,99 +63,258 @@ interface IGeocodingAttempt {
 const EMPTY_STATE: IGeocodedLocationsState = {
     coordinates: {},
     isResolving: false,
-    pendingCount: 0
+    pendingCount: 0,
+    resolvedCount: 0,
+    unplacedCount: 0
 };
 
 /**
- * Places the records that carry an address but no coordinates. A record the service cannot place is
- * remembered as unplaceable rather than retried - resolving a record removes it from the input, and failing
- * to resolve one would otherwise put it straight back.
+ * Places the records that carry an address but no coordinates.
+ *
+ * Addresses are asked about strictly one at a time - the pace itself belongs to the service client, which is
+ * where a usage policy like Nominatim's one call a second is enforced - and a resolved coordinate is written
+ * straight back to its record. That write is the point: a record that carries coordinates is placed by
+ * reading them, so an address is only ever sent to a geo-coding service once, by whoever opened the map
+ * first. Without somewhere to write, coordinates are remembered for this control's lifetime only and the
+ * service's own bulk limit caps how many of them are asked for.
+ *
+ * A record the service cannot place is remembered as unplaceable rather than retried - resolving a record
+ * removes it from the input, and failing to resolve one would otherwise put it straight back.
  */
 export const useGeocodedLocations = (props: IUseGeocodedLocations): IGeocodedLocationsState => {
-    const { records, addressAttribute, geocoder, language, maxRequests } = props;
+    const {
+        records,
+        addressAttribute,
+        latitudeAttribute,
+        longitudeAttribute,
+        persistCoordinates,
+        geocoder,
+        language,
+        maxRequests
+    } = props;
     const [state, setState] = useState<IGeocodedLocationsState>(EMPTY_STATE);
     const attemptedRef = useRef(new Map<string, IGeocodingAttempt>());
-    const runIdRef = useRef(0);
+    //records waiting their turn, and their ids, so a re-render cannot queue the same one twice
+    const queueRef = useRef<IRecord[]>([]);
+    const queuedIdsRef = useRef(new Set<string>());
+    const isDrainingRef = useRef(false);
+    const resolvedRef = useRef(0);
+    const unplacedRef = useRef(0);
+    const persistFailuresRef = useRef(0);
+    //latched once the writes have proved impossible, so later runs go back to the service's own bulk limit
+    const persistBrokenRef = useRef(false);
+    //bumped when the queue is thrown away, so a call already in flight knows to stop
+    const generationRef = useRef(0);
+    const abortRef = useRef<AbortController>();
+    //the drain outlives a re-render, so it reads the service and language it should use now rather than the
+    //ones that were current when it started
+    const geocoderRef = useRef(geocoder);
+    const languageRef = useRef(language);
 
     const isEnabled = !!addressAttribute && !!geocoder;
-    const getQuery = (record: IRecord) => {
+
+    useEffect(() => {
+        geocoderRef.current = geocoder;
+        languageRef.current = language;
+    }, [geocoder, language]);
+
+    const getQuery = useCallback((record: IRecord) => {
         const address = getRecordValue(record, addressAttribute as string);
         return address === null || address === undefined ? '' : `${address}`;
-    };
+    }, [addressAttribute]);
+
+    const publish = useCallback((): IMapFallbackCoordinates => {
+        const coordinates: IMapFallbackCoordinates = {};
+        attemptedRef.current.forEach((attempt, recordId) => {
+            if (attempt.coordinates) {
+                coordinates[recordId] = attempt.coordinates;
+            }
+        });
+        return coordinates;
+    }, []);
+
+    const report = useCallback(() => {
+        setState({
+            coordinates: publish(),
+            isResolving: queueRef.current.length > 0,
+            pendingCount: queueRef.current.length,
+            resolvedCount: resolvedRef.current,
+            unplacedCount: unplacedRef.current
+        });
+    }, [publish]);
+
+    //a changed target is worth trying again, whatever the last one did
+    useEffect(() => {
+        persistBrokenRef.current = false;
+        persistFailuresRef.current = 0;
+    }, [persistCoordinates, latitudeAttribute, longitudeAttribute]);
+
+    /** Whether this record's coordinate attributes are ours to write. */
+    const canPersistTo = useCallback((record: IRecord): boolean => {
+        if (persistCoordinates === false || persistBrokenRef.current || !latitudeAttribute || !longitudeAttribute) {
+            return false;
+        }
+        try {
+            return record.getColumnInfo(latitudeAttribute).security.editable
+                && record.getColumnInfo(longitudeAttribute).security.editable;
+        } catch (error) {
+            //an attribute the view does not carry has no column info, which is an answer rather than a failure
+            return false;
+        }
+    }, [persistCoordinates, latitudeAttribute, longitudeAttribute]);
+
+    /**
+     * Writes a resolved coordinate to its record.
+     *
+     * @returns Whether it was saved, so a service that refuses the write can stop the run rather than have
+     * every remaining address resolved and thrown away.
+     */
+    const persist = useCallback(async (record: IRecord, coordinates: IMapCoordinates): Promise<boolean> => {
+        try {
+            record.setValue(latitudeAttribute as string, coordinates.latitude);
+            record.setValue(longitudeAttribute as string, coordinates.longitude);
+            const result = await record.save();
+            if (result && result.success === false) {
+                console.warn('Map: could not save the geo-coded coordinates of a record:', result);
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.warn('Map: could not save the geo-coded coordinates of a record:', error);
+            return false;
+        }
+    }, [latitudeAttribute, longitudeAttribute]);
+
+    /** Works through the queue one address at a time, saving each coordinate as it arrives. */
+    const drain = useCallback(async (generation: number) => {
+        if (isDrainingRef.current) {
+            return;
+        }
+        isDrainingRef.current = true;
+        try {
+            while (queueRef.current.length) {
+                if (generationRef.current !== generation) {
+                    return;
+                }
+                const record = queueRef.current[0];
+                const query = getQuery(record);
+                let coordinates: IMapCoordinates | null = null;
+                try {
+                    if (query.trim()) {
+                        const places = await (geocoderRef.current as IMapGeocoder).geocode(query, {
+                            language: languageRef.current,
+                            limit: 1,
+                            signal: abortRef.current?.signal
+                        });
+                        coordinates = places[0]?.coordinates ?? null;
+                    }
+                } catch (error) {
+                    if ((error as Error)?.name === 'AbortError') {
+                        return;
+                    }
+                    //one address the service cannot answer for must not stop the rest of them
+                    console.warn('Map: could not resolve the address of a record:', error);
+                }
+                if (generationRef.current !== generation) {
+                    return;
+                }
+                //taken off the queue only now, so an invalidated run leaves it for the next one to pick up
+                queueRef.current.shift();
+                queuedIdsRef.current.delete(record.getRecordId());
+                attemptedRef.current.set(record.getRecordId(), { query, coordinates });
+
+                if (coordinates) {
+                    resolvedRef.current++;
+                    if (canPersistTo(record)) {
+                        if (await persist(record, coordinates)) {
+                            persistFailuresRef.current = 0;
+                        } else if (++persistFailuresRef.current >= PERSIST_FAILURE_LIMIT) {
+                            //every remaining address would be resolved only to be dropped, which the policy calls waste
+                            console.warn(`Map: giving up on geo-coding after ${PERSIST_FAILURE_LIMIT} coordinates could not be saved.`);
+                            persistBrokenRef.current = true;
+                            unplacedRef.current += queueRef.current.length;
+                            queueRef.current.forEach((queued) => queuedIdsRef.current.delete(queued.getRecordId()));
+                            queueRef.current = [];
+                        }
+                    }
+                }
+                if (generationRef.current === generation) {
+                    report();
+                }
+            }
+        } finally {
+            isDrainingRef.current = false;
+            if (generationRef.current === generation) {
+                report();
+            }
+        }
+    }, [getQuery, canPersistTo, persist, report]);
+
     //the records array is rebuilt on every load, so the effect keys off their content; the address is part of
     //it because an edited address is a new question about the same record
     const recordKey = isEnabled ? records.map((record) => `${record.getRecordId()}:${getQuery(record)}`).join('|') : '';
 
     useEffect(() => {
-        const runId = ++runIdRef.current;
         if (!isEnabled) {
+            generationRef.current++;
+            abortRef.current?.abort();
             attemptedRef.current = new Map();
+            queueRef.current = [];
+            queuedIdsRef.current = new Set();
+            resolvedRef.current = 0;
+            unplacedRef.current = 0;
             setState(EMPTY_STATE);
             return;
         }
-        const pending = records.filter((record) => attemptedRef.current.get(record.getRecordId())?.query !== getQuery(record));
+        const pending = records.filter((record) => {
+            if (queuedIdsRef.current.has(record.getRecordId())) {
+                return false;
+            }
+            return attemptedRef.current.get(record.getRecordId())?.query !== getQuery(record);
+        });
         if (!pending.length) {
-            //a superseded run never cleared its flags, so a run with nothing to do still resets them
-            setState((current) => (current.isResolving || current.pendingCount
-                ? { ...current, isResolving: false, pendingCount: 0 }
-                : current));
+            //a queue that emptied while a superseded run held the flags still has to clear them
+            if (!queueRef.current.length) {
+                setState((current) => (current.isResolving || current.pendingCount
+                    ? { ...current, isResolving: false, pendingCount: 0 }
+                    : current));
+            }
             return;
         }
-        const limited = pending.slice(0, maxRequests ?? DEFAULT_MAX_GEOCODING_REQUESTS);
-        const controller = new AbortController();
-
-        const publish = (): IMapFallbackCoordinates => {
-            const coordinates: IMapFallbackCoordinates = {};
-            attemptedRef.current.forEach((attempt, recordId) => {
-                if (attempt.coordinates) {
-                    coordinates[recordId] = attempt.coordinates;
-                }
-            });
-            return coordinates;
-        };
-
-        setState((current) => ({ ...current, isResolving: true, pendingCount: limited.length }));
-
-        void runWithConcurrency(limited, async (record) => {
-            const query = getQuery(record);
-            if (!query.trim()) {
-                return null;
-            }
-            const places = await (geocoder as IMapGeocoder).geocode(query, {
-                language,
-                limit: 1,
-                signal: controller.signal
-            });
-            return places[0]?.coordinates ?? null;
-        }, {
-            limit: DEFAULT_CONCURRENCY,
-            isCancelled: () => runIdRef.current !== runId,
-            onResult: (record, result) => {
-                attemptedRef.current.set(record.getRecordId(), { query: getQuery(record), coordinates: result ?? null });
-                if (runIdRef.current !== runId) {
-                    return;
-                }
-                setState((current) => ({ ...current, coordinates: publish() }));
-            }
-        }).then((results) => {
-            //an item the run never reached still counts as attempted, or the effect would restart on it
-            results.forEach(({ item, result }) => {
-                if (!attemptedRef.current.has(item.getRecordId())) {
-                    attemptedRef.current.set(item.getRecordId(), { query: getQuery(item), coordinates: result ?? null });
-                }
-            });
-            if (runIdRef.current !== runId) {
-                return;
-            }
-            setState({ coordinates: publish(), isResolving: false, pendingCount: 0 });
+        //a burst starts from zero, so the map counts progress through this batch rather than all time
+        if (!queueRef.current.length) {
+            resolvedRef.current = 0;
+            unplacedRef.current = 0;
+            persistFailuresRef.current = 0;
+        }
+        const limit = getGeocodingRequestLimit({
+            maxRequests,
+            defaultLimit: DEFAULT_MAX_GEOCODING_REQUESTS,
+            serviceLimit: geocoder?.maxBulkRequests,
+            //probed on one record, because a view's coordinate attributes are writable for all of them or none
+            canPersist: canPersistTo(pending[0])
         });
-
-        return () => {
-            controller.abort();
-        };
+        const room = Math.max(0, limit - queueRef.current.length);
+        const queued = pending.slice(0, room);
+        unplacedRef.current += pending.length - queued.length;
+        queued.forEach((record) => {
+            queueRef.current.push(record);
+            queuedIdsRef.current.add(record.getRecordId());
+        });
+        if (!abortRef.current || abortRef.current.signal.aborted) {
+            abortRef.current = new AbortController();
+        }
+        report();
+        void drain(generationRef.current);
         //recordKey stands in for records, which is rebuilt on every load
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [recordKey, isEnabled, addressAttribute, geocoder, language, maxRequests]);
+    }, [recordKey, isEnabled, geocoder, language, maxRequests, canPersistTo, drain, report, getQuery]);
+
+    //an unmount must not leave a call running against a service that counts them
+    useEffect(() => () => {
+        generationRef.current++;
+        abortRef.current?.abort();
+    }, []);
 
     return state;
 };

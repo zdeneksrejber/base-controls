@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { IAddress } from '@talxis/client-libraries';
-import { getAddressLabel, IMapGeocoder, IMapPlace, withGeocodingCache } from './geocoding';
+import { getAddressLabel, getGeocodingRequestLimit, IMapGeocoder, IMapPlace, withGeocodingCache } from './geocoding';
 
 const place = (label: string): IMapPlace => ({
     coordinates: { latitude: 50, longitude: 14 },
@@ -93,5 +93,34 @@ describe('withGeocodingCache', () => {
     it('keeps a service that refuses type-ahead refusing it through the cache', () => {
         expect(withGeocodingCache({ ...createGeocoder(), allowsTypeAhead: false }).allowsTypeAhead).toBe(false);
         expect(withGeocodingCache(createGeocoder()).allowsTypeAhead).toBeUndefined();
+    });
+
+    it('carries the bulk limit a service publishes through the cache', () => {
+        expect(withGeocodingCache({ ...createGeocoder(), maxBulkRequests: 25 }).maxBulkRequests).toBe(25);
+        expect(withGeocodingCache(createGeocoder()).maxBulkRequests).toBeUndefined();
+    });
+});
+
+describe('getGeocodingRequestLimit', () => {
+    const limit = (options: Partial<Parameters<typeof getGeocodingRequestLimit>[0]>) =>
+        getGeocodingRequestLimit({ defaultLimit: 250, canPersist: false, ...options });
+
+    it('holds a run to what the service allows while the coordinates are thrown away', () => {
+        expect(limit({ serviceLimit: 25 })).toBe(25);
+    });
+
+    it('lifts that limit once each address is written back, because it is then asked once ever', () => {
+        expect(limit({ serviceLimit: 25, canPersist: true })).toBe(250);
+    });
+
+    it('leaves a service that names no limit on the default either way', () => {
+        expect(limit({})).toBe(250);
+        expect(limit({ canPersist: true })).toBe(250);
+    });
+
+    it('lets the host have the last word, including turning geo-coding off', () => {
+        expect(limit({ maxRequests: 1000, serviceLimit: 25 })).toBe(1000);
+        expect(limit({ maxRequests: 10, serviceLimit: 25, canPersist: true })).toBe(10);
+        expect(limit({ maxRequests: 0, canPersist: true })).toBe(0);
     });
 });

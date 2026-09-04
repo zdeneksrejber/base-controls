@@ -69,9 +69,33 @@ it stopped short rather than quietly drawing a subset.
 ### Records with an address but no coordinates
 
 `FullAddressAttributeName` names the attribute holding a record's address. A record the coordinate
-attributes cannot place is placed by geo-coding it. Lookups are cached and de-duplicated, four run at a
-time, `MaxGeocodingRequests` caps them, and an address the service cannot place is remembered as unplaceable
-rather than asked about again.
+attributes cannot place is placed by geo-coding it. Lookups are cached and de-duplicated, and an address the
+service cannot place is remembered as unplaceable rather than asked about again.
+
+**Addresses are resolved one at a time, and each coordinate is saved to its record** — through the same
+`LatitudeAttributeName` and `LongitudeAttributeName` the map reads. That write is the point: a record that
+carries coordinates is placed by reading them, so an address is sent to a geo-coding service once, by
+whoever opens the map first, instead of once per person per visit. It is what makes the keyless
+OpenStreetMap provider usable at all, because Nominatim's usage policy asks that a caller not resolve the
+same thing twice and treats a long run of lookups as heavy use of a service donated to the community. The
+pace comes from the service client, where that policy's one call a second is enforced.
+
+`PersistGeocodedCoordinates: false` turns the write off — for calculated coordinate attributes, a reader
+with no privilege on them, or an entity where the churn on `modifiedon` is not wanted. Coordinates are then
+remembered for the lifetime of the control alone, and every visit resolves them again. The control notices
+that case on its own too: attributes it may not write, or three saves that fail, drop it back to
+remembering.
+
+How many one view may resolve is capped: `MaxGeocodingRequests` if the host names a number, otherwise 250,
+and where the coordinates cannot be written back, whatever the service asks for instead — **25** on the
+keyless provider, since nothing resolved there is kept. While a run is going the map counts it off
+("Resolving addresses, one at a time… 12 of 40"); when the cap stops it short, the map says how many records
+it left without a pin and that the service's usage policy is why. A map quietly drawing fewer pins than the
+view holds reads as records that do not exist.
+
+> A first visit to a large view still resolves up to 250 addresses, one a second. That is a backfill, not a
+> steady state — it happens once and the records keep the answer — but the honest place for it is a plug-in
+> or a flow that geo-codes on save, server side, before a map is ever opened.
 
 ### Thousands of pins
 
@@ -361,8 +385,8 @@ in-flight lookup rather than duplicating it, and forgets a failure rather than c
 > answers the search box only on a submit, because its policy forbids an auto-complete built on the public
 > instance. Point them at your own instances for anything but development — `createNominatimGeocoder({
 > searchUrl, reverseUrl })` and `createOsrmDirections({ baseUrl })` — the same caveat the OpenStreetMap tiles
-> carry. A private Nominatim is under no such policy, so it may take `allowsTypeAhead: true` and suggest as
-> someone types.
+> carry. A private Nominatim is under no such policy, so it may take `allowsTypeAhead: true` and
+> `maxBulkRequests` of its own.
 
 `npm run test:live` calls all of them against the real services, with keys from the environment.
 
@@ -397,7 +421,7 @@ optional.
 | Group | Parameters |
 |-------|------------|
 | **Binding** | `Dataset`, `LatitudeAttributeName`, `LongitudeAttributeName`, `EnableAttributeLinking` |
-| **Data** | `PinLoading`, `MaxRecords`, `FullAddressAttributeName`, `MaxGeocodingRequests`, `EnableClustering`, `ClusteringOptions`, `FilterAttributeNames`, `FilterMode`, `EnableSearch`, `EnableAddressSearch` |
+| **Data** | `PinLoading`, `MaxRecords`, `FullAddressAttributeName`, `MaxGeocodingRequests`, `PersistGeocodedCoordinates`, `EnableClustering`, `ClusteringOptions`, `FilterAttributeNames`, `FilterMode`, `EnableSearch`, `EnableAddressSearch` |
 | **Pins** | `PinIcons`, `ClientApiWebresourceName`, `ClientApiFunctionName` |
 | **Cards** | `Cards`, `CardType`, `CardColumns`, `CardPayload` |
 | **Connections** | `RouteAttributeName`, `RouteSequenceAttributeName`, `RouteColorAttributeName`, `SnapRoutesToRoads` |
@@ -564,7 +588,13 @@ the Routing API v8.
 Backed by the [Mapy.com Map Tiles API](https://developer.mapy.com/rest-api-mapy-cz/function/map-tiles/),
 which has the best coverage of Czechia and Slovakia of the four. **The provider carries the attribution
 their licence requires**, so a host cannot forget it: a visible, clickable logo linking to mapy.com plus a
-copyright notice. They have no dark map set, so a dark control theme filters the tiles — except `aerial`,
+copyright notice. **Neither is chrome to reclaim.** The logo is an overlay their licence requires to stay
+visible, clickable and at least 30px tall, so CSS that hides overlays to win space on a small map breaks a
+licence condition rather than tidying a layout — and an `attribution` override that drops the notice does
+the same. The same holds for every vendor here: swapping `tileLayerUrl` means swapping `attribution` with
+it, because crediting OpenStreetMap for tiles you render yourself is wrong in both directions.
+
+They have no dark map set, so a dark control theme filters the tiles — except `aerial`,
 because inverting photography produces a negative rather than a dark map.
 
 ### Google Maps
@@ -579,3 +609,21 @@ npm install @vis.gl/react-google-maps
 Geo-coding is the Geocoding API. Directions are the **Routes API**, which is a separate api from the one
 that draws the map: a project that has not enabled `routes.googleapis.com` answers 403, which the control
 reports before falling back to a straight line.
+
+**The geocoder declines type-ahead**, so the search box asks it on a submit rather than on a keystroke. Two
+reasons point the same way: Google bills the Geocoding API per request, and their terms send auto-complete
+traffic to Places Autocomplete instead, whose session tokens exist precisely so a typed query bills once.
+Raising this is therefore not a flag — it is a switch to Places Autocomplete, wired as a geocoder of your
+own and registered through `onGetMapVendors`.
+
+> **Google's terms restrict storing what it answers.** They allow a place id indefinitely and other content
+> only temporarily, which is a poor fit for the two features that persist a geocoding result: the address
+> fallback, and the pin editing that writes a reverse-geocoded address back onto the record. A deployment
+> whose coordinates belong *on* the records — the way to keep a view off the geocoder altogether — should
+> resolve them under a licence that permits storage rather than this one. Check the current
+> [Google Maps Platform terms](https://cloud.google.com/maps-platform/terms) against what the view saves.
+
+Every call is billed per request, and nothing on Google's side caps that — the address fallback is held to
+`MaxGeocodingRequests`, or 250, by the control alone, and the search box to whatever an end user types. See
+[Records with an address but no coordinates](#records-with-an-address-but-no-coordinates) for what one view
+can spend, and prefer coordinates resolved server side before a map is ever opened.

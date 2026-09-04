@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getGooglePlace, getGooglePlaces, IGoogleGeocodeResponse } from './geocoder';
+import { createGoogleMapsGeocoder, getGooglePlace, getGooglePlaces, IGoogleGeocodeResponse } from './geocoder';
 import { getGoogleRoutePath } from './directions';
 
 //trimmed from a live Geocoding API response for "Václavské náměstí 1, Praha"
@@ -84,5 +84,11 @@ describe('getGoogleRoutePath', () => {
     it('routes nothing when the response carries no route', () => {
         expect(getGoogleRoutePath({})).toBeNull();
         expect(getGoogleRoutePath({ routes: [{}] })).toBeNull();
+    });
+});
+
+describe('createGoogleMapsGeocoder', () => {
+    it('declines type-ahead, which Google bills per request and licenses through Places Autocomplete', () => {
+        expect(createGoogleMapsGeocoder('test-key').allowsTypeAhead).toBe(false);
     });
 });

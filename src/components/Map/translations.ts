@@ -11,8 +11,8 @@ export const mapTranslations = {
         1029: "Načítání bodů... {{count}}"
     },
     geocodingAddresses: {
-        1033: "Resolving {{count}} addresses...",
-        1029: "Vyhledávání {{count}} adres..."
+        1033: "Resolving addresses, one at a time... {{done}} of {{count}}",
+        1029: "Vyhledávání adres, jedné po druhé... {{done}} z {{count}}"
     },
     searchPlaceholder: {
         1033: "Search {{columns}}, or an address",
@@ -97,6 +97,10 @@ export const mapTranslations = {
     pinsTruncated: {
         1033: "Showing the first {{count}} pins of this view.",
         1029: "Zobrazeno prvních {{count}} bodů tohoto pohledu."
+    },
+    geocodingCapped: {
+        1033: "{{count}} addresses were left without a pin for now: the geo-coding service's usage policy limits how many one view may resolve.",
+        1029: "{{count}} adres zatím zůstalo bez bodu: pravidla použití geokódovací služby omezují, kolik jich lze v jednom pohledu vyhledat."
     }
 };
 

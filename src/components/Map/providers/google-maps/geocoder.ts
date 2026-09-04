@@ -104,8 +104,17 @@ export const getGooglePlaces = (response: IGoogleGeocodeResponse): IMapPlace[] =
         .filter((place): place is IMapPlace => !!place);
 };
 
-/** Builds the Google Maps geocoder, backed by the Geocoding API; answers the same lookup only once. */
+/**
+ * Builds the Google Maps geocoder, backed by the Geocoding API; answers the same lookup only once.
+ *
+ * Type-ahead is off, for the two reasons that point the same way. Google bills the Geocoding API per
+ * request, so a call a keystroke turns one search into a handful of them; and their terms send auto-complete
+ * traffic to Places Autocomplete instead, whose session tokens exist precisely so a typed query bills once.
+ * A search box that asks on a submit is both the cheaper and the licensed way to ask - so raising this is
+ * not a flag, it is a switch to Places Autocomplete.
+ */
 export const createGoogleMapsGeocoder: IMapGeocoderFactory = (apiKey: string): IMapGeocoder => withGeocodingCache({
+    allowsTypeAhead: false,
     geocode: async (query, options) => {
         if (!query.trim()) {
             return [];

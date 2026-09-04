@@ -53,6 +53,7 @@ export const Map = (props: IMap) => {
         SnapRoutesToRoads,
         FullAddressAttributeName,
         MaxGeocodingRequests,
+        PersistGeocodedCoordinates,
         EnableAttributeLinking,
         PinLoading,
         MaxRecords,
@@ -211,6 +212,11 @@ export const Map = (props: IMap) => {
         //would spend quota on pins that are about to place themselves
         records: isRegisteringAttributes ? EMPTY_RECORDS : placement.unplacedRecords,
         addressAttribute: addressAttribute ?? undefined,
+        //a resolved coordinate is written back through the same attributes the map reads, so the address is
+        //never sent to the service twice
+        latitudeAttribute: latitudeAttribute ?? undefined,
+        longitudeAttribute: longitudeAttribute ?? undefined,
+        persistCoordinates: PersistGeocodedCoordinates?.raw !== false,
         geocoder,
         language,
         maxRequests: MaxGeocodingRequests?.raw ?? undefined
@@ -377,10 +383,19 @@ export const Map = (props: IMap) => {
         : isLoading
         ? { message: labels.loadingPins({ count: `${loadedCount}` }), isBusy: true }
         : geocoded.isResolving
-            ? { message: labels.geocodingAddresses({ count: `${geocoded.pendingCount}` }), isBusy: true }
+            ? {
+                message: labels.geocodingAddresses({
+                    done: `${geocoded.resolvedCount}`,
+                    count: `${geocoded.resolvedCount + geocoded.pendingCount}`
+                }),
+                isBusy: true
+            }
             : isTruncated
                 ? { message: labels.pinsTruncated({ count: `${loadedCount}` }), isWarning: true }
-                : {};
+                //a map quietly drawing fewer pins than the view holds reads as records that are not there
+                : geocoded.unplacedCount
+                    ? { message: labels.geocodingCapped({ count: `${geocoded.unplacedCount}` }), isWarning: true }
+                    : {};
 
     return (
         <div className={getClassNames([className, styles.root])}>
