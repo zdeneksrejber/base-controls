@@ -40,6 +40,12 @@ export interface IMapGeocoder {
      * whose policy calls a long run heavy use says how much of a run it is willing to take.
      */
     maxBulkRequests?: number;
+    /**
+     * Lookups the service is willing to answer at once. Defaults to `1` - strictly one at a time - because
+     * that is what a public service's policy asks for and what a service that says nothing is assumed to
+     * want. A service whose terms allow a run in parallel says how wide it may be.
+     */
+    maxConcurrentRequests?: number;
     /** Places matching an address, best first. An address the service does not know resolves to none. */
     geocode(query: string, options?: IMapGeocodingOptions): Promise<IMapPlace[]>;
     /** The place covering a point, or `null` when the service knows of none. */
@@ -103,6 +109,7 @@ export const withGeocodingCache = (geocoder: IMapGeocoder, maxEntries = 500): IM
     return {
         allowsTypeAhead: geocoder.allowsTypeAhead,
         maxBulkRequests: geocoder.maxBulkRequests,
+        maxConcurrentRequests: geocoder.maxConcurrentRequests,
         geocode: (query, options) => {
             const key = `${options?.language ?? ''}|${options?.limit ?? ''}|${query}`;
             const cached = forward.get(key);

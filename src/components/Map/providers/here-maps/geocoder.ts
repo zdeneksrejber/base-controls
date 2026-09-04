@@ -74,7 +74,11 @@ export const getHerePlaces = (response: IHereGeocodeResponse): IMapPlace[] =>
     (response.items ?? []).map(getHerePlace).filter((place): place is IMapPlace => !!place);
 
 /** Builds the HERE geocoder, backed by the Geocoding and Search API v7; answers the same lookup only once. */
+/** Lookups run at once for a set of records, which a keyed service prices rather than paces. */
+const PARALLEL_REQUESTS = 4;
+
 export const createHereMapsGeocoder: IMapGeocoderFactory = (apiKey: string): IMapGeocoder => withGeocodingCache({
+    maxConcurrentRequests: PARALLEL_REQUESTS,
     geocode: async (query, options) => {
         if (!query.trim()) {
             return [];

@@ -390,12 +390,18 @@ export const Map = (props: IMap) => {
                 }),
                 isBusy: true
             }
-            : isTruncated
-                ? { message: labels.pinsTruncated({ count: `${loadedCount}` }), isWarning: true }
-                //a map quietly drawing fewer pins than the view holds reads as records that are not there
-                : geocoded.unplacedCount
-                    ? { message: labels.geocodingCapped({ count: `${geocoded.unplacedCount}` }), isWarning: true }
-                    : {};
+            //a service refusing the call is somebody's to fix, so it outranks every other thing worth saying
+            : geocoded.failedCount
+                ? { message: labels.geocodingFailed({ count: `${geocoded.failedCount}` }), isWarning: true }
+                : isTruncated
+                    ? { message: labels.pinsTruncated({ count: `${loadedCount}` }), isWarning: true }
+                    //a map quietly drawing fewer pins than the view holds reads as records that are not there
+                    : geocoded.unplacedCount
+                        ? { message: labels.geocodingCapped({ count: `${geocoded.unplacedCount}` }), isWarning: true }
+                        //an address the service does not know is not an error, but it is still a missing pin
+                        : geocoded.unplaceableCount
+                            ? { message: labels.geocodingUnplaceable({ count: `${geocoded.unplaceableCount}` }), isWarning: true }
+                            : {};
 
     return (
         <div className={getClassNames([className, styles.root])}>

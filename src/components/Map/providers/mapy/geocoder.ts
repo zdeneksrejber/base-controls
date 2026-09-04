@@ -84,7 +84,11 @@ export const getMapyPlaces = (response: IMapyGeocodeResponse): IMapPlace[] =>
     (response.items ?? []).map(getMapyPlace).filter((place): place is IMapPlace => !!place);
 
 /** Builds the Mapy.com geocoder, backed by their REST API; answers the same lookup only once. */
+/** Lookups run at once for a set of records, which a keyed service prices rather than paces. */
+const PARALLEL_REQUESTS = 4;
+
 export const createMapyGeocoder: IMapGeocoderFactory = (apiKey: string): IMapGeocoder => withGeocodingCache({
+    maxConcurrentRequests: PARALLEL_REQUESTS,
     geocode: async (query, options) => {
         if (!query.trim()) {
             return [];

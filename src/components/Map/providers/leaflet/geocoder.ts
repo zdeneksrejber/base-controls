@@ -77,6 +77,11 @@ export interface INominatimGeocoderConfig {
      * which is far below what the control would otherwise resolve. Only raise it for an instance you run.
      */
     maxBulkRequests?: number;
+    /**
+     * Lookups to run at once. Defaults to `1`: the public instance's policy asks that a run of them be
+     * single threaded, and the one-call-a-second gate below would serialize them anyway.
+     */
+    maxConcurrentRequests?: number;
 }
 
 /**
@@ -131,6 +136,7 @@ export const createNominatimGeocoder = (config: INominatimGeocoderConfig = {}): 
     return withGeocodingCache({
         allowsTypeAhead: config.allowsTypeAhead ?? false,
         maxBulkRequests: config.maxBulkRequests ?? NOMINATIM_MAX_BULK_REQUESTS,
+        maxConcurrentRequests: config.maxConcurrentRequests ?? 1,
         geocode: async (query, options) => {
             if (!query.trim()) {
                 return [];

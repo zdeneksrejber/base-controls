@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { IDataProviderEventListeners, IDataset } from '@talxis/client-libraries'
 import { MapDemo } from '../../map/MapDemo'
 import { preferredVendor } from '../../map/mapApiKeys'
 import { createSampleDataset, generateSiteRecords, getSiteRecords, SAMPLE_ATTRIBUTES } from '../../map/mapSampleData'
@@ -68,9 +69,127 @@ export const AddressesWithoutCoordinates: Story = {
                     'all fifteen are drawn. `FullAddressAttributeName` names that attribute, and the control places',
                     'the records by geo-coding it through whichever configured vendor has a geo-coding service.',
                     '',
-                    'Lookups are cached and de-duplicated so records sharing an address cost one call, four run at',
-                    'a time, `MaxGeocodingRequests` caps them, and an address the service cannot place is',
-                    'remembered as unplaceable rather than asked about again on every render.'
+                    'Addresses are resolved one at a time and each coordinate is saved back to its record, which',
+                    'the next story shows happening. Lookups are cached and de-duplicated so records sharing an',
+                    'address cost one call, `MaxGeocodingRequests` caps how many one view resolves, and an address',
+                    'the service cannot place is remembered as unplaceable rather than asked about again on every',
+                    'render.'
+                ].join(' ')
+            }
+        }
+    }
+}
+
+const GEOCODED_COLUMNS = ['name', 'address', 'lat', 'lng']
+
+/** The dataset as it stands, which is the only way to watch a coordinate land on a record. */
+const GeocodedRecordTable = ({ dataset }: { dataset: IDataset }) => {
+    const [, setVersion] = useState(0)
+    useEffect(() => {
+        const rerender = () => setVersion((current) => current + 1)
+        //the control's write-back reports itself as a saved record, not as newly loaded data
+        const events = ['onNewDataLoaded', 'onAfterSaved', 'onAfterRecordSaved'] as const
+        events.forEach((event) => dataset.addEventListener(event, rerender as IDataProviderEventListeners[typeof event]))
+        //the first load may already have finished by the time this runs, so read once rather than wait
+        rerender()
+        return () => events.forEach((event) =>
+            dataset.removeEventListener(event, rerender as IDataProviderEventListeners[typeof event]))
+    }, [dataset])
+
+    return (
+        <table style={{ fontFamily: 'monospace', fontSize: 11, borderCollapse: 'collapse', width: '100%' }}>
+            <thead>
+                <tr>{GEOCODED_COLUMNS.map((column) => (
+                    <th key={column} style={{ textAlign: 'left', padding: '2px 8px 2px 0', opacity: 0.6 }}>{column}</th>
+                ))}</tr>
+            </thead>
+            <tbody>
+                {dataset.getRecords().map((record) => (
+                    <tr key={record.getRecordId()}>
+                        {GEOCODED_COLUMNS.map((column) => (
+                            <td key={column} style={{ padding: '2px 8px 2px 0' }}>
+                                {`${record.getValue(column) ?? ''}`.slice(0, 28) || '\u2014'}
+                            </td>
+                        ))}
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    )
+}
+
+const CoordinatesSavedBack = () => {
+    /**
+     * Bumped every time the reader picks another vendor, which builds a fresh dataset below - so the vendor
+     * just picked has to resolve all fifteen addresses itself.
+     *
+     * A demo device, not something the control does: in a real app the write-back is the whole point, and a
+     * record that already carries coordinates is never geo-coded again, whoever answered the first time.
+     */
+    const [generation, setGeneration] = useState(0)
+
+    //every site starts with an address and nothing else, so all fifteen have to be geo-coded
+    const dataset = useMemo(() => createSampleDataset({
+        records: getSiteRecords().map((record) => ({ ...record, lat: null, lng: null }))
+        //a new dataset per generation, rather than emptying this one - clearing records the control is in the
+        //middle of saving would race its own writes
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), [generation])
+
+    return (
+        <MapDemo
+            dataset={dataset}
+            height={460}
+            onProviderChange={() => setGeneration((current) => current + 1)}
+            parameters={{
+                ...COORDINATES,
+                FullAddressAttributeName: { raw: SAMPLE_ATTRIBUTES.address },
+                EnableClustering: { raw: false },
+                //the keyless provider, whose usage policy this is all about
+                DefaultVendor: { raw: 'leaflet' }
+            }}>
+            <GeocodedRecordTable dataset={dataset} />
+        </MapDemo>
+    )
+}
+
+export const CoordinatesWrittenBack: Story = {
+    name: 'Coordinates saved back to the record',
+    render: () => <CoordinatesSavedBack />,
+    parameters: {
+        docs: {
+            description: {
+                story: [
+                    'All fifteen sites start with a postal address and no coordinates. Watch the `lat` and `lng`',
+                    'columns fill in one row at a time, about one a second, and a pin appear for each as it does —',
+                    'that is the map resolving an address and saving the answer to the record through',
+                    '`record.setValue` and `record.save()`, the same path a dragged pin takes.',
+                    '',
+                    "The pace is Nominatim's usage policy: one call a second, one address at a time, nothing asked",
+                    "about twice. The status line counts the run off while it goes ('Resolving addresses, one at a",
+                    "time… 4 of 15'). Against a real dataset the write is what ends the cost — the next person to",
+                    'open the view places these records by reading what this visit saved, and the addresses are',
+                    'never sent to the service again. This demo cannot show that second visit, because its sample',
+                    'dataset lives in memory and is rebuilt every time the story mounts.',
+                    '',
+                    '**Switch vendors in the picker over the map** and this story hands the control a fresh set of',
+                    'records, so the one you picked has to resolve all fifteen itself — which is the fastest way to see that the',
+                    'pace belongs to the service and not to the control. OpenStreetMap takes fifteen seconds, one',
+                    'call a second and one at a time, because that is what Nominatim asks for. Google, HERE and',
+                    'Mapy.com price their lookups instead of pacing them, so they declare four at a time and finish',
+                    'the same fifteen in about a second. Starting the records over is a demo device: a real record',
+                    'that already has coordinates is never geo-coded again, whoever answered first.',
+                    '',
+                    '> Switching back and forth asks the public Nominatim service for the same fifteen addresses',
+                    'again each time, which is the one thing its usage policy asks a caller not to do — enough of',
+                    'it and the service stops answering this browser for a while, and the map says so. Use the',
+                    'keyed vendors for repeated runs, and treat the OpenStreetMap pass as the once-per-page look',
+                    'at what the policy actually costs.',
+                    '',
+                    '`PersistGeocodedCoordinates: false` turns the write off, for coordinate attributes the map may',
+                    'not touch. The control falls back to that on its own where the attributes are not writable, and',
+                    'then holds itself to the 25 addresses Nominatim will answer for a run whose results are thrown',
+                    'away, saying how many records it left without a pin.'
                 ].join(' ')
             }
         }

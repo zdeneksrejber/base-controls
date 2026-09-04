@@ -70,6 +70,8 @@ export interface IMapDemoProps {
     showReadout?: boolean
     /** Extra readout of the story's own. */
     children?: ReactNode
+    /** Told which vendor the reader picked, for a story that wants to react to the switch. */
+    onProviderChange?: (providerId: string) => void
     /** Code hooks the story demonstrates, passed straight through to the control. */
     onResolvePin?: IMap['onResolvePin']
     onGetCardRenderers?: IMap['onGetCardRenderers']
@@ -206,6 +208,7 @@ export const MapDemo = (props: IMapDemoProps) => {
                             setOutputs((current) => ({ ...current, ...changed }))
                             if (changed.MapProviderId) {
                                 setProviderId(changed.MapProviderId)
+                                props.onProviderChange?.(changed.MapProviderId)
                             }
                         }}
                     />}

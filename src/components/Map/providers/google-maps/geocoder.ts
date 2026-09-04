@@ -113,8 +113,13 @@ export const getGooglePlaces = (response: IGoogleGeocodeResponse): IMapPlace[] =
  * A search box that asks on a submit is both the cheaper and the licensed way to ask - so raising this is
  * not a flag, it is a switch to Places Autocomplete.
  */
+/** Lookups run at once for a set of records. Well inside the Geocoding API's per-minute quota. */
+const PARALLEL_REQUESTS = 4;
+
 export const createGoogleMapsGeocoder: IMapGeocoderFactory = (apiKey: string): IMapGeocoder => withGeocodingCache({
     allowsTypeAhead: false,
+    //the Geocoding API is quota'd per minute rather than paced, so a set of records may go several at a time
+    maxConcurrentRequests: PARALLEL_REQUESTS,
     geocode: async (query, options) => {
         if (!query.trim()) {
             return [];
