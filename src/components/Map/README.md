@@ -537,20 +537,31 @@ layout chain: each element between the PCF container and the map is a flex colum
 map takes what is left.
 
 ```css
-/* the control root, and every provider container between it and the map */
+/* the control root - it fills the host on both axes, whichever way the host lays its children out */
+display: flex;         flex-direction: column;
+flex: 1 1 0;           align-self: stretch;   /* grow along the main axis, stretch across the other */
+height: 100%;                                 /* only reached in a host that sizes by height, not by flex */
+min-width: 0;          min-height: 200px;     /* a floor, not a default */
+
+/* every provider container between the root and the map */
 display: flex;  flex-direction: column;  flex-grow: 1;  min-width: 0;  min-height: 0;
 
 /* the element the map is drawn into */
 flex: 1;  min-width: 0;  min-height: 0;
 ```
 
-`MAP_PROVIDER_LAYOUT` (`providers/layout`) holds exactly that. Two things matter when embedding the control:
+`MAP_PROVIDER_LAYOUT` (`providers/layout`) holds the provider half of that. Three things matter when
+embedding the control:
 
 - **The chain has to be unbroken.** A host wrapping the control in an element of its own has to give that
   element the same properties. In Power Apps that includes
   `document.querySelector('[data-control-name]').parentElement`, which needs `flex-direction: column`.
+- **Flex settles the size, height only stands in.** `flex-basis: 0` means a flex host decides the main size,
+  so stacking the control above siblings hands it what is left rather than overflowing them; `align-self:
+  stretch` fills the other axis even where the host aligns its children to one edge. `height: 100%` is only
+  reached in a host that is not a flex container, and sizes by height instead.
 - **There is a floor, not a default.** The root keeps `min-height: 200px` for a host that hands the control
-  no usable height at all, and honours `height: 100%` for one that sizes by height rather than by flex.
+  no usable height at all - a map that would otherwise collapse to nothing stays usable.
 
 ---
 

@@ -143,6 +143,8 @@ export const getMapPins = (records: IRecord[], options: IMapPinOptions): IMapPin
             if (!routeId) {
                 return;
             }
+            //marks the pin as exempt from clustering - see createMapClusterIndex
+            location.routeId = routeId;
             const stop: IRouteStop = {
                 location,
                 sequence: getSequence(record, attributes.routeSequence),

@@ -56,13 +56,17 @@ export const createMapClusterIndex = (
     options: IMapClusteringOptions = {}
 ): IMapClusterIndex => {
     const maxLeaves = options.maxLeaves ?? DEFAULT_CLUSTER_MAX_LEAVES;
+    //a pin on a route never joins a cluster: swallowing it into a group pin at the group's centroid
+    //visually detaches the route's line from the stop it connects
+    const routedLocations = locations.filter((location) => location.routeId);
+    const clusterableLocations = locations.filter((location) => !location.routeId);
     const index = new Supercluster<IClusterPointProperties>({
         radius: options.radius ?? DEFAULT_CLUSTER_RADIUS,
         maxZoom: options.maxZoom ?? DEFAULT_CLUSTER_MAX_ZOOM,
         minPoints: 2
     });
 
-    index.load(locations.map((location, locationIndex) => ({
+    index.load(clusterableLocations.map((location, locationIndex) => ({
         type: 'Feature' as const,
         properties: { locationIndex },
         geometry: { type: 'Point' as const, coordinates: [location.longitude, location.latitude] }
@@ -71,10 +75,14 @@ export const createMapClusterIndex = (
     const getClusterInfo = (clusterId: number, count: number): IMapClusterInfo => ({
         count,
         recordIds: index.getLeaves(clusterId, maxLeaves)
-            .map((leaf) => locations[leaf.properties.locationIndex]?.id)
+            .map((leaf) => clusterableLocations[leaf.properties.locationIndex]?.id)
             .filter((id): id is string => !!id),
         expansionZoom: index.getClusterExpansionZoom(clusterId)
     });
+
+    const isWithin = (location: IMapLocation, bounds: IMapBounds): boolean =>
+        location.latitude <= bounds.north && location.latitude >= bounds.south
+        && location.longitude <= bounds.east && location.longitude >= bounds.west;
 
     return {
         getLocations: (bounds, zoom) => {
@@ -83,11 +91,11 @@ export const createMapClusterIndex = (
                 [bounds.west, bounds.south, bounds.east, bounds.north],
                 Math.round(zoom)
             );
-            return clusters.map((feature) => {
+            const drawn = clusters.map((feature) => {
                 const [longitude, latitude] = feature.geometry.coordinates;
                 const properties = feature.properties as Supercluster.ClusterProperties & IClusterPointProperties;
                 if (!properties.cluster) {
-                    return locations[properties.locationIndex];
+                    return clusterableLocations[properties.locationIndex];
                 }
                 return {
                     id: `cluster-${properties.cluster_id}`,
@@ -96,6 +104,8 @@ export const createMapClusterIndex = (
                     cluster: getClusterInfo(properties.cluster_id, properties.point_count)
                 };
             }).filter((location): location is IMapLocation => !!location);
+            //routed pins pass the index by, but stay limited to the view like everything else
+            return [...drawn, ...routedLocations.filter((location) => isWithin(location, bounds))];
         }
     };
 };

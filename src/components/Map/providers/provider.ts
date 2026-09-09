@@ -23,6 +23,11 @@ export interface IMapLocation extends IMapCoordinates {
      * shipped pin in the theme's primary colour.
      */
     pin?: IMapPinAppearance;
+    /**
+     * Route this pin belongs to, from the `RouteAttributeName` attribute. A routed pin is never merged
+     * into a cluster - a route's line must always connect pins the user can see.
+     */
+    routeId?: string;
 }
 
 /** Modifier keys held while a pin was activated, so the control can offer additive selection. */

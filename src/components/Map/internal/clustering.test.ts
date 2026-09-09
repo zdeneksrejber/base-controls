@@ -99,3 +99,32 @@ describe('createMapClusterIndex', () => {
         expect(drawn[0].cluster?.count).toBe(4);
     });
 });
+
+describe('createMapClusterIndex - routed pins', () => {
+    const routed = (id: string, latitude: number, longitude: number, routeId: string): IMapLocation =>
+        ({ ...location(id, latitude, longitude), routeId });
+
+    it('never merges a routed pin into a cluster, even co-located ones', () => {
+        const drawn = createMapClusterIndex([
+            location('a', 50.0755, 14.4378),
+            location('b', 50.0755, 14.4378),
+            routed('stop-1', 50.0755, 14.4378, 'route-1'),
+            routed('stop-2', 50.0755, 14.4378, 'route-1'),
+        ]).getLocations(WORLD_BOUNDS, 8);
+
+        const cluster = drawn.find((pin) => pin.cluster);
+        expect(cluster?.cluster?.count).toBe(2);
+        expect(cluster?.cluster?.recordIds).toEqual(['a', 'b']);
+        expect(drawn.map((pin) => pin.id)).toContain('stop-1');
+        expect(drawn.map((pin) => pin.id)).toContain('stop-2');
+    });
+
+    it('still limits routed pins to the view', () => {
+        const drawn = createMapClusterIndex([
+            routed('inside', 50, 14, 'route-1'),
+            routed('outside', 10, -100, 'route-1'),
+        ]).getLocations({ north: 51, south: 49, east: 15, west: 13 }, 8);
+
+        expect(drawn.map((pin) => pin.id)).toEqual(['inside']);
+    });
+});
