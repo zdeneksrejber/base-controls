@@ -97,6 +97,20 @@ const config: StorybookConfig = {
       },
     ];
 
+    //the Code panel on the map pages looks a demo hook up in its own module by name, which the minifier
+    //would otherwise have shortened to a single letter
+    config.esbuild = { ...(config.esbuild || {}), keepNames: true };
+
+    //adaptivecards and adaptivecards-templating are CommonJS, so they need pre-bundling to import by name.
+    //adaptive-expressions, which the templating engine parses with, does not survive it - see the note on
+    //expandAdaptiveCardTemplate for what the control does about that.
+    config.optimizeDeps ??= {};
+    config.optimizeDeps.include = [
+      ...(config.optimizeDeps.include ?? []),
+      'adaptivecards',
+      'adaptivecards-templating'
+    ];
+
     config.server ??= {};
     config.server.fs ??= {};
     config.server.fs.allow = [
@@ -106,6 +120,24 @@ const config: StorybookConfig = {
     // prevents infinite or excessive watch recursion without breaking local source resolution.
     config.server.watch ??= {};
     config.server.watch.followSymlinks = false;
+    // server.fs.allow opens the parent up, so without this Vite watches the repo's node_modules and dist as
+    // well - tens of thousands of files, enough to exhaust the OS inotify instance limit and kill the server
+    config.server.watch.ignored = [
+      ...(Array.isArray(config.server.watch.ignored) ? config.server.watch.ignored : []),
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/storybook-static/**',
+      '**/.git/**',
+      '**/.yalc/**',
+    ];
+    // Watching this many source directories needs one inotify instance each, and a machine whose
+    // fs.inotify.max_user_instances is low enough will kill the dev server with ENOSPC on startup. Raising
+    // that limit is the real fix; STORYBOOK_POLL_WATCHER=1 trades some CPU for needing none of them.
+    if (process.env.STORYBOOK_POLL_WATCHER === '1') {
+      config.server.watch.usePolling = true;
+      config.server.watch.interval = 1000;
+      config.server.watch.binaryInterval = 2000;
+    }
     return config;
   },
 };

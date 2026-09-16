@@ -17,7 +17,10 @@
       "@talxis/base-controls/*": [
         "../src/*"
       ]
-    }
+    },
+    "types": [
+      "vite/client"
+    ]
   },
   "include": [
     "src",

@@ -5,7 +5,8 @@
       "name": "storybook",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "./storybook", "run", "storybook"],
-      "port": 6006
+      "port": 6006,
+      "env": { "STORYBOOK_POLL_WATCHER": "1" }
     }
   ]
 }
