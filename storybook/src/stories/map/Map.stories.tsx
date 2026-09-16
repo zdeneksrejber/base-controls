@@ -24,9 +24,10 @@ const MapDemo = ({ apiKey, showPins }: IMapDemoProps) => {
                 context={context}
                 parameters={{
                     Dataset: dataset,
-                    PinMetadata: mapPinMetadata,
-                    MapProvider: mapProvider,
+                    LatitudeAttributeName: { raw: mapPinMetadata.LatitudeAttributeName },
+                    LongitudeAttributeName: { raw: mapPinMetadata.LongitudeAttributeName },
                 }}
+                onGetMapProviders={() => [{ id: apiKey ? 'google' : 'leaflet', provider: mapProvider }]}
             />
         </div>
     )
