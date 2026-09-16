@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getClusterPinLabel, getClusterPinSize, getClusterPinSvg, getPinOpacity, getPinSvg } from './pinStyle';
+import { getClusterPinLabel, getClusterPinSize, getClusterPinSvg, getPinOpacity, getPinSvg, isSelectionOfCard } from './pinStyle';
 
 describe('getClusterPinLabel', () => {
     it('shows a small group exactly', () => {
@@ -58,5 +58,22 @@ describe('getPinOpacity', () => {
             cluster: { count: 3, recordIds: ['b', 'c', 'd'], expansionZoom: 12 }
         };
         expect(getPinOpacity(cluster, new Set(['a']))).toBe(1);
+    });
+});
+
+describe('isSelectionOfCard', () => {
+    it('is true for the one record the open card was opened for', () => {
+        expect(isSelectionOfCard('r1', ['r1'])).toBe(true);
+    });
+
+    it('leaves a selection built with ctrl/cmd+click alone', () => {
+        expect(isSelectionOfCard('r1', ['r1', 'r2'])).toBe(false);
+        expect(isSelectionOfCard('r1', ['r2'])).toBe(false);
+    });
+
+    it('is false with no open card, no selection, or a group card', () => {
+        expect(isSelectionOfCard(undefined, ['r1'])).toBe(false);
+        expect(isSelectionOfCard('r1', [])).toBe(false);
+        expect(isSelectionOfCard('cluster-7', ['r1'])).toBe(false);
     });
 });

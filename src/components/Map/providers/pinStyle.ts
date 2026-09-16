@@ -68,6 +68,14 @@ export const getClusterPinSvg = (count: number, color: string, textColor: string
 export const getPinOpacity = (location: IMapLocation, selectedIds: Set<string>): number =>
     location.cluster || selectedIds.size === 0 || selectedIds.has(location.id) ? 1 : UNSELECTED_PIN_OPACITY;
 
+/**
+ * Whether the dataset's selection is exactly the record an open card was opened for - what a plain click on
+ * a pin selects along with opening the card. Closing that card drops the selection again, so the pins it
+ * dimmed come back; a selection built with ctrl/cmd+click, or a group's card (never a record), is left alone.
+ */
+export const isSelectionOfCard = (openLocationId: string | undefined, selectedIds: readonly string[]): boolean =>
+    !!openLocationId && selectedIds.length === 1 && selectedIds[0] === openLocationId;
+
 /** Turns the dataset selection into pin styling, so every provider dims the pins outside it identically. */
 export const useMapPinSelection = (selectedLocationIds: string[]) => {
     const selectedIds = useMemo(() => new Set(selectedLocationIds), [selectedLocationIds]);

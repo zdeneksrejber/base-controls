@@ -188,6 +188,11 @@ theme as the rest of the control without the renderer providing one.
 card is open at a time**, which the control enforces by holding a single open pin rather than by asking
 providers to close each other's.
 
+A plain click on a pin selects its record in the dataset as well as opening the card, and the pins outside
+the selection dim. Closing the card the way the map offers - its close button, a click on the map - drops
+that selection again, so the map returns to how it looked; a selection built with ctrl/cmd+click is never
+touched, and neither is the selection when a card closes itself after one of its own actions.
+
 A card's buttons — and an Adaptive Card's `Action.Submit` carrying `webResourceName` and `functionName` —
 run through `ExecuteFunction`.
 

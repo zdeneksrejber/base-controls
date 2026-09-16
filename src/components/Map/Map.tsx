@@ -29,6 +29,7 @@ import { useMapSearch } from "./hooks/useMapSearch";
 import { useMapViewport } from "./hooks/useMapViewport";
 import { mapTranslations } from "./translations";
 import { getMapStyles } from "./styles";
+import { isSelectionOfCard } from "./providers/pinStyle";
 import { MapLegend } from "./map-legend";
 import { MapOverlay } from "./map-overlay";
 import { MapFilterPanel } from "./map-filter-panel";
@@ -349,6 +350,17 @@ export const Map = (props: IMap) => {
         onOpenCard(location);
     }, [dataset, onOpenCard]);
 
+    //a plain click selected the record along with opening its card; closing the card the way the map offers
+    //undoes both, so the pins the selection dimmed come back. A card's own close (a renderer's action that
+    //relies on the selection) goes straight to `cards.onCloseCard`, and a wider selection is never touched.
+    const openCardLocationId = cards.openCard?.locationId;
+    const onCloseCardFromMap = useCallback(() => {
+        if (isSelectionOfCard(openCardLocationId, selectedLocationIds)) {
+            dataset?.clearSelectedRecordIds();
+        }
+        cards.onCloseCard();
+    }, [openCardLocationId, selectedLocationIds, dataset, cards.onCloseCard]);
+
     const providerProps = useMemo<IMapProviderProps>(() => ({
         locations: drawnLocations,
         routes: routePaths.routes,
@@ -362,7 +374,7 @@ export const Map = (props: IMap) => {
         isPinDraggable: editing.isPinDraggable,
         onLocationClick,
         onViewportChange,
-        onCloseCard: cards.onCloseCard,
+        onCloseCard: onCloseCardFromMap,
         onLocationDragEnd: editing.onLocationDragEnd,
         onMapClick: editing.onMapClick
     }), [
@@ -374,7 +386,7 @@ export const Map = (props: IMap) => {
         theme,
         labels,
         cards.openCard,
-        cards.onCloseCard,
+        onCloseCardFromMap,
         ShowPointsOfInterest?.raw,
         editing.isPinDraggable,
         editing.onLocationDragEnd,
