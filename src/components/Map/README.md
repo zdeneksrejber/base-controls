@@ -102,7 +102,10 @@ view holds reads as records that do not exist.
 Pins that overlap in the current view are drawn as **one pin carrying the count**. The grouping is done in
 the control, over the viewport, so all four vendors group identically and the provider only ever receives
 what is inside the view — which is what makes a dataset of thousands usable. Clicking a grouped pin opens a
-card listing the records behind it, with a button to zoom to where the group comes apart.
+card listing the records behind it — one row per record, its pin and primary name by default, or whatever
+`onRenderClusterMember` draws — with a button to zoom to where the group comes apart. Picking a row shows
+that record's own card in the same place, with a way back to the list; a record's card, which may be
+expensive to bring up, is rendered only for the record the user picked, never for the whole group.
 
 `EnableClustering` is on by default; `ClusteringOptions` overrides the radius, the zoom ceiling and how many
 members a group lists.
@@ -177,6 +180,10 @@ a function" is one line of configuration:
 | `function` | Nothing is shown; the web resource in `webResourceName`/`functionName` runs instead. |
 | `none` | The pin only selects its record. |
 
+A card renders inside the vendor's own popup, outside the control's tree, so the control wraps it in a Fluent
+`ThemeProvider` carrying the control theme - a `Form` or a `Text` inside a custom renderer picks up the same
+theme as the rest of the control without the renderer providing one.
+
 `CardType`, `CardColumns` and `CardPayload` configure the card every pin opens when no rule matches. **One
 card is open at a time**, which the control enforces by holding a single open pin rather than by asking
 providers to close each other's.
@@ -218,6 +225,10 @@ difference: rendering a card never touches the dataset.
 `RouteAttributeName` groups pins sharing a value into one line. `RouteSequenceAttributeName` orders each
 line — a numeric sequence sorts as numbers, so stop 10 follows stop 9 — and `RouteColorAttributeName`
 colours it. A run of fewer than two pins is not a line and is dropped.
+
+A pin on a route whose line is drawn is **never merged into a cluster** - a line ending at a group's centroid
+reads as detached from the stop it connects. Pins of a route whose line is not drawn (filtered out through
+`onFilterRoutes`, say) cluster like any other pin, so zooming out does not pile up every routed stop.
 
 `SnapRoutesToRoads` asks the active directions service for the real path. It is optional in every sense: a
 control that does not ask for it draws straight lines, a vendor with no directions service leaves them

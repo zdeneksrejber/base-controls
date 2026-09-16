@@ -63,6 +63,21 @@ export interface IMapCardProps {
  */
 export type IMapCardRenderer = (props: IMapCardProps) => ReactNode;
 
+/** One record behind a grouped pin, as the group's card lists it. */
+export interface IMapClusterMemberProps {
+    record: IRecord;
+    /** The record's own pin, so a row can show it the way the map does. Absent for a record the map could not place. */
+    location?: IMapLocation;
+    theme: ITheme;
+    labels: IMapLabels;
+}
+
+/**
+ * Renders one row of a grouped pin's list. The default shows the record's pin and primary name; a host
+ * replaces it through `onRenderClusterMember` to show what tells its records apart.
+ */
+export type IMapClusterMemberRenderer = (props: IMapClusterMemberProps) => ReactNode;
+
 /** Renderers by card type. A host adds to these through `onGetCardRenderers`. */
 export interface IMapCardRenderers {
     [type: string]: IMapCardRenderer;

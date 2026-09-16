@@ -264,10 +264,13 @@ export const Map = (props: IMap) => {
         language
     });
 
+    //a drawn line needs its own pins on the map; pins of a route without one cluster like any other
+    const drawnRouteIds = useMemo(() => new Set(visibleRoutes.map((route) => route.id)), [visibleRoutes]);
     const drawnLocations = useMapClusters({
         locations: pins.locations,
         enabled: EnableClustering?.raw !== false,
         visibleViewport,
+        unclusteredRouteIds: drawnRouteIds,
         options: ClusteringOptions?.raw
     });
 
@@ -313,9 +316,11 @@ export const Map = (props: IMap) => {
 
     const cards = useMapCards({
         records,
+        locations: pins.locations,
         rules: cardRules,
         fallback: cardFallback,
         renderers: cardRenderers,
+        onRenderClusterMember: props.onRenderClusterMember,
         context: props.context,
         theme,
         labels,
@@ -431,7 +436,12 @@ export const Map = (props: IMap) => {
                     onToggle={filtering.onToggle}
                     onClear={filtering.onClear} />
             </MapOverlay>
-            <MapOverlay position='top-right' direction='row' theme={theme}>
+            {/*
+                stacked rather than in a row: both hug the right edge, so opening the legend grows it
+                downward and leftward on its own instead of widening a shared row and pushing the
+                provider picker across the map
+            */}
+            <MapOverlay position='top-right' theme={theme}>
                 {options.length > 1 &&
                     <MapProviderPicker
                         options={options}

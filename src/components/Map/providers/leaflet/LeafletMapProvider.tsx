@@ -1,5 +1,5 @@
 import L from 'leaflet';
-import { ReactNode, useEffect, useMemo, useState } from 'react';
+import { MouseEvent, ReactNode, useEffect, useMemo, useState, useRef } from 'react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { IMapLocation, IMapProvider, IMapProviderProps } from '../provider';
 import {
@@ -12,7 +12,8 @@ import {
     ROUTE_STROKE_WEIGHT,
     useMapPinSelection
 } from '../pinStyle';
-import { CARD_MAX_HEIGHT, CARD_MAX_WIDTH } from '../layout';
+import { CARD_MAX_WIDTH } from '../layout';
+import { useCardMaxHeight } from '../useCardMaxHeight';
 import { isMapSurfaceClick } from '../mapClick';
 import { getSafeFitPadding, isFiniteMapViewport, IMapViewport } from '../../internal/viewport';
 import { getLeafletMapProviderStyles } from './styles';
@@ -71,6 +72,22 @@ const getClusterIcon = (count: number, color: string, textColor: string) => {
         html: getClusterPinSvg(count, color, textColor)
     });
 };
+
+/**
+ * Space a popup keeps from the map's top left corner when it is panned into view: the zoom control lives
+ * there (two 30px buttons, 10px in from the edge) and is drawn above popups, so a card panned flush to the
+ * corner would have its top left - a back button, a title - covered by it.
+ */
+const POPUP_AUTO_PAN_PADDING_TOP_LEFT: L.PointTuple = [56, 10];
+const POPUP_AUTO_PAN_PADDING_BOTTOM_RIGHT: L.PointTuple = [10, 10];
+
+/**
+ * Keeps a click inside a card from reaching the map, where Leaflet would take it for a click on the map and
+ * close the popup. Leaflet decides that by walking up from the clicked element to the popup - but React also
+ * listens on the popup's content node, below the map's own listener, so a click that unmounts its own element
+ * (a list row opening a card, a back button) has detached it by the time Leaflet looks.
+ */
+const stopCardClick = (event: MouseEvent) => event.stopPropagation();
 
 const toLeafletBounds = (bounds: Required<IMapViewport>['bounds']) =>
     L.latLngBounds([bounds.south, bounds.west], [bounds.north, bounds.east]);
@@ -227,6 +244,15 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
         return built;
     };
     const selection = useMapPinSelection(selectedLocationIds);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const cardMaxHeight = useCardMaxHeight(containerRef);
+    //a stable identity per coordinate: react-leaflet re-adds the popup whenever `position` changes identity
+    const openCardLatitude = openCard?.coordinates.latitude;
+    const openCardLongitude = openCard?.coordinates.longitude;
+    const openCardPosition = useMemo<[number, number] | undefined>(
+        () => (openCardLatitude === undefined || openCardLongitude === undefined ? undefined : [openCardLatitude, openCardLongitude]),
+        [openCardLatitude, openCardLongitude]
+    );
     //keyed per location, so a selection or viewport re-render does not hand react-leaflet a new identity to rebind on
     const markerEventHandlers = useMemo(() => {
         const handlers = new Map<string, L.LeafletEventHandlerFnMap>();
@@ -244,7 +270,7 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
     }, [locations, onLocationClick, onLocationDragEnd]);
 
     return (
-        <div className={styles.container}>
+        <div ref={containerRef} className={styles.container}>
             <MapContainer
                 center={[viewport.center.latitude, viewport.center.longitude]}
                 zoom={viewport.zoom}
@@ -263,12 +289,17 @@ export const LeafletMap = (props: IMapProviderProps & ILeafletMapConfig) => {
                     <Popup
                         //a popup with no parent marker opens as it mounts, and closes whichever was open
                         key={openCard.locationId}
-                        position={[openCard.coordinates.latitude, openCard.coordinates.longitude]}
+                        position={openCardPosition!}
                         maxWidth={CARD_MAX_WIDTH}
-                        //one scrollbar, owned by Leaflet's scrolled-popup handling - cards inside must not scroll themselves
-                        maxHeight={CARD_MAX_HEIGHT}
+                        //one scrollbar, owned by Leaflet's scrolled-popup handling - cards inside must not scroll themselves;
+                        //capped by the map's own height so the popup always fits it (useCardMaxHeight)
+                        maxHeight={cardMaxHeight}
+                        //panned clear of the zoom control, which is drawn above popups and would cover a card's top left corner
+                        autoPanPaddingTopLeft={POPUP_AUTO_PAN_PADDING_TOP_LEFT}
+                        autoPanPaddingBottomRight={POPUP_AUTO_PAN_PADDING_BOTTOM_RIGHT}
                         onClose={onCloseCard}>
-                        {openCard.content}
+                        {/* a click inside the card is never a map click - see stopCardClick */}
+                        <div onClick={stopCardClick}>{openCard.content}</div>
                     </Popup>}
                 {routes.map((route) => (
                     <Polyline

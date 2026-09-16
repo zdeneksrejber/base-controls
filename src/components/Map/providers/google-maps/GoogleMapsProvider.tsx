@@ -1,11 +1,13 @@
 import { APIProvider, ColorScheme, InfoWindow, Map as GoogleMap, MapCameraChangedEvent, Marker, Polyline, useApiIsLoaded, useMap } from '@vis.gl/react-google-maps';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { createGoogleMapsDirectionsService } from './directions';
 import { createGoogleMapsGeocoder } from './geocoder';
 import { IMapLocation, IMapProvider, IMapProviderProps } from '../provider';
 import { isMapSurfaceClick } from '../mapClick';
-import { getClusterPinSize, getClusterPinSvg, getPinAnchor, getPinSize, getPinSvg, ROUTE_STROKE_WEIGHT, useMapPinSelection } from '../pinStyle';
+import { getClusterPinSize, getClusterPinSvg, getPinAnchor, getPinSize, getPinSvg, ROUTE_STROKE_WEIGHT, useMapPinSelection, toSvgDataUrl } from '../pinStyle';
 import { CARD_MAX_WIDTH } from '../layout';
+import { useCardMaxHeight } from '../useCardMaxHeight';
+import { GoogleMapsCard } from './GoogleMapsCard';
 import { IMapVendor } from '../vendors';
 import { IMapViewport } from '../../internal/viewport';
 import { getGoogleMapsProviderStyles } from './styles';
@@ -122,9 +124,12 @@ const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
         });
     }, [onViewportChange, viewport.padding]);
 
+    const containerRef = useRef<HTMLDivElement>(null);
+    const cardMaxHeight = useCardMaxHeight(containerRef);
+
     return (
         <APIProvider apiKey={apiKey}>
-            <div className={styles.container}>
+            <div ref={containerRef} className={styles.container}>
                 <GoogleMap
                     defaultCenter={{ lat: viewport.center.latitude, lng: viewport.center.longitude }}
                     defaultZoom={viewport.zoom}
@@ -148,7 +153,9 @@ const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
                             //Google steals focus into the window otherwise, which pulls the page around
                             shouldFocus={false}
                             onCloseClick={onCloseCard}>
-                            {openCard.content}
+                            <GoogleMapsCard containerRef={containerRef} className={styles.card} maxHeight={cardMaxHeight}>
+                                {openCard.content}
+                            </GoogleMapsCard>
                         </InfoWindow>}
                     {routes.map((route) => (
                         <Polyline
@@ -170,8 +177,6 @@ const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
     );
 };
 
-/** Wraps markup as a data url, so a Google marker can draw it without an image asset. */
-const toDataUrl = (svg: string) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 
 /**
  * The icon one pin is drawn with.
@@ -183,7 +188,7 @@ const getPinIcon = (location: IMapLocation, color: string, textColor: string): g
     if (location.cluster) {
         const size = getClusterPinSize(location.cluster.count);
         return {
-            url: toDataUrl(getClusterPinSvg(location.cluster.count, color, textColor)),
+            url: toSvgDataUrl(getClusterPinSvg(location.cluster.count, color, textColor)),
             scaledSize: new google.maps.Size(size, size),
             anchor: new google.maps.Point(size / 2, size / 2)
         };
@@ -191,7 +196,7 @@ const getPinIcon = (location: IMapLocation, color: string, textColor: string): g
     const size = getPinSize(location.pin);
     const anchor = getPinAnchor(location, size);
     return {
-        url: location.pin?.url ?? toDataUrl(location.pin?.svg ?? getPinSvg(location.pin?.color ?? color)),
+        url: location.pin?.url ?? toSvgDataUrl(location.pin?.svg ?? getPinSvg(location.pin?.color ?? color)),
         scaledSize: new google.maps.Size(size.width, size.height),
         anchor: new google.maps.Point(anchor.x, anchor.y)
     };

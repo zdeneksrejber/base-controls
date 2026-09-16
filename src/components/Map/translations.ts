@@ -74,6 +74,10 @@ export const mapTranslations = {
         1033: "Zoom in",
         1029: "Přiblížit"
     },
+    cardBack: {
+        1033: "Back to the list",
+        1029: "Zpět na seznam"
+    },
     cardDelete: {
         1033: "Delete",
         1029: "Odstranit"

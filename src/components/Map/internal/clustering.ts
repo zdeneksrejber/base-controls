@@ -21,6 +21,12 @@ export interface IMapClusteringOptions {
     maxZoom?: number;
     /** Member records a cluster lists. The count is always exact, however many are listed. */
     maxLeaves?: number;
+    /**
+     * Routes whose pins are never merged into a cluster - the ones whose line is drawn, since a line ending
+     * at a group's centroid reads as detached from the stop it connects. Pins of any other route cluster
+     * like everything else, so a zoomed-out map does not pile up every routed stop individually.
+     */
+    unclusteredRouteIds?: ReadonlySet<string>;
 }
 
 /** What a pin standing for several records knows about the group behind it. */
@@ -56,10 +62,12 @@ export const createMapClusterIndex = (
     options: IMapClusteringOptions = {}
 ): IMapClusterIndex => {
     const maxLeaves = options.maxLeaves ?? DEFAULT_CLUSTER_MAX_LEAVES;
-    //a pin on a route never joins a cluster: swallowing it into a group pin at the group's centroid
-    //visually detaches the route's line from the stop it connects
-    const routedLocations = locations.filter((location) => location.routeId);
-    const clusterableLocations = locations.filter((location) => !location.routeId);
+    //a pin on a drawn route never joins a cluster: swallowing it into a group pin at the group's centroid
+    //visually detaches the route's line from the stop it connects - a route without a line has no such line
+    const isUnclustered = (location: IMapLocation): boolean =>
+        !!location.routeId && !!options.unclusteredRouteIds?.has(location.routeId);
+    const routedLocations = locations.filter(isUnclustered);
+    const clusterableLocations = locations.filter((location) => !isUnclustered(location));
     const index = new Supercluster<IClusterPointProperties>({
         radius: options.radius ?? DEFAULT_CLUSTER_RADIUS,
         maxZoom: options.maxZoom ?? DEFAULT_CLUSTER_MAX_ZOOM,
@@ -104,7 +112,7 @@ export const createMapClusterIndex = (
                     cluster: getClusterInfo(properties.cluster_id, properties.point_count)
                 };
             }).filter((location): location is IMapLocation => !!location);
-            //routed pins pass the index by, but stay limited to the view like everything else
+            //pins of drawn routes pass the index by, but stay limited to the view like everything else
             return [...drawn, ...routedLocations.filter((location) => isWithin(location, bounds))];
         }
     };

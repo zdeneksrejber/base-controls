@@ -5,7 +5,7 @@ import { IMapTranslations } from "./translations";
 import { IMapProviderOption, IMapProviderProps, IMapRoute, IMapVendor } from "./providers";
 import { IMapFallbackLocationResolver } from "./internal/fallbackLocation";
 import { IMapPinResolver } from "./hooks/useMapClientApi";
-import { IMapCardRenderers, IMapCardType } from "./internal/cards";
+import { IMapCardRenderers, IMapCardType, IMapClusterMemberRenderer } from "./internal/cards";
 import { IMapClusteringOptions } from "./internal/clustering";
 import { IMapFilterMode } from "./internal/mapFilters";
 import { IMapPinLoading } from "./internal/records";
@@ -43,6 +43,11 @@ export interface IMap extends IControl<IMapParameters, IMapOutputs, IMapTranslat
      * Google Maps is registered through `onGetMapVendors`.
      */
     onGetCardRenderers?: () => IMapCardRenderers;
+    /**
+     * Renders one row of the list a grouped pin opens. The default row is the record's pin and primary name;
+     * a host shows what tells its records apart instead. A record's full card opens only once its row is picked.
+     */
+    onRenderClusterMember?: IMapClusterMemberRenderer;
 }
 
 export interface IMapParameters extends IParameters {

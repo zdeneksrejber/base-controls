@@ -1,9 +1,12 @@
-import { DefaultButton } from '@fluentui/react';
-import { Fragment, ReactNode, useMemo } from 'react';
+import { DefaultButton, IconButton } from '@fluentui/react';
+import { ReactNode, useMemo, useState } from 'react';
 import { IRecord } from '@talxis/client-libraries';
 import { ITheme } from '@legacy';
 import { IMapClusterInfo } from '../internal/clustering';
+import { IMapClusterMemberRenderer } from '../internal/cards';
+import { IMapLocation } from '../providers/provider';
 import { IMapLabels } from '../translations';
+import { MapClusterMemberList } from './map-cluster-member-list';
 import { getMapClusterCardStyles } from './styles';
 
 export interface IMapClusterCardProps {
@@ -12,36 +15,65 @@ export interface IMapClusterCardProps {
     records: IRecord[];
     labels: IMapLabels;
     theme: ITheme;
-    /** Renders one member's card, using whichever renderer that record's rules chose. */
+    /** The member's own pin, so its row can show it the way the map does. */
+    onGetMemberLocation: (record: IRecord) => IMapLocation | undefined;
+    /** Renders one row of the list. Defaults to the member's pin and primary name. */
+    onRenderMember?: IMapClusterMemberRenderer;
+    /** Renders the picked member's card, using whichever renderer that record's rules chose. */
     onRenderRecordCard: (record: IRecord) => ReactNode;
     /** Zooms the map to where the group comes apart. */
     onZoomIn: () => void;
 }
 
 /**
- * The card a grouped pin opens: the number of records behind it, and each of their cards.
+ * The card a grouped pin opens: the number of records behind it and one row per record, and - once a row is
+ * picked - that record's own card in the same place, with a way back to the list.
  *
- * A group can stand for thousands of records, so only the ones the clusterer listed are shown and the rest
- * are counted - zooming in is how you reach them.
+ * Rows rather than cards, because a group can stand for dozens of records and a record's card may be
+ * expensive to bring up; only the record the user picks pays that price. A group can stand for thousands,
+ * so only the ones the clusterer listed are shown and the rest are counted - zooming in is how you reach them.
+ *
+ * Which member is picked is this card's own state: a member that leaves the dataset while picked simply
+ * falls back to the list, and a different group is a different card (providers key the popup by pin).
  */
 export const MapClusterCard = (props: IMapClusterCardProps) => {
-    const styles = useMemo(() => getMapClusterCardStyles(props.theme), [props.theme]);
-    const notShown = props.cluster.count - props.records.length;
+    const { cluster, records, labels, theme, onGetMemberLocation, onRenderMember, onRenderRecordCard, onZoomIn } = props;
+    const styles = useMemo(() => getMapClusterCardStyles(theme), [theme]);
+    const [pickedRecordId, setPickedRecordId] = useState<string>();
+    const picked = pickedRecordId ? records.find((record) => record.getRecordId() === pickedRecordId) : undefined;
 
+    if (picked) {
+        const name = picked.getNamedReference()?.name;
+        return (
+            <div className={styles.root}>
+                <div className={styles.header}>
+                    <IconButton
+                        iconProps={{ iconName: 'Back' }}
+                        title={labels.cardBack()}
+                        ariaLabel={labels.cardBack()}
+                        onClick={() => setPickedRecordId(undefined)} />
+                    <span className={styles.title}>{typeof name === 'string' ? name : ''}</span>
+                </div>
+                {onRenderRecordCard(picked)}
+            </div>
+        );
+    }
+
+    const notShown = cluster.count - records.length;
     return (
         <div className={styles.root}>
             <div className={styles.header}>
-                <span className={styles.title}>{props.labels.cardGroup({ count: `${props.cluster.count}` })}</span>
-                <DefaultButton text={props.labels.cardZoomIn()} onClick={props.onZoomIn} />
+                <span className={styles.title}>{labels.cardGroup({ count: `${cluster.count}` })}</span>
+                <DefaultButton text={labels.cardZoomIn()} onClick={onZoomIn} />
             </div>
-            <div className={styles.list}>
-                {props.records.map((record) => (
-                    <div key={record.getRecordId()} className={styles.member}>
-                        {props.onRenderRecordCard(record)}
-                    </div>
-                ))}
-            </div>
-            {notShown > 0 && <span className={styles.more}>{props.labels.cardGroupMore({ count: `${notShown}` })}</span>}
+            <MapClusterMemberList
+                records={records}
+                labels={labels}
+                theme={theme}
+                onGetMemberLocation={onGetMemberLocation}
+                onRenderMember={onRenderMember}
+                onPick={setPickedRecordId} />
+            {notShown > 0 && <span className={styles.more}>{labels.cardGroupMore({ count: `${notShown}` })}</span>}
         </div>
     );
 };

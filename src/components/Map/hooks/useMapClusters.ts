@@ -10,6 +10,8 @@ export interface IUseMapClusters {
     enabled: boolean;
     /** What the map is showing, so grouping follows the user rather than the pins. */
     visibleViewport: IMapViewport;
+    /** Routes whose line is drawn - their pins stay out of clusters so the line keeps its stops. */
+    unclusteredRouteIds?: ReadonlySet<string>;
     options?: IMapClusteringOptions;
 }
 
@@ -20,14 +22,14 @@ export interface IUseMapClusters {
  * lookup rather than a rebuild.
  */
 export const useMapClusters = (props: IUseMapClusters): IMapLocation[] => {
-    const { locations, enabled, visibleViewport, options } = props;
+    const { locations, enabled, visibleViewport, unclusteredRouteIds, options } = props;
     const radius = options?.radius;
     const maxZoom = options?.maxZoom;
     const maxLeaves = options?.maxLeaves;
 
     const index = useMemo(
-        () => (enabled ? createMapClusterIndex(locations, { radius, maxZoom, maxLeaves }) : undefined),
-        [locations, enabled, radius, maxZoom, maxLeaves]
+        () => (enabled ? createMapClusterIndex(locations, { radius, maxZoom, maxLeaves, unclusteredRouteIds }) : undefined),
+        [locations, enabled, radius, maxZoom, maxLeaves, unclusteredRouteIds]
     );
 
     const bounds = visibleViewport.bounds;

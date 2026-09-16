@@ -42,6 +42,9 @@ export const getPinSvg = (color: string): string =>
         <circle cx="12" cy="12" r="4.5" fill="#ffffff" />
     </svg>`;
 
+/** Wraps markup as a data url, so an `<img>` or a marker can draw it without an image asset. */
+export const toSvgDataUrl = (svg: string): string => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+
 /** The SVG a pin standing for a group is drawn from, carrying the record count and sized by `getClusterPinSize`. */
 export const getClusterPinSvg = (count: number, color: string, textColor: string): string => {
     const size = getClusterPinSize(count);

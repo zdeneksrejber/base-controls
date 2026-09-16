@@ -1,8 +1,5 @@
 import { ITheme, mergeStyleSets } from '@fluentui/react';
 
-/** Height the stack of member cards may reach before it scrolls. */
-const MAX_HEIGHT = 300;
-
 export const getMapClusterCardStyles = (theme: ITheme) => {
     return mergeStyleSets({
         root: {
@@ -10,28 +7,28 @@ export const getMapClusterCardStyles = (theme: ITheme) => {
             maxWidth: 340,
             color: theme.semanticColors.bodyText
         },
+        //the popup owns the scrolling, so the header pins itself to the top of it - a member's card can be
+        //tall, and the way back to the list must never scroll out of reach
         header: {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 8,
-            marginBottom: 6
+            position: 'sticky',
+            top: 0,
+            zIndex: 1,
+            paddingBottom: 6,
+            marginBottom: 6,
+            backgroundColor: theme.semanticColors.bodyBackground,
+            borderBottom: `1px solid ${theme.semanticColors.bodyDivider}`
         },
         title: {
+            flexGrow: 1,
             fontWeight: 600,
-            fontSize: theme.fonts.mediumPlus.fontSize
-        },
-        list: {
-            maxHeight: MAX_HEIGHT,
-            overflowY: 'auto'
-        },
-        member: {
-            padding: '8px 0',
-            borderTop: `1px solid ${theme.semanticColors.bodyDivider}`,
-            ':first-child': {
-                borderTop: 'none',
-                paddingTop: 0
-            }
+            fontSize: theme.fonts.mediumPlus.fontSize,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
         },
         more: {
             display: 'block',

@@ -3,7 +3,7 @@ import { IStyle } from "@fluentui/react";
 /** Widest a card is allowed to be, so it never covers the map it is anchored on. */
 export const CARD_MAX_WIDTH = 340;
 
-/** Tallest a card popup grows before the popup itself scrolls - the one scrollbar a card gets. */
+/** Tallest a card popup grows before the popup itself scrolls - the one scrollbar a card gets. A shorter map lowers it, see useCardMaxHeight. */
 export const CARD_MAX_HEIGHT = 420;
 
 /**

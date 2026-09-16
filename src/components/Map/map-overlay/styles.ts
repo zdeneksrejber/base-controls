@@ -22,9 +22,9 @@ const POSITIONS: { [position in IMapOverlayPosition]: object } = {
 /**
  * How the chrome packs across the axis it does not run along.
  *
- * A stack hugs the edge it hangs off, so nothing drifts into the middle of the map. A row instead keeps its
- * children level with the top or bottom edge, so a piece of chrome that grows - a legend being opened - grows
- * away from the map's corner rather than pushing what sits beside it.
+ * A stack hugs the edge it hangs off, so nothing drifts into the middle of the map - and, in a corner anchored
+ * to the right, a child that grows widens on its own rather than pushing its siblings across the map, which is
+ * why the picker and the legend stack. A row instead keeps its children level with the top or bottom edge.
  */
 const getAlignItems = (position: IMapOverlayPosition, direction: IMapOverlayDirection) => {
     if (direction === 'row') {

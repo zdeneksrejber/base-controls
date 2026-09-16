@@ -1,4 +1,5 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { ThemeProvider } from '@fluentui/react';
 import { executeFunctionAsync, IRecord } from '@talxis/client-libraries';
 import { IContext } from '@interfaces';
 import { ITheme } from '@legacy';
@@ -8,7 +9,8 @@ import {
     IMapCardAction,
     IMapCardDefinition,
     IMapCardRenderers,
-    IMapCardRule
+    IMapCardRule,
+    IMapClusterMemberRenderer
 } from '../internal/cards';
 import { DEFAULT_MAP_CARD_RENDERERS } from '../map-card';
 import { MapClusterCard } from '../map-cluster-card';
@@ -18,12 +20,16 @@ import { IMapLabels } from '../translations';
 export interface IUseMapCards {
     /** Records currently drawn, so a pin can be traced back to the record behind it. */
     records: IRecord[];
+    /** Every pin the records produced, so a grouped pin's list can show each member's own pin. */
+    locations: IMapLocation[];
     /** Card rules from the `Cards` parameter. */
     rules: IMapCardRule[];
     /** The card used when no rule applies. */
     fallback?: IMapCardDefinition;
     /** Renderers on top of the built-in ones, keyed by card type. */
     renderers?: IMapCardRenderers;
+    /** Renders one row of a grouped pin's list, instead of the default pin and name. */
+    onRenderClusterMember?: IMapClusterMemberRenderer;
     context: IContext;
     theme: ITheme;
     labels: IMapLabels;
@@ -60,14 +66,16 @@ const executeCardAction = (action: IMapCardAction, record: IRecord) => {
  * Owns what happens when a pin is activated.
  *
  * One card is open at a time, enforced by holding a single open pin rather than by asking providers to close
- * each other's.
+ * each other's. A grouped pin opens `MapClusterCard`, which owns which of its members is picked.
  */
 export const useMapCards = (props: IUseMapCards): IMapCardsState => {
     const {
         records,
+        locations,
         rules,
         fallback,
         renderers,
+        onRenderClusterMember,
         context,
         theme,
         labels,
@@ -80,6 +88,10 @@ export const useMapCards = (props: IUseMapCards): IMapCardsState => {
     const recordsById = useMemo(
         () => new Map(records.map((record) => [record.getRecordId(), record])),
         [records]
+    );
+    const locationsById = useMemo(
+        () => new Map(locations.filter((location) => !location.cluster).map((location) => [location.id, location])),
+        [locations]
     );
     const allRenderers = useMemo(() => ({ ...DEFAULT_MAP_CARD_RENDERERS, ...renderers }), [renderers]);
     const getDefinition = useCallback(
@@ -168,16 +180,25 @@ export const useMapCards = (props: IUseMapCards): IMapCardsState => {
         if (!openLocation.cluster && !recordsById.has(openLocation.id)) {
             return undefined;
         }
+        const getMemberLocation = (record: IRecord) => locationsById.get(record.getRecordId());
+        //a member's card is rendered as its own pin's, not the group's - falling back to the group's
+        //coordinates for a record the map could not place on its own
+        const renderMemberCard = (record: IRecord) => renderRecordCard(
+            record,
+            getMemberLocation(record) ?? { ...openLocation, id: record.getRecordId(), cluster: undefined }
+        );
         const content = openLocation.cluster
             ? <MapClusterCard
                 cluster={openLocation.cluster}
                 records={getClusterRecords(openLocation)}
                 labels={labels}
                 theme={theme}
-                onRenderRecordCard={(record) => renderRecordCard(record, openLocation)}
+                onGetMemberLocation={getMemberLocation}
+                onRenderMember={onRenderClusterMember}
+                onRenderRecordCard={renderMemberCard}
                 onZoomIn={() => {
                     onZoomToCluster(openLocation);
-                    setOpenLocation(undefined);
+                    onCloseCard();
                 }} />
             : renderRecordCard(recordsById.get(openLocation.id), openLocation);
         if (!content) {
@@ -186,9 +207,11 @@ export const useMapCards = (props: IUseMapCards): IMapCardsState => {
         return {
             locationId: openLocation.id,
             coordinates: { latitude: openLocation.latitude, longitude: openLocation.longitude },
-            content
+            //a popup is the vendor's DOM, outside the control's tree - the card is themed here so anything
+            //inside it reading the Fluent theme (a Form, a Text) gets the control's rather than the default
+            content: <ThemeProvider theme={theme} applyTo='none'>{content}</ThemeProvider>
         };
-    }, [openLocation, recordsById, renderRecordCard, getClusterRecords, labels, theme, onZoomToCluster]);
+    }, [openLocation, recordsById, locationsById, renderRecordCard, getClusterRecords, onRenderClusterMember, labels, theme, onZoomToCluster, onCloseCard]);
 
     return { openCard, onOpenCard, onCloseCard };
 };
