@@ -16,3 +16,5 @@ storybook/storybook-static
 
 # local api keys for the Storybook map demos
 .env.local
+
+coverage
