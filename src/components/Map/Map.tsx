@@ -4,9 +4,8 @@ import { useControl } from "@hooks/useControl";
 import { useEventEmitter } from "@hooks/useEventEmitter";
 import { IMap } from "./interfaces";
 import { mapTranslations } from "./translations";
-import { IMapLocation } from "./providers";
+import { DEFAULT_MAP_PROVIDER, IMapLocation } from "./providers";
 import { getMapViewport, IMapViewport } from "./internal/viewport";
-import { createGoogleMapsProvider } from "./providers/google-maps/GoogleMapsProvider";
 import { getMapStyles } from "./styles";
 
 /**
@@ -16,7 +15,7 @@ import { getMapStyles } from "./styles";
  * dataset selection - what the V1 control did, read through the new parameters.
  */
 export const Map = (props: IMap) => {
-    const { Dataset: dataset, LatitudeAttributeName, LongitudeAttributeName, MapProviderId, GoogleApiKey } = props.parameters;
+    const { Dataset: dataset, LatitudeAttributeName, LongitudeAttributeName, MapProviderId } = props.parameters;
     const { labels, theme, onNotifyOutputChanged } = useControl('Map', props, mapTranslations);
     const [locations, setLocations] = useState<IMapLocation[]>([]);
     const [selectedLocationIds, setSelectedLocationIds] = useState<string[]>([]);
@@ -63,10 +62,9 @@ export const Map = (props: IMap) => {
     //handed over, so a host keeps `provider` stable across renders - a fresh identity would remount the map
     const hostOptions = props.onGetMapProviders?.();
     const hostOption = hostOptions?.find((option) => option.id === MapProviderId?.raw) ?? hostOptions?.[0];
-    //without a host list the manifest key builds Google Maps, the one vendor shipped so far
-    const googleApiKey = GoogleApiKey?.raw;
-    const googleProvider = useMemo(() => googleApiKey ? createGoogleMapsProvider({ apiKey: googleApiKey }) : undefined, [googleApiKey]);
-    const MapProvider = hostOption ? hostOption.provider : googleProvider;
+    //without a host list the map opens on the keyless built-in provider; the manifest vendors and api keys are
+    //resolved once the provider hooks land
+    const MapProvider = hostOption ? hostOption.provider : DEFAULT_MAP_PROVIDER;
 
     const viewport = useMemo(() => getMapViewport(locations), [locations]);
 
