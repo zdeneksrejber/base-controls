@@ -4,6 +4,8 @@ import { IMapGeocoder } from '../internal/geocoding';
 import { IMapProvider, IMapProviderOption } from './provider';
 import { useMapProviderCache } from './providerCache';
 import { createLeafletMapProvider, createNominatimGeocoder, createOsrmDirections } from './leaflet';
+import { createHereMapsProvider, createHereMapsGeocoder, createHereMapsDirectionsService } from './here-maps';
+import { createMapyProvider, createMapyGeocoder, createMapyDirectionsService } from './mapy';
 
 /**
  * A map vendor the control can build a provider for on its own, from an api key configured in the manifest -
@@ -50,6 +52,22 @@ const BUILT_IN_MAP_VENDORS: IMapVendor[] = [
         createProvider: () => DEFAULT_MAP_PROVIDER,
         createGeocoder: () => createNominatimGeocoder(),
         createDirections: () => createOsrmDirections()
+    },
+    {
+        id: 'here',
+        label: 'HERE',
+        apiKeyParameterName: 'HereApiKey',
+        createProvider: (apiKey) => createHereMapsProvider({ apiKey }),
+        createGeocoder: createHereMapsGeocoder,
+        createDirections: createHereMapsDirectionsService
+    },
+    {
+        id: 'mapy',
+        label: 'Mapy.com',
+        apiKeyParameterName: 'MapyApiKey',
+        createProvider: (apiKey) => createMapyProvider({ apiKey }),
+        createGeocoder: createMapyGeocoder,
+        createDirections: createMapyDirectionsService
     }
 ];
 

@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useMemo } from 'react'
-import { Map, createGoogleMapsProvider } from '@talxis/base-controls/components/Map'
+import { Map } from '@talxis/base-controls/components/Map'
+import { createGoogleMapsProvider } from '@talxis/base-controls/components/Map/providers/google-maps'
 import { usePcfContext } from '@talxis/base-controls/utils'
 import { createLeafletMapProvider } from './LeafletMapProvider'
 import { mapPinMetadata, useSampleMapDataset } from './useSampleMapDataset'

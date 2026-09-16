@@ -1,113 +1,221 @@
-import { APIProvider, Map, Marker, useMap } from '@vis.gl/react-google-maps';
-import { useEffect, useMemo } from 'react';
-import { IMapProvider, IMapProviderProps } from '../provider';
+import { APIProvider, ColorScheme, InfoWindow, Map as GoogleMap, MapCameraChangedEvent, Marker, Polyline, useApiIsLoaded, useMap } from '@vis.gl/react-google-maps';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { createGoogleMapsDirectionsService } from './directions';
+import { createGoogleMapsGeocoder } from './geocoder';
+import { IMapLocation, IMapProvider, IMapProviderProps } from '../provider';
+import { isMapSurfaceClick } from '../mapClick';
+import { getClusterPinSize, getClusterPinSvg, getPinAnchor, getPinSize, getPinSvg, ROUTE_STROKE_WEIGHT, useMapPinSelection, toSvgDataUrl } from '../pinStyle';
+import { CARD_MAX_WIDTH } from '../layout';
+import { useCardMaxHeight } from '../useCardMaxHeight';
+import { GoogleMapsCard } from './GoogleMapsCard';
+import { IMapVendor } from '../vendors';
+import { IMapViewport } from '../../internal/viewport';
 import { getGoogleMapsProviderStyles } from './styles';
+
+/**
+ * Hides the points of interest Google draws of its own accord, so the only pins on the map are the records.
+ * This is the one vendor here whose tiles can express it - the raster tile services cannot.
+ */
+const POI_OFF_STYLES: google.maps.MapTypeStyle[] = [
+    { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+    { featureType: 'transit', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] }
+];
 
 export interface IGoogleMapsConfig {
     apiKey: string;
 }
 
-//Czechia, used only if there are no pins and the IP-based guess below also fails
-const FALLBACK_CENTER = { lat: 49.8175, lng: 15.4730 };
-const FALLBACK_ZOOM = 6;
-//fitBounds on a single point collapses to the max zoom level, so it needs its own fixed zoom
-const SINGLE_LOCATION_ZOOM = 15;
-//IP-based geolocation is coarse, so the guessed view stays zoomed out enough to tolerate it being off by a city or two
-const IP_GUESS_ZOOM = 8;
-//lets a fast-loading dataset win the race and skip the network call entirely
-const IP_GUESS_DEBOUNCE_MS = 400;
-const IP_GUESS_TIMEOUT_MS = 2500;
-
-const fetchIpGeoData = async (signal: AbortSignal) => {
-    try {
-        const response = await fetch('https://get.geojs.io/v1/ip/geo.json', { signal });
-        return response.ok ? await response.json() : null;
-    } catch {
-        return null;
-    }
-};
-
-const guessLocationFromIp = async (signal: AbortSignal) => {
-    const data = await fetchIpGeoData(signal);
-    if (!data) {
-        return null;
-    }
-    const lat = parseFloat(data.latitude);
-    const lng = parseFloat(data.longitude);
-    return isNaN(lat) || isNaN(lng) ? null : { lat, lng };
-};
-
-const getBoundsLiteral = (locations: IMapProviderProps['locations']): google.maps.LatLngBoundsLiteral => {
-    let north = locations[0].latitude;
-    let south = locations[0].latitude;
-    let east = locations[0].longitude;
-    let west = locations[0].longitude;
-    for (const location of locations) {
-        north = Math.max(north, location.latitude);
-        south = Math.min(south, location.latitude);
-        east = Math.max(east, location.longitude);
-        west = Math.min(west, location.longitude);
-    }
-    return { north, south, east, west };
-};
-
-const FitBoundsOnLocationsChange = (props: { locations: IMapProviderProps['locations'] }) => {
+const ApplyViewport = (props: { viewport: IMapViewport }) => {
     const map = useMap();
 
     useEffect(() => {
         if (!map) {
             return;
         }
-        if (props.locations.length === 0) {
-            const controller = new AbortController();
-            const debounce = setTimeout(() => {
-                const timeout = setTimeout(() => controller.abort(), IP_GUESS_TIMEOUT_MS);
-                guessLocationFromIp(controller.signal).then((location) => {
-                    clearTimeout(timeout);
-                    if (!location) {
-                        return;
-                    }
-                    map.setCenter(location);
-                    map.setZoom(IP_GUESS_ZOOM);
-                });
-            }, IP_GUESS_DEBOUNCE_MS);
-
-            return () => {
-                clearTimeout(debounce);
-                controller.abort();
-            };
-        } try {
-            if (props.locations.length === 1) {
-                map.setCenter({ lat: props.locations[0].latitude, lng: props.locations[0].longitude });
-                map.setZoom(SINGLE_LOCATION_ZOOM);
+        const { bounds, center, zoom, padding } = props.viewport;
+        try {
+            //coordinates come off the dataset unvalidated, so a malformed one must not throw out of the effect
+            if (bounds) {
+                map.fitBounds(bounds, padding);
                 return;
             }
-            map.fitBounds(getBoundsLiteral(props.locations), 48);
+            map.setCenter({ lat: center.latitude, lng: center.longitude });
+            map.setZoom(zoom);
         } catch (error) {
-            console.warn('Map: failed to fit the viewport to the current pins:', error);
+            console.warn('GoogleMapsProvider: failed to apply the requested viewport:', error);
         }
-    }, [map, props.locations]);
+    }, [map, props.viewport]);
 
     return null;
 };
 
-const GoogleMapsMap = (props: IMapProviderProps & { apiKey: string }) => {
-    const styles = useMemo(() => getGoogleMapsProviderStyles(), []);
+interface IMapPinsProps extends Pick<IMapProviderProps, 'locations' | 'theme' | 'isPinDraggable' | 'onLocationClick' | 'onLocationDragEnd'> {
+    selection: ReturnType<typeof useMapPinSelection>;
+}
+
+/**
+ * The record pins.
+ *
+ * Held back until the Maps JS API is there: an icon is built out of `google.maps.Size` and
+ * `google.maps.Point`, neither of which exists before the api script has loaded - and a marker has nothing to
+ * attach to until then either.
+ */
+const MapPins = (props: IMapPinsProps) => {
+    const { locations, selection, theme, isPinDraggable, onLocationClick, onLocationDragEnd } = props;
+    const isApiLoaded = useApiIsLoaded();
+
+    if (!isApiLoaded) {
+        return null;
+    }
 
     return (
-        <APIProvider apiKey={props.apiKey}>
-            <div className={styles.container}>
-                <Map defaultCenter={FALLBACK_CENTER} defaultZoom={FALLBACK_ZOOM} disableDefaultUI style={{ width: '100%', height: '100%' }}>
-                    <FitBoundsOnLocationsChange locations={props.locations} />
-                    {props.locations.map((location) => (
-                        <Marker key={location.id} position={{ lat: location.latitude, lng: location.longitude }} />
+        <>
+            {locations.map((location) => (
+                <Marker
+                    key={location.id}
+                    position={{ lat: location.latitude, lng: location.longitude }}
+                    title={location.cluster ? `${location.cluster.count}` : location.pin?.title ?? location.label}
+                    icon={getPinIcon(location, theme.palette.themePrimary, theme.palette.white)}
+                    draggable={isPinDraggable?.(location) ?? false}
+                    opacity={selection.getOpacity(location)}
+                    zIndex={location.cluster ? 1000 + location.cluster.count : selection.isSelected(location) ? 1 : undefined}
+                    onClick={(event) => {
+                        const mouse = event.domEvent as MouseEvent | undefined;
+                        onLocationClick(location, { ctrlKey: mouse?.ctrlKey, metaKey: mouse?.metaKey, shiftKey: mouse?.shiftKey });
+                    }}
+                    onDragEnd={onLocationDragEnd && ((event) => {
+                        const position = event.latLng;
+                        if (position) {
+                            onLocationDragEnd(location, { latitude: position.lat(), longitude: position.lng() });
+                        }
+                    })} />
+            ))}
+        </>
+    );
+};
+
+const GoogleMapsMap = (props: IMapProviderProps & IGoogleMapsConfig) => {
+    const {
+        apiKey,
+        locations,
+        routes,
+        viewport,
+        selectedLocationIds,
+        theme,
+        openCard,
+        isPinDraggable,
+        showPointsOfInterest,
+        onLocationClick,
+        onViewportChange,
+        onCloseCard,
+        onLocationDragEnd,
+        onMapClick
+    } = props;
+    const styles = useMemo(() => getGoogleMapsProviderStyles(), []);
+    const selection = useMapPinSelection(selectedLocationIds);
+
+    const onCameraChanged = useCallback((event: MapCameraChangedEvent) => {
+        onViewportChange({
+            center: { latitude: event.detail.center.lat, longitude: event.detail.center.lng },
+            zoom: event.detail.zoom,
+            bounds: event.detail.bounds,
+            //never reported by the map itself, so it is threaded through from what the control asked for
+            padding: viewport.padding
+        });
+    }, [onViewportChange, viewport.padding]);
+
+    const containerRef = useRef<HTMLDivElement>(null);
+    const cardMaxHeight = useCardMaxHeight(containerRef);
+
+    return (
+        <APIProvider apiKey={apiKey}>
+            <div ref={containerRef} className={styles.container}>
+                <GoogleMap
+                    defaultCenter={{ lat: viewport.center.latitude, lng: viewport.center.longitude }}
+                    defaultZoom={viewport.zoom}
+                    colorScheme={theme.isInverted ? ColorScheme.DARK : ColorScheme.LIGHT}
+                    disableDefaultUI
+                    styles={showPointsOfInterest ? undefined : POI_OFF_STYLES}
+                    onCameraChanged={onCameraChanged}
+                    onClick={onMapClick && ((event) => {
+                        const position = event.detail.latLng;
+                        if (position && isMapSurfaceClick(event.domEvent?.target)) {
+                            onMapClick({ latitude: position.lat, longitude: position.lng });
+                        }
+                    })}
+                    className={styles.map}>
+                    <ApplyViewport viewport={viewport} />
+                    {openCard &&
+                        <InfoWindow
+                            key={openCard.locationId}
+                            position={{ lat: openCard.coordinates.latitude, lng: openCard.coordinates.longitude }}
+                            maxWidth={CARD_MAX_WIDTH}
+                            //Google steals focus into the window otherwise, which pulls the page around
+                            shouldFocus={false}
+                            onCloseClick={onCloseCard}>
+                            <GoogleMapsCard containerRef={containerRef} className={styles.card} maxHeight={cardMaxHeight}>
+                                {openCard.content}
+                            </GoogleMapsCard>
+                        </InfoWindow>}
+                    {routes.map((route) => (
+                        <Polyline
+                            key={route.id}
+                            path={(route.path ?? route.locations).map((point) => ({ lat: point.latitude, lng: point.longitude }))}
+                            strokeColor={route.color ?? theme.palette.themePrimary}
+                            strokeWeight={ROUTE_STROKE_WEIGHT} />
                     ))}
-                </Map>
+                    <MapPins
+                        locations={locations}
+                        selection={selection}
+                        theme={theme}
+                        isPinDraggable={isPinDraggable}
+                        onLocationClick={onLocationClick}
+                        onLocationDragEnd={onLocationDragEnd} />
+                </GoogleMap>
             </div>
         </APIProvider>
     );
 };
 
+
+/**
+ * The icon one pin is drawn with.
+ *
+ * A pin the control resolved nothing for still gets the shipped shape in the theme's colour, never Google's
+ * own default marker - switching providers must not change what the same record looks like.
+ */
+const getPinIcon = (location: IMapLocation, color: string, textColor: string): google.maps.Icon => {
+    if (location.cluster) {
+        const size = getClusterPinSize(location.cluster.count);
+        return {
+            url: toSvgDataUrl(getClusterPinSvg(location.cluster.count, color, textColor)),
+            scaledSize: new google.maps.Size(size, size),
+            anchor: new google.maps.Point(size / 2, size / 2)
+        };
+    }
+    const size = getPinSize(location.pin);
+    const anchor = getPinAnchor(location, size);
+    return {
+        url: location.pin?.url ?? toSvgDataUrl(location.pin?.svg ?? getPinSvg(location.pin?.color ?? color)),
+        scaledSize: new google.maps.Size(size.width, size.height),
+        anchor: new google.maps.Point(anchor.x, anchor.y)
+    };
+};
+
 export const createGoogleMapsProvider = (config: IGoogleMapsConfig): IMapProvider => {
     return (props: IMapProviderProps) => <GoogleMapsMap {...props} apiKey={config.apiKey} />;
+};
+
+/**
+ * Google Maps as a vendor the control configures itself, from the `GoogleApiKey` parameter. Registering it is
+ * the host's job because importing this module is what pulls the optional `@vis.gl/react-google-maps` peer
+ * dependency into the build. Spread it to adjust: `{ ...googleMapsVendor, label: 'Maps' }`.
+ */
+export const googleMapsVendor: IMapVendor = {
+    id: 'google',
+    label: 'Google Maps',
+    apiKeyParameterName: 'GoogleApiKey',
+    createProvider: (apiKey) => createGoogleMapsProvider({ apiKey }),
+    createGeocoder: createGoogleMapsGeocoder,
+    createDirections: createGoogleMapsDirectionsService
 };

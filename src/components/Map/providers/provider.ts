@@ -118,7 +118,8 @@ export interface IMapProviderOption {
     label?: string;
     /**
      * Rendered as handed over, so keep the same component identity across renders - memoize it on whatever
-     * configuration it was built from. A fresh identity remounts the map.
+     * configuration it was built from, or build the list through `useMapProviderCache`, which does that per
+     * `cacheKey`. A fresh identity remounts the map.
      */
     provider: IMapProvider;
     /** Turns addresses into coordinates and back. Omit for a provider with no geocoding service. */
