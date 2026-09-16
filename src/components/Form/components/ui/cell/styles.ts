@@ -53,6 +53,8 @@ export const getCellStyles = (params: ICellStylesParams) => {
     const { section, theme, rowspan = 1, requiredLevel } = params;
     const cellLabelPosition = getCellLabelPosition(section);
     const labelWidth = getLabelWidth({ section, cellLabelPosition, cellLabel: params.label });
+    //under a banded header the label is a caption to the value, not a heading of its own
+    const isBanded = section?.appearance === "banded";
 
     return mergeStyleSets({
         cell: {
@@ -80,13 +82,19 @@ export const getCellStyles = (params: ICellStylesParams) => {
         },
         labelText: {
             overflow: 'hidden',
-            padding: 0,
+            padding: isBanded ? '5px 0' : 0,
             textOverflow: 'ellipsis',
             overflowWrap: 'anywhere',
             display: '-webkit-box',
             '-webkit-box-orient': 'vertical',
             '-webkit-line-clamp': '3',
             flexGrow: cellLabelPosition === 'Top' ? 0 : 1,
+            ...(isBanded
+                ? {
+                    fontWeight: 400,
+                    color: theme.semanticColors.bodySubtext,
+                }
+                : {}),
         },
         labelWrapper: {
             display: 'flex',
