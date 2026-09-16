@@ -26,6 +26,13 @@ export default defineConfig({
         include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'storybook/src/**/*.test.ts'],
         //the live suite spends api quota, so it needs asking for by name
         exclude: ['**/node_modules/**', 'src/**/*.live.test.ts'],
-        restoreMocks: true
+        restoreMocks: true,
+        server: {
+            deps: {
+                //ESM packages importing `react/jsx-runtime` bare: React 17 has no exports map, so Node's own
+                //resolver rejects the extensionless subpath - Vite's does not, so these go through Vite
+                inline: [/@griffel\//, /@fluentui\//]
+            }
+        }
     }
 });

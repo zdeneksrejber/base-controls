@@ -270,6 +270,42 @@ In practice, that means `Form.Control` is the runtime bridge between:
 
 It is intended for the standard “pick the correct control for this field” path, while custom rendering can still be done by composing your own field content instead of using `Form.Control`.
 
+### Read-only fields
+
+`Form.Control readOnly` shows the field's formatted value as text instead of resolving an editor. Phone, email and url values render as links; an empty field reads as `---`, the way a locked field does on a model-driven form. Unlike `disabled`, nothing marks the field as locked - this is for a form that displays a record rather than edits it.
+
+```tsx
+<Form.Field name="telephone1">
+  <Form.Cell>
+    <Form.Control readOnly />
+  </Form.Cell>
+</Form.Field>
+```
+
+### Section appearance
+
+`Form.Section appearance` picks how a section is drawn:
+
+- `card` (default) - a raised, bordered panel with its label as a heading.
+- `banded` - the compact look of a record card: a flat body under a coloured header bar carrying the label in capitals, with cell labels muted next to their values.
+
+A banded section is what a read-only card composes from. Pair it with `labelWidth` and `cellLabelCollapseBreakpoint={0}` to keep labels on the left in a narrow container - the default breakpoint (371px) moves them on top.
+
+```tsx
+<Form.Section label="Basic information" appearance="banded" layout={{ lg: 1 }} labelWidth={110} cellLabelCollapseBreakpoint={0}>
+  <Form.Field name="name"><Form.Cell><Form.Control readOnly /></Form.Cell></Form.Field>
+  <Form.Field name="telephone1"><Form.Cell><Form.Control readOnly /></Form.Cell></Form.Field>
+</Form.Section>
+```
+
+### Loading skeleton
+
+While the strategy loads, `Form.Root` shows `Form.Skeleton`. `skeletonProps` shapes it after the form it stands in for:
+
+```tsx
+<Form.Root strategy={strategy} skeletonProps={{ sectionCount: 2, fieldsPerSection: 4, showRibbon: false }}>
+```
+
 ### `Form.Ribbon`
 
 `Form.Ribbon` renders the built-in command bar for save interactions.

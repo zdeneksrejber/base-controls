@@ -2,6 +2,7 @@ import { IFieldValidationResult } from "@talxis/client-libraries";
 import type { ReactNode } from "react";
 import type { IFormLabels } from "./labels";
 import type { IFormStrategy } from "./strategies/interfaces";
+import type { ISkeletonProps } from "./components/ui/skeleton";
 
 /**
  * Minimal public field API exposed through {@link IFormApi}.
@@ -117,4 +118,10 @@ export interface IFormProps extends Partial<IFormEventHandlers> {
      * Localized label overrides for built-in Form UI.
      */
     labels?: Partial<IFormLabels>;
+
+    /**
+     * Shapes the skeleton shown while the strategy loads, so it resembles the form it stands in for -
+     * a card with two sections and no ribbon, say, rather than the full-page default.
+     */
+    skeletonProps?: ISkeletonProps;
 }

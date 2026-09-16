@@ -36,7 +36,7 @@ export const Root = (props: IFormProps) => {
     }, [strategy]);
 
     if (!formDeps) {
-        return <FormUi.Skeleton />
+        return <FormUi.Skeleton {...props.skeletonProps} />
     }
 
     return <RootInternal {...props} deps={formDeps} onRefreshRequested={onRefreshRequested} />

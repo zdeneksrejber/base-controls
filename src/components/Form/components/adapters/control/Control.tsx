@@ -11,6 +11,11 @@ import { ControlComponentContext, useControlComponents } from "./context";
 export interface IControlProps {
     id?: string;
     disabled?: boolean;
+    /**
+     * Shows the field's formatted value as text instead of an editor - for a form that displays a record
+     * rather than edits it. Unlike `disabled`, nothing marks the field as locked.
+     */
+    readOnly?: boolean;
     components?: Partial<IControlComponents>;
 }
 
