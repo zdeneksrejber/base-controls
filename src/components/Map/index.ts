@@ -18,3 +18,6 @@ export * from './internal/pinAppearance';
 export * from './internal/records';
 export * from './internal/viewport';
 export * from './hooks/useMapClientApi';
+export * from './map-card';
+export * from './map-cluster-card';
+export * from './map-pin-swatch';
