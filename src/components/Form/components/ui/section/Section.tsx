@@ -5,11 +5,20 @@ import React from "react";
 import { ILayoutBreakpoints, Layout } from "@components/Form/layout";
 import { useCalculatedColumns } from "@components/Form/layout/useCalculatedColumns";
 
+/**
+ * How a section is drawn.
+ *
+ * `card` is the default - a raised, bordered panel with its label as a heading. `banded` is the compact look
+ * of a read-only record card: a flat body under a coloured header bar carrying the label in capitals.
+ */
+export type ISectionAppearance = "card" | "banded";
+
 export interface ISectionProps {
     id?: string;
     showLabel?: boolean;
     showBar?: boolean;
     visible?: boolean;
+    appearance?: ISectionAppearance;
     layout?: Partial<ILayoutBreakpoints>;
     labelWidth?: number;
     cellLabelCollapseBreakpoint?: number;
@@ -19,7 +28,7 @@ export interface ISectionProps {
 }
 
 export const Section = (props: ISectionProps) => {
-    const { children, showBar = true, showLabel = true, label, id } = props;
+    const { children, showBar = true, showLabel = true, label, id, appearance = "card" } = props;
     const isHeaderVisible = showBar && showLabel && label;
 
     const bodyContainerRef = React.useRef<HTMLDivElement>(null);
@@ -36,10 +45,10 @@ export const Section = (props: ISectionProps) => {
     const theme = useTheme();
     const styles = getSectionStyles({ section: props, theme });
 
-    return <div className={styles.section} data-id={`section-${id}`}>
+    return <div className={styles.section} data-id={`section-${id}`} data-appearance={appearance}>
         {isHeaderVisible && (
             <div className={styles.header}>
-                <Text variant="mediumPlus" className={styles.title}>
+                <Text variant={appearance === "banded" ? "small" : "mediumPlus"} className={styles.title}>
                     {label}
                 </Text>
             </div>
