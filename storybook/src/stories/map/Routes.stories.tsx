@@ -49,7 +49,7 @@ const Connections = ({ snap, vendor }: { snap: boolean; vendor: string }) => {
             parameters={{
                 ...ROUTE_PARAMETERS,
                 SnapRoutesToRoads: { raw: snap },
-                DefaultVendor: { raw: vendor }
+                DefaultMapProviderId: { raw: vendor }
             }}
         />
     )

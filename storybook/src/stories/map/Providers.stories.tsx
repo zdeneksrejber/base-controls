@@ -39,7 +39,7 @@ Adding a vendor of your own is the same call. The
 
 interface IProvidersProps {
     showPointsOfInterest: boolean
-    letUserSwitch: boolean
+    enableProviderSwitching: boolean
 }
 
 const Providers = (props: IProvidersProps) => {
@@ -55,9 +55,9 @@ const Providers = (props: IProvidersProps) => {
                 LatitudeAttributeName: { raw: SAMPLE_ATTRIBUTES.latitude },
                 LongitudeAttributeName: { raw: SAMPLE_ATTRIBUTES.longitude },
                 ShowPointsOfInterest: { raw: props.showPointsOfInterest },
-                LetUserSwitch: { raw: props.letUserSwitch },
+                EnableProviderSwitching: { raw: props.enableProviderSwitching },
                 EnableClustering: { raw: false },
-                DefaultVendor: { raw: preferredVendor('google', 'here') }
+                DefaultMapProviderId: { raw: preferredVendor('google', 'here') }
             }}
         />
     )
@@ -73,7 +73,7 @@ const meta = {
             table: { category: 'Manifest properties' },
             description: 'Whether the map draws the shops, stations and landmarks its vendor knows about.'
         },
-        letUserSwitch: {
+        enableProviderSwitching: {
             control: 'boolean',
             table: { category: 'Manifest properties' },
             description: 'Whether the picker offers every configured vendor, or the map draws the default alone.'
@@ -81,7 +81,7 @@ const meta = {
     },
     args: {
         showPointsOfInterest: false,
-        letUserSwitch: true
+        enableProviderSwitching: true
     },
     parameters: mapStoryParameters(INTRO)
 } satisfies Meta<typeof Providers>
@@ -97,7 +97,7 @@ export const SwitchProviders: Story = {
                 story: [
                     'The picker in the corner offers every vendor whose api key is configured. Switching redraws',
                     'the same pins through a different map, and the new one opens on the view the last one was',
-                    'showing rather than snapping back to the pins. Turn **letUserSwitch** off and the picker goes',
+                    'showing rather than snapping back to the pins. Turn **enableProviderSwitching** off and the picker goes',
                     'away — the map draws the default vendor and nothing else.',
                     '',
                     'Turn **showPointsOfInterest** on to bring back the shops, stations and landmarks. It is off by',

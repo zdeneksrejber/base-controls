@@ -50,7 +50,7 @@ const ColouredPins = () => {
                 ...COORDINATES,
                 PinIcons: { raw: PIN_RULES },
                 EnableClustering: { raw: false },
-                DefaultVendor: { raw: 'leaflet' }
+                DefaultMapProviderId: { raw: 'leaflet' }
             }}
         />
     )
@@ -111,7 +111,7 @@ const ChartPins = () => {
     return (
         <MapDemo
             dataset={dataset}
-            parameters={{ ...COORDINATES, EnableClustering: { raw: false }, DefaultVendor: { raw: 'leaflet' } }}
+            parameters={{ ...COORDINATES, EnableClustering: { raw: false }, DefaultMapProviderId: { raw: 'leaflet' } }}
             onResolvePin={getCapacityPin}
             hookSource={hookSource}
         />
@@ -174,7 +174,7 @@ const FieldsCard = () => {
                 ...COORDINATES,
                 Cards: { raw: CARD_RULES },
                 EnableClustering: { raw: false },
-                DefaultVendor: { raw: 'leaflet' }
+                DefaultMapProviderId: { raw: 'leaflet' }
             }}>
             <ExecutedNote executed={executed} hint="open a pin and press a button" />
         </MapDemo>
@@ -220,7 +220,7 @@ const AdaptiveCards = () => {
                 CardType: { raw: 'adaptiveCard' },
                 CardPayload: { raw: ADAPTIVE_CARD_TEMPLATE },
                 EnableClustering: { raw: false },
-                DefaultVendor: { raw: 'leaflet' }
+                DefaultMapProviderId: { raw: 'leaflet' }
             }}
             hookSource={hookSource}
             onGetCardRenderers={getAdaptiveCardRenderers}>
@@ -281,7 +281,7 @@ const GroupedCard = () => {
                 CardColumns: { raw: 'name,category,capacity' },
                 PinIcons: { raw: PIN_RULES },
                 EnableClustering: { raw: true },
-                DefaultVendor: { raw: 'leaflet' }
+                DefaultMapProviderId: { raw: 'leaflet' }
             }}
         />
     )

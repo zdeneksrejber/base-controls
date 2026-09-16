@@ -51,12 +51,15 @@ export const LEGEND_HTML = `
 /** The attributes a created or moved pin writes its resolved address back to. */
 export const ADDRESS_BINDINGS = {
     FullAddressAttributeName: { raw: 'address' },
-    CountryAttributeName: { raw: 'country' },
-    AdministrativeAreaAttributeName: { raw: 'region' },
-    LocalityAttributeName: { raw: 'city' },
-    SublocalityAttributeName: { raw: 'district' },
-    StreetAttributeName: { raw: 'street' },
-    StreetNameAttributeName: { raw: 'streetLine' },
-    StreetNumberAttributeName: { raw: 'streetNumber' },
-    PostalCodeAttributeName: { raw: 'postalCode' }
+    AddressAttributeNames: {
+        raw: JSON.stringify({
+            country: 'country',
+            administrativeArea: 'region',
+            locality: 'city',
+            subLocality: 'district',
+            street: 'street',
+            streetNumber: 'streetNumber',
+            postalCode: 'postalCode'
+        })
+    }
 }

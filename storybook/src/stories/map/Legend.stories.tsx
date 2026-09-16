@@ -43,7 +43,7 @@ const Legend = () => {
                 PinIcons: { raw: PIN_RULES },
                 Legend: { raw: LEGEND_WITH_ATTACKS },
                 EnableClustering: { raw: false },
-                DefaultVendor: { raw: 'leaflet' }
+                DefaultMapProviderId: { raw: 'leaflet' }
             }}
         />
     )

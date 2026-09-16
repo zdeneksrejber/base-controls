@@ -52,7 +52,7 @@ const AddressFallback = () => {
                 ...COORDINATES,
                 FullAddressAttributeName: { raw: SAMPLE_ATTRIBUTES.address },
                 EnableClustering: { raw: false },
-                DefaultVendor: { raw: preferredVendor('here') }
+                DefaultMapProviderId: { raw: preferredVendor('here') }
             }}
         />
     )
@@ -89,11 +89,16 @@ const GeocodedRecordTable = ({ dataset }: { dataset: IDataset }) => {
         const rerender = () => setVersion((current) => current + 1)
         //the control's write-back reports itself as a saved record, not as newly loaded data
         const events = ['onNewDataLoaded', 'onAfterSaved', 'onAfterRecordSaved'] as const
-        events.forEach((event) => dataset.addEventListener(event, rerender as IDataProviderEventListeners[typeof event]))
+        for (const event of events) {
+            dataset.addEventListener(event, rerender as IDataProviderEventListeners[typeof event])
+        }
         //the first load may already have finished by the time this runs, so read once rather than wait
         rerender()
-        return () => events.forEach((event) =>
-            dataset.removeEventListener(event, rerender as IDataProviderEventListeners[typeof event]))
+        return () => {
+            for (const event of events) {
+                dataset.removeEventListener(event, rerender as IDataProviderEventListeners[typeof event])
+            }
+        }
     }, [dataset])
 
     return (
@@ -146,7 +151,7 @@ const CoordinatesSavedBack = () => {
                 FullAddressAttributeName: { raw: SAMPLE_ATTRIBUTES.address },
                 EnableClustering: { raw: false },
                 //the keyless provider, whose usage policy this is all about
-                DefaultVendor: { raw: 'leaflet' }
+                DefaultMapProviderId: { raw: 'leaflet' }
             }}>
             <GeocodedRecordTable dataset={dataset} />
         </MapDemo>
@@ -205,7 +210,7 @@ const Paging = ({ loadAll }: { loadAll: boolean }) => {
                 ...COORDINATES,
                 PinLoading: { raw: loadAll ? 'all' : 'page' },
                 EnableClustering: { raw: false },
-                DefaultVendor: { raw: 'leaflet' }
+                DefaultMapProviderId: { raw: 'leaflet' }
             }}
         />
     )
@@ -251,7 +256,7 @@ const LargeDataset = () => {
                 ...COORDINATES,
                 PinLoading: { raw: 'all' },
                 EnableClustering: { raw: true },
-                DefaultVendor: { raw: 'leaflet' }
+                DefaultMapProviderId: { raw: 'leaflet' }
             }}
         />
     )
@@ -287,7 +292,7 @@ const Filtering = () => {
                 FilterAttributeNames: { raw: 'category,city' },
                 FilterMode: { raw: 'pins' },
                 EnableClustering: { raw: false },
-                DefaultVendor: { raw: 'leaflet' }
+                DefaultMapProviderId: { raw: 'leaflet' }
             }}
         />
     )
@@ -323,7 +328,7 @@ const Search = () => {
                 EnableSearch: { raw: true },
                 EnableAddressSearch: { raw: true },
                 EnableClustering: { raw: false },
-                DefaultVendor: { raw: preferredVendor('mapy') }
+                DefaultMapProviderId: { raw: preferredVendor('mapy') }
             }}
         />
     )

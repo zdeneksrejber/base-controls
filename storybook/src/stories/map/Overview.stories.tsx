@@ -14,8 +14,8 @@ import hookSource from './Overview.stories.tsx?raw'
 const MANIFEST = 'Manifest properties'
 
 interface IOverviewProps {
-    defaultVendor: 'leaflet' | 'here' | 'mapy' | 'google'
-    letUserSwitch: boolean
+    defaultMapProviderId: 'leaflet' | 'here' | 'mapy' | 'google'
+    enableProviderSwitching: boolean
     showPointsOfInterest: boolean
     groupOverlappingPins: boolean
     colourPinsByCategory: boolean
@@ -40,8 +40,8 @@ const OverviewPlayground = (props: IOverviewProps) => {
                 LatitudeAttributeName: { raw: SAMPLE_ATTRIBUTES.latitude },
                 LongitudeAttributeName: { raw: SAMPLE_ATTRIBUTES.longitude },
                 FullAddressAttributeName: { raw: SAMPLE_ATTRIBUTES.address },
-                DefaultVendor: { raw: props.defaultVendor },
-                LetUserSwitch: { raw: props.letUserSwitch },
+                DefaultMapProviderId: { raw: props.defaultMapProviderId },
+                EnableProviderSwitching: { raw: props.enableProviderSwitching },
                 ShowPointsOfInterest: { raw: props.showPointsOfInterest },
                 EnableClustering: { raw: props.groupOverlappingPins },
                 PinIcons: { raw: props.colourPinsByCategory ? PIN_RULES : '' },
@@ -92,13 +92,13 @@ const meta = {
     component: OverviewPlayground,
     tags: ['autodocs'],
     argTypes: {
-        defaultVendor: {
+        defaultMapProviderId: {
             control: 'inline-radio',
             options: ['leaflet', 'here', 'mapy', 'google'],
             table: { category: MANIFEST },
             description: 'The vendor the map opens with. One whose api key is not filled in falls back to OpenStreetMap and warns.'
         },
-        letUserSwitch: {
+        enableProviderSwitching: {
             control: 'boolean',
             table: { category: MANIFEST },
             description: 'Whether the picker offers every configured vendor, or the map draws the default alone.'
@@ -156,8 +156,8 @@ const meta = {
         }
     },
     args: {
-        defaultVendor: preferredVendor('mapy', 'here') as IOverviewProps['defaultVendor'],
-        letUserSwitch: true,
+        defaultMapProviderId: preferredVendor('mapy', 'here') as IOverviewProps['defaultMapProviderId'],
+        enableProviderSwitching: true,
         showPointsOfInterest: false,
         groupOverlappingPins: true,
         colourPinsByCategory: true,

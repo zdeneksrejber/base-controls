@@ -36,7 +36,6 @@ const ADDRESS_COLUMNS: IColumn[] = [
     { name: 'region', alias: 'region', displayName: 'Region', dataType: DataTypes.SingleLineText, order: 21, visualSizeFactor: 120 },
     { name: 'district', alias: 'district', displayName: 'District', dataType: DataTypes.SingleLineText, order: 22, visualSizeFactor: 120 },
     { name: 'street', alias: 'street', displayName: 'Street', dataType: DataTypes.SingleLineText, order: 23, visualSizeFactor: 140 },
-    { name: 'streetLine', alias: 'streetLine', displayName: 'Street line', dataType: DataTypes.SingleLineText, order: 24, visualSizeFactor: 160 },
     { name: 'streetNumber', alias: 'streetNumber', displayName: 'Number', dataType: DataTypes.SingleLineText, order: 25, visualSizeFactor: 100 },
     { name: 'postalCode', alias: 'postalCode', displayName: 'Postal code', dataType: DataTypes.SingleLineText, order: 26, visualSizeFactor: 100 }
 ]
@@ -48,11 +47,16 @@ const RecordTable = ({ dataset, columns }: { dataset: IDataset; columns: string[
         const rerender = () => setVersion((current) => current + 1)
         //a create or an edit reports itself as a saved record, not as newly loaded data
         const events = ['onNewDataLoaded', 'onAfterSaved', 'onAfterRecordSaved'] as const
-        events.forEach((event) => dataset.addEventListener(event, rerender as IDataProviderEventListeners[typeof event]))
+        for (const event of events) {
+            dataset.addEventListener(event, rerender as IDataProviderEventListeners[typeof event])
+        }
         //the first load may already have finished by the time this runs, so read once rather than wait
         rerender()
-        return () => events.forEach((event) =>
-            dataset.removeEventListener(event, rerender as IDataProviderEventListeners[typeof event]))
+        return () => {
+            for (const event of events) {
+                dataset.removeEventListener(event, rerender as IDataProviderEventListeners[typeof event])
+            }
+        }
     }, [dataset])
 
     const records = dataset.getRecords()
@@ -88,7 +92,7 @@ const DragPins = () => {
                 ...COORDINATES,
                 EnablePinDragging: { raw: true },
                 EnableClustering: { raw: false },
-                DefaultVendor: { raw: 'leaflet' }
+                DefaultMapProviderId: { raw: 'leaflet' }
             }}>
             <RecordTable dataset={dataset} columns={['name', 'lat', 'lng']} />
         </MapDemo>
@@ -137,10 +141,10 @@ const CreatePins = () => {
                 EnablePinCreation: { raw: true },
                 EnablePinDragging: { raw: true },
                 EnableClustering: { raw: false },
-                CardColumns: { raw: 'address,city,street,streetLine,postalCode,country' },
-                DefaultVendor: { raw: preferredVendor('here') }
+                CardColumns: { raw: 'address,city,street,streetNumber,postalCode,country' },
+                DefaultMapProviderId: { raw: preferredVendor('here') }
             }}>
-            <RecordTable dataset={dataset} columns={['streetLine', 'city', 'postalCode', 'country', 'lat', 'lng']} />
+            <RecordTable dataset={dataset} columns={['street', 'streetNumber', 'city', 'postalCode', 'country', 'lat', 'lng']} />
         </MapDemo>
     )
 }
@@ -175,7 +179,7 @@ const PrefillLocation = (props: { prefillUserLocation: boolean }) => {
                 ...COORDINATES,
                 PrefillUserLocation: { raw: props.prefillUserLocation },
                 EnablePinCreation: { raw: true },
-                DefaultVendor: { raw: 'leaflet' }
+                DefaultMapProviderId: { raw: 'leaflet' }
             }}
         />
     )

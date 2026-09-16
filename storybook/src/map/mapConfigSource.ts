@@ -242,40 +242,42 @@ export const getMapConfigSource = (
     const declarations: string[] = []
     const lines: string[] = []
 
-    Object.entries(parameters).forEach(([propertyName, property]) => {
+    for (const [propertyName, property] of Object.entries(parameters)) {
         if (propertyName === 'Dataset' || !property) {
-            return
+            continue
         }
         const raw = (property as { raw?: unknown }).raw
         //an unset property is the default, and listing every default is noise rather than configuration
         if (raw === '' || raw === undefined || raw === null) {
-            return
+            continue
         }
         const { inline, declaration } = formatValue(propertyName, raw)
         if (declaration) {
             declarations.push(declaration)
         }
         lines.push(`        ${propertyName}: { raw: ${indent(inline, 8)} },`)
-    })
+    }
 
     const hookLines: string[] = []
-    Object.entries(options.hooks ?? {}).forEach(([propName, hook]) => {
+    for (const [propName, hook] of Object.entries(options.hooks ?? {})) {
         if (!hook) {
-            return
+            continue
         }
         const { inline, declaration } = formatHook(propName, hook, options.hookSource)
         if (declaration) {
             declarations.push(declaration)
         }
         hookLines.push(`    ${propName}={${inline}}`)
-    })
+    }
 
-    Object.entries(options.props ?? {}).forEach(([propName, value]) => {
+    for (const [propName, value] of Object.entries(options.props ?? {})) {
         const { value: written, note } = typeof value === 'string' ? { value, note: undefined } : value
         //a comment inside a JSX opening tag is valid, and this is the one place a reader needs one
-        note?.split('\n').forEach((line) => hookLines.push(`    //${line}`))
+        for (const line of note?.split('\n') ?? []) {
+            hookLines.push(`    //${line}`)
+        }
         hookLines.push(`    ${propName}={${written}}`)
-    })
+    }
 
     const dataset = formatDataset(options.sampleDataset)
 

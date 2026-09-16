@@ -51,10 +51,10 @@ describe('getMapConfigSource', () => {
             });
             const imports = importsOf(source);
             expect(imports.length).toBeGreaterThan(0);
-            imports.forEach((statement) => {
+            for (const statement of imports) {
                 expect(statement, statement).toMatch(CONSUMER_PATHS);
                 expect(statement, statement).not.toMatch(/@talxis\/base-controls\/(?!dist\/)/);
-            });
+            }
         });
 
         it('takes the control off the barrel and an optional peer off its own entry point', () => {

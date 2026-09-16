@@ -71,7 +71,9 @@ export const setMapApiKeys = (changed: Partial<IMapApiKeys>) => {
         //storing is a convenience; the session still gets the keys from the value below
     }
     keys = { ...EMPTY_KEYS, ...ENV_KEYS, ...kept }
-    listeners.forEach((listener) => listener())
+    for (const listener of listeners) {
+        listener()
+    }
 }
 
 /** Forgets every key the reader typed, leaving the build's own. */
@@ -82,7 +84,9 @@ export const clearMapApiKeys = () => {
         //nothing was stored, so nothing needs removing
     }
     keys = { ...EMPTY_KEYS, ...ENV_KEYS }
-    listeners.forEach((listener) => listener())
+    for (const listener of listeners) {
+        listener()
+    }
 }
 
 /** Whether this vendor's key came from the reader rather than from the build. */

@@ -106,7 +106,7 @@ export const MapDemo = (props: IMapDemoProps) => {
     const [selectedIds, setSelectedIds] = useState<string[]>([])
     const [showCode, setShowCode] = useState(false)
     const [showKeys, setShowKeys] = useState(false)
-    const [providerId, setProviderId] = useState<string | undefined>(props.parameters?.DefaultVendor?.raw ?? undefined)
+    const [providerId, setProviderId] = useState<string | undefined>(props.parameters?.DefaultMapProviderId?.raw ?? undefined)
     //the one vendor a wrapper must name in code: importing it is what pulls in the optional Google Maps peer
     const onGetMapVendors = useMemo(() => () => [googleMapsVendor], [])
 
