@@ -1,7 +1,7 @@
-import { IMap } from "../interfaces";
+import { IMap } from "./interfaces";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { IMapLocation } from "../providers";
-import { useEventEmitter } from "../../../hooks/useEventEmitter";
+import { IMapLocation } from "./providers";
+import { useEventEmitter } from "@hooks/useEventEmitter";
 import { IDataProviderEventListeners } from "@talxis/client-libraries";
 import { getMapStyles } from "./styles";
 

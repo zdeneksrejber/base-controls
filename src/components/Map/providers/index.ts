@@ -1,2 +1,2 @@
-export * from './IMapProvider';
-export * from './GoogleMaps/GoogleMapsProvider';
+export * from './provider';
+export * from './google-maps/GoogleMapsProvider';

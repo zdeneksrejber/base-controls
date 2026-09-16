@@ -1,6 +1,6 @@
 import { APIProvider, Map, Marker, useMap } from '@vis.gl/react-google-maps';
 import { useEffect, useMemo } from 'react';
-import { IMapProvider, IMapProviderProps } from '../IMapProvider';
+import { IMapProvider, IMapProviderProps } from '../provider';
 import { getGoogleMapsProviderStyles } from './styles';
 
 export interface IGoogleMapsConfig {
