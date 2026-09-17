@@ -106,10 +106,9 @@ export const withGeocodingCache = (geocoder: IMapGeocoder, maxEntries = 500): IM
     const forward = createResultCache<Promise<IMapPlace[]>>(maxEntries);
     const reverse = createResultCache<Promise<IMapPlace | null>>(maxEntries);
 
+    //everything the service says about itself passes through untouched; only the two lookups are wrapped
     return {
-        allowsTypeAhead: geocoder.allowsTypeAhead,
-        maxBulkRequests: geocoder.maxBulkRequests,
-        maxConcurrentRequests: geocoder.maxConcurrentRequests,
+        ...geocoder,
         geocode: (query, options) => {
             const key = `${options?.language ?? ''}|${options?.limit ?? ''}|${query}`;
             const cached = forward.get(key);

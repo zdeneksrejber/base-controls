@@ -28,7 +28,7 @@ export const useMapClusters = (props: IUseMapClusters): IMapLocation[] => {
     const maxLeaves = options?.maxLeaves;
 
     const index = useMemo(
-        () => (enabled ? createMapClusterIndex(locations, { radius, maxZoom, maxLeaves, unclusteredRouteIds }) : undefined),
+        () => (enabled ? createMapClusterIndex(locations, { radius, maxZoom, maxLeaves }, unclusteredRouteIds) : undefined),
         [locations, enabled, radius, maxZoom, maxLeaves, unclusteredRouteIds]
     );
 

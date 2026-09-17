@@ -15,7 +15,7 @@ import {
 import { CARD_MAX_WIDTH } from '../layout';
 import { useCardMaxHeight } from '../useCardMaxHeight';
 import { isMapSurfaceClick } from '../mapClick';
-import { getSafeFitPadding, isFiniteMapViewport, IMapViewport } from '../../internal/viewport';
+import { DEFAULT_MAP_VIEWPORT_OPTIONS, getSafeFitPadding, isFiniteMapViewport, IMapViewport } from '../../internal/viewport';
 import { getLeafletMapProviderStyles } from './styles';
 import 'leaflet/dist/leaflet.css';
 
@@ -137,7 +137,7 @@ const ApplyViewport = (props: Pick<IMapProviderProps, 'viewport'>) => {
             if (bounds) {
                 //clamped to the container, so a box mid-layout cannot drive Leaflet's zoom math to NaN
                 const size = map.getSize();
-                const safePadding = getSafeFitPadding(size.x, size.y, padding);
+                const safePadding = getSafeFitPadding(size.x, size.y, padding ?? DEFAULT_MAP_VIEWPORT_OPTIONS.padding);
                 map.fitBounds(toLeafletBounds(bounds), { padding: [safePadding, safePadding] });
             } else {
                 map.setView([center.latitude, center.longitude], zoom);

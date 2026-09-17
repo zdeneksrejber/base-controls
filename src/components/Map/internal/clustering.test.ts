@@ -112,7 +112,7 @@ describe('createMapClusterIndex - routed pins', () => {
     ];
 
     it('never merges a pin of a drawn route into a cluster, even co-located ones', () => {
-        const drawn = createMapClusterIndex(CO_LOCATED_MIX, { unclusteredRouteIds: new Set(['route-1']) })
+        const drawn = createMapClusterIndex(CO_LOCATED_MIX, {}, new Set(['route-1']))
             .getLocations(WORLD_BOUNDS, 8);
 
         const cluster = drawn.find((pin) => pin.cluster);
@@ -123,7 +123,7 @@ describe('createMapClusterIndex - routed pins', () => {
     });
 
     it('clusters the pins of a route whose line is not drawn like any other pin', () => {
-        const drawn = createMapClusterIndex(CO_LOCATED_MIX, { unclusteredRouteIds: new Set(['route-9']) })
+        const drawn = createMapClusterIndex(CO_LOCATED_MIX, {}, new Set(['route-9']))
             .getLocations(WORLD_BOUNDS, 8);
 
         expect(drawn).toHaveLength(1);
@@ -141,7 +141,7 @@ describe('createMapClusterIndex - routed pins', () => {
         const drawn = createMapClusterIndex([
             routed('inside', 50, 14, 'route-1'),
             routed('outside', 10, -100, 'route-1'),
-        ], { unclusteredRouteIds: new Set(['route-1']) }).getLocations({ north: 51, south: 49, east: 15, west: 13 }, 8);
+        ], {}, new Set(['route-1'])).getLocations({ north: 51, south: 49, east: 15, west: 13 }, 8);
 
         expect(drawn.map((pin) => pin.id)).toEqual(['inside']);
     });

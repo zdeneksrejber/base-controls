@@ -4,17 +4,17 @@ import { IDataset } from "@talxis/client-libraries";
 import { IMapTranslations } from "./translations";
 import { IMapProviderOption, IMapProviderProps, IMapRoute, IMapVendor } from "./providers";
 import { IMapFallbackLocationResolver } from "./internal/fallbackLocation";
-import { IMapPinResolver } from "./hooks/useMapClientApi";
 import { IMapCardRenderers, IMapCardType, IMapClusterMemberRenderer } from "./internal/cards";
 import { IMapClusteringOptions } from "./internal/clustering";
 import { IMapFilterMode } from "./internal/mapFilters";
+import { IMapPinResolver } from "./internal/pinAppearance";
 import { IMapPinLoading } from "./internal/records";
 import { IMapViewport, IMapViewportOptions } from "./internal/viewport";
 
 export interface IMap extends IControl<IMapParameters, IMapOutputs, IMapTranslations, IMapProviderProps> {
     /**
-     * Providers the end user can switch between, replacing the vendors the manifest configures. Keyed by
-     * `id`, so this list may be rebuilt on every render - but a changed config needs a new id.
+     * Providers the end user can switch between, replacing the vendors the manifest configures. The list may
+     * be rebuilt on every render, as long as each entry's `provider` keeps its identity.
      */
     onGetMapProviders?: () => IMapProviderOption[];
     /**
@@ -50,6 +50,9 @@ export interface IMap extends IControl<IMapParameters, IMapOutputs, IMapTranslat
     onRenderClusterMember?: IMapClusterMemberRenderer;
 }
 
+/** A two options parameter, which carries no option set metadata. */
+type IMapSwitch = Omit<ITwoOptionsProperty, 'attributes'>;
+
 export interface IMapParameters extends IParameters {
     /** Records to draw as pins. Loading is the host's job; the control reads what is already loaded. */
     Dataset: IDataset;
@@ -65,12 +68,12 @@ export interface IMapParameters extends IParameters {
      * Whether a route follows the road network instead of running straight between its pins, through
      * whichever configured vendor has a directions service. Off by default - it costs a request per route.
      */
-    SnapRoutesToRoads?: Omit<ITwoOptionsProperty, 'attributes'>;
+    SnapRoutesToRoads?: IMapSwitch;
     /**
      * Whether the control may add the link entity and column a dot notation attribute path needs when the
      * dataset does not already carry them. Defaults to true; the added column is hidden.
      */
-    EnableAttributeLinking?: Omit<ITwoOptionsProperty, 'attributes'>;
+    EnableAttributeLinking?: IMapSwitch;
     /**
      * Which records to draw: `page` draws the page the host loaded, `all` draws every page of the view.
      * Defaults to `page`.
@@ -109,17 +112,17 @@ export interface IMapParameters extends IParameters {
      * Whether a pin can be dragged to move its record. **Off by default** - a map that moves records when a
      * finger slips is worse than one that does not move them at all.
      */
-    EnablePinDragging?: Omit<ITwoOptionsProperty, 'attributes'>;
+    EnablePinDragging?: IMapSwitch;
     /**
      * Whether clicking empty map creates a record there. **Off by default.** A record the control created
      * carries a delete button on its own pin.
      */
-    EnablePinCreation?: Omit<ITwoOptionsProperty, 'attributes'>;
+    EnablePinCreation?: IMapSwitch;
     /**
      * Whether the map centres on the user while the dataset has no pins, asking the browser first and
      * falling back to `onResolveFallbackLocation`. Off by default, because it prompts for permission.
      */
-    PrefillUserLocation?: Omit<ITwoOptionsProperty, 'attributes'>;
+    PrefillUserLocation?: IMapSwitch;
     /** Attribute the resolved country is written to when a pin is moved or created. */
     CountryAttributeName?: IStringProperty;
     /** Attribute the resolved region is written to. */
@@ -148,12 +151,12 @@ export interface IMapParameters extends IParameters {
      * only pins are the records. Only Google Maps can switch this properly; HERE approximates it with a
      * lower detail style, and the other raster tile services ignore it.
      */
-    ShowPointsOfInterest?: Omit<ITwoOptionsProperty, 'attributes'>;
+    ShowPointsOfInterest?: IMapSwitch;
     /**
      * Whether pins that overlap in the current view are drawn as one, carrying the number of records behind
      * it. Defaults to true - it is what keeps a dataset of thousands readable.
      */
-    EnableClustering?: Omit<ITwoOptionsProperty, 'attributes'>;
+    EnableClustering?: IMapSwitch;
     /** Overrides the grouping radius, zoom ceiling and how many members a group lists. Code only. */
     ClusteringOptions?: {
         raw: IMapClusteringOptions;
@@ -177,7 +180,7 @@ export interface IMapParameters extends IParameters {
      * privilege on them, or the churn on `modifiedon` is not wanted - and coordinates are then remembered
      * for the lifetime of the control alone.
      */
-    PersistGeocodedCoordinates?: Omit<ITwoOptionsProperty, 'attributes'>;
+    PersistGeocodedCoordinates?: IMapSwitch;
     /**
      * Attributes the filter panel offers, comma separated. Each becomes a list of the values the loaded
      * records actually hold. Empty hides the panel.
@@ -192,16 +195,16 @@ export interface IMapParameters extends IParameters {
      * Whether the map hosts its own search box. Off by default, because a map inside `DatasetControl`
      * already has quick find in that control's header and two boxes would be one too many.
      */
-    EnableSearch?: Omit<ITwoOptionsProperty, 'attributes'>;
+    EnableSearch?: IMapSwitch;
     /**
      * Whether that box also offers places from the geo-coding service, which move the map without filtering
      * the records. Defaults to true, and has no effect unless `EnableSearch` is on.
      */
-    EnableAddressSearch?: Omit<ITwoOptionsProperty, 'attributes'>;
+    EnableAddressSearch?: IMapSwitch;
     /** The end user's pick, reported back as the output of the same name. Wins over `DefaultVendor`. */
     MapProviderId?: IStringProperty;
     /** Whether the picker offers every configured vendor, instead of `DefaultVendor` alone. Defaults to true. */
-    LetUserSwitch?: Omit<ITwoOptionsProperty, 'attributes'>;
+    LetUserSwitch?: IMapSwitch;
     /** Vendor the map opens with. Defaults to `leaflet`, which an unconfigured id falls back to with a warning. */
     DefaultVendor?: IStringProperty;
     HereApiKey?: IStringProperty;

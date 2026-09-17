@@ -1,4 +1,4 @@
-import Supercluster from 'supercluster';
+import Supercluster, { ClusterProperties } from 'supercluster';
 import { IMapLocation } from '../providers';
 import { IMapBounds } from './viewport';
 
@@ -21,12 +21,6 @@ export interface IMapClusteringOptions {
     maxZoom?: number;
     /** Member records a cluster lists. The count is always exact, however many are listed. */
     maxLeaves?: number;
-    /**
-     * Routes whose pins are never merged into a cluster - the ones whose line is drawn, since a line ending
-     * at a group's centroid reads as detached from the stop it connects. Pins of any other route cluster
-     * like everything else, so a zoomed-out map does not pile up every routed stop individually.
-     */
-    unclusteredRouteIds?: ReadonlySet<string>;
 }
 
 /** What a pin standing for several records knows about the group behind it. */
@@ -56,16 +50,20 @@ interface IClusterPointProperties {
  * Builds a clustering index over a set of pins. Clustering is the control's job rather than a provider's,
  * so all four vendors group identically and a dataset of thousands of records costs the map only the pins
  * inside its current view. Built once per set of pins; querying it per viewport is cheap.
+ *
+ * `unclusteredRouteIds` names the routes whose pins are never merged - the ones whose line is drawn, since
+ * a line ending at a group's centroid reads as detached from the stop it connects. The control derives it
+ * from the routes it draws; pins of any other route cluster like everything else, so a zoomed-out map does
+ * not pile up every routed stop individually.
  */
 export const createMapClusterIndex = (
     locations: IMapLocation[],
-    options: IMapClusteringOptions = {}
+    options: IMapClusteringOptions = {},
+    unclusteredRouteIds?: ReadonlySet<string>
 ): IMapClusterIndex => {
     const maxLeaves = options.maxLeaves ?? DEFAULT_CLUSTER_MAX_LEAVES;
-    //a pin on a drawn route never joins a cluster: swallowing it into a group pin at the group's centroid
-    //visually detaches the route's line from the stop it connects - a route without a line has no such line
     const isUnclustered = (location: IMapLocation): boolean =>
-        !!location.routeId && !!options.unclusteredRouteIds?.has(location.routeId);
+        !!location.routeId && !!unclusteredRouteIds?.has(location.routeId);
     const routedLocations = locations.filter(isUnclustered);
     const clusterableLocations = locations.filter((location) => !isUnclustered(location));
     const index = new Supercluster<IClusterPointProperties>({
@@ -101,7 +99,7 @@ export const createMapClusterIndex = (
             );
             const drawn = clusters.map((feature) => {
                 const [longitude, latitude] = feature.geometry.coordinates;
-                const properties = feature.properties as Supercluster.ClusterProperties & IClusterPointProperties;
+                const properties = feature.properties as ClusterProperties & IClusterPointProperties;
                 if (!properties.cluster) {
                     return clusterableLocations[properties.locationIndex];
                 }
