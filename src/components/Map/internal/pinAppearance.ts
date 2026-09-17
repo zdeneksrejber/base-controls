@@ -33,7 +33,12 @@ export interface IMapPinAppearance {
  */
 export interface IMapPinRule extends IMapPinAppearance, IMapRuleCondition { }
 
-/** Works out how one record's pin should look. Returning nothing leaves the pin to the rules below it. */
+/**
+ * Works out how one record's pin should look. Returning nothing leaves the pin to the rules below it.
+ *
+ * An appearance's `svg` is inserted as markup. Never build it out of record values or anything else a user
+ * can type - put such values in `title`, which is text, or choose between shipped snippets instead.
+ */
 export type IMapPinResolver = (record: IRecord) => IMapPinAppearance | undefined;
 
 /** Resolves a web resource name to a url the browser can load. */

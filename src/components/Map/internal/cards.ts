@@ -129,11 +129,11 @@ export const renameFormattedValueKeys = (data: any): any => {
         return data;
     }
     const renamed: { [key: string]: any } = {};
-    Object.entries(data).forEach(([key, value]) => {
+    for (const [key, value] of Object.entries(data)) {
         const name = key.includes(FORMATTED_VALUE_SUFFIX)
             ? key.replace(FORMATTED_VALUE_SUFFIX, FORMATTED_VALUE_ALIAS)
             : key;
         renamed[name] = renameFormattedValueKeys(value);
-    });
+    }
     return renamed;
 };

@@ -18,8 +18,10 @@ export interface IMap extends IControl<IMapParameters, IMapOutputs, IMapTranslat
      */
     onGetMapProviders?: () => IMapProviderOption[];
     /**
-     * Vendors to offer on top of the built-in ones, built by the control from the manifest api keys. An
-     * entry reusing a built-in id replaces it. Ignored once `onGetMapProviders` takes the list over.
+     * Vendors to offer on top of the built-in ones, built by the control from the manifest api keys. A
+     * vendor's key is read from the parameters bag under the name its `apiKeyParameterName` declares, so a
+     * consuming manifest adds a string property of that name. An entry reusing a built-in id replaces it.
+     * Ignored once `onGetMapProviders` takes the list over.
      */
     onGetMapVendors?: () => IMapVendor[];
     /**
@@ -48,6 +50,10 @@ export interface IMap extends IControl<IMapParameters, IMapOutputs, IMapTranslat
      * a host shows what tells its records apart instead. A record's full card opens only once its row is picked.
      */
     onRenderClusterMember?: IMapClusterMemberRenderer;
+    /** Overrides the grouping radius, zoom ceiling and how many members a group lists. */
+    clusteringOptions?: IMapClusteringOptions;
+    /** Overrides the defaults used when deriving the viewport from the pins. */
+    viewportOptions?: IMapViewportOptions;
 }
 
 /** A two options parameter, which carries no option set metadata. */
@@ -123,22 +129,14 @@ export interface IMapParameters extends IParameters {
      * falling back to `onResolveFallbackLocation`. Off by default, because it prompts for permission.
      */
     PrefillUserLocation?: IMapSwitch;
-    /** Attribute the resolved country is written to when a pin is moved or created. */
-    CountryAttributeName?: IStringProperty;
-    /** Attribute the resolved region is written to. */
-    AdministrativeAreaAttributeName?: IStringProperty;
-    /** Attribute the resolved town or city is written to. */
-    LocalityAttributeName?: IStringProperty;
-    /** Attribute the resolved district is written to. */
-    SublocalityAttributeName?: IStringProperty;
-    /** Attribute the resolved street is written to, without its number. */
-    StreetAttributeName?: IStringProperty;
-    /** Attribute the resolved street and number together are written to. */
-    StreetNameAttributeName?: IStringProperty;
-    /** Attribute the resolved house number is written to. */
-    StreetNumberAttributeName?: IStringProperty;
-    /** Attribute the resolved postal code is written to. */
-    PostalCodeAttributeName?: IStringProperty;
+    /**
+     * Where a resolved address is written when a pin is moved or created, as a JSON object mapping `IAddress`
+     * components to attribute paths: `{ "locality": "address1_city", "postalCode": "address1_postalcode" }`.
+     * The usual components are `country`, `administrativeArea` (region), `locality` (town or city),
+     * `subLocality` (district), `street` (without its number), `streetNumber` and `postalCode`. A component
+     * left out is not written. Empty writes only the coordinates.
+     */
+    AddressAttributeNames?: IStringProperty;
     /**
      * Legend markup, shown over the map. Cleaned before it is inserted: scripts, event handlers and anything
      * that can load or submit are removed, while formatting, tables, images and inline SVG survive.
@@ -157,18 +155,15 @@ export interface IMapParameters extends IParameters {
      * it. Defaults to true - it is what keeps a dataset of thousands readable.
      */
     EnableClustering?: IMapSwitch;
-    /** Overrides the grouping radius, zoom ceiling and how many members a group lists. Code only. */
-    ClusteringOptions?: {
-        raw: IMapClusteringOptions;
-    };
     /**
      * Attribute holding a record's full address. A record with no readable coordinates is placed by
      * geo-coding it, through whichever configured vendor has a geo-coding service. Unset turns that off.
      */
     FullAddressAttributeName?: IStringProperty;
     /**
-     * Addresses to geo-code before stopping, per set of records. Overrides both the control's own default of
-     * 250 and the lower number a public service asks for where its coordinates cannot be written back.
+     * Addresses to geo-code before stopping, per refresh of the dataset - a refresh that brings the same
+     * records back costs nothing while their results are still remembered. Overrides both the control's own
+     * default of 250 and the lower number a public service asks for where its coordinates cannot be written back.
      */
     MaxGeocodingRequests?: Omit<IWholeNumberProperty, 'attributes'>;
     /**
@@ -201,22 +196,23 @@ export interface IMapParameters extends IParameters {
      * the records. Defaults to true, and has no effect unless `EnableSearch` is on.
      */
     EnableAddressSearch?: IMapSwitch;
-    /** The end user's pick, reported back as the output of the same name. Wins over `DefaultVendor`. */
+    /**
+     * The end user's pick, reported back as the output of the same name. Wins over `DefaultMapProviderId`.
+     * Carries a vendor id (`leaflet`, `google`, `here`, `mapy`, or one from `onGetMapVendors`) or the id of an
+     * option from `onGetMapProviders`.
+     */
     MapProviderId?: IStringProperty;
-    /** Whether the picker offers every configured vendor, instead of `DefaultVendor` alone. Defaults to true. */
-    LetUserSwitch?: IMapSwitch;
-    /** Vendor the map opens with. Defaults to `leaflet`, which an unconfigured id falls back to with a warning. */
-    DefaultVendor?: IStringProperty;
+    /** Whether the picker offers every configured provider, instead of the default alone. Defaults to true. */
+    EnableProviderSwitching?: IMapSwitch;
+    /**
+     * Provider the map opens with, by the same id `MapProviderId` carries. Defaults to `leaflet`, which an
+     * unconfigured id falls back to with a warning.
+     */
+    DefaultMapProviderId?: IStringProperty;
     HereApiKey?: IStringProperty;
     MapyApiKey?: IStringProperty;
     /** Offers Google Maps once set, provided the host registered `googleMapsVendor` through `onGetMapVendors`. */
     GoogleApiKey?: IStringProperty;
-    /** Api key of a vendor from `onGetMapVendors`, under the name its `apiKeyParameterName` declares. */
-    [apiKeyParameterName: `${string}ApiKey`]: IStringProperty | undefined;
-    /** Overrides the defaults used when deriving the viewport from the pins. Code only. */
-    ViewportOptions?: {
-        raw: IMapViewportOptions;
-    };
 }
 
 export interface IMapOutputs extends IOutputs {

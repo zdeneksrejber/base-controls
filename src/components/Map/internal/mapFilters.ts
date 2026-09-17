@@ -43,23 +43,23 @@ export const getMapFilterFacets = (
 
     return attributes.map((attribute) => {
         const tally = new Map<string, IMapFilterOption>();
-        records.forEach((record) => {
+        for (const record of records) {
             const value = getRecordValue(record, attribute);
             if (value === undefined || value === null || value === '') {
-                return;
+                continue;
             }
             const key = `${value}`;
             const existing = tally.get(key);
             if (existing) {
                 existing.count += 1;
-                return;
+                continue;
             }
             tally.set(key, {
                 value: key,
                 label: getRecordFormattedValue(record, attribute) ?? key,
                 count: 1
             });
-        });
+        }
 
         return {
             attribute,

@@ -4,11 +4,12 @@ import { IMapProvider } from './provider';
 
 /**
  * A map vendor the control can build a provider for on its own, from an api key configured in the manifest -
- * what `LetUserSwitch`, `DefaultVendor` and the `<Vendor>ApiKey` parameters are resolved against. Contrast
+ * what `EnableProviderSwitching`, `DefaultMapProviderId` and the `<Vendor>ApiKey` parameters are resolved
+ * against - on the manifest, every vendor is simply a provider a maker can name. Contrast
  * with `IMapProviderOption`, which carries an already built provider.
  */
 export interface IMapVendor {
-    /** Public api - the value `DefaultVendor` and `MapProviderId` carry, typed into the manifest by a maker. */
+    /** Public api - the value `DefaultMapProviderId` and `MapProviderId` carry, typed into the manifest by a maker. */
     id: string;
     /** Shown in the picker. Not translated, because vendor names are proper nouns. */
     label: string;
@@ -28,5 +29,5 @@ export interface IMapVendor {
     createDirections?: (apiKey: string) => IMapDirections;
 }
 
-/** Vendor the map opens with while `DefaultVendor` is empty. Keyless, so it is always configured. */
+/** Vendor the map opens with while `DefaultMapProviderId` is empty. Keyless, so it is always configured. */
 export const DEFAULT_MAP_VENDOR_ID = 'leaflet';

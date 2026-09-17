@@ -7,6 +7,7 @@ export * from './translations';
 export * from './providers';
 
 //types the props and parameters are written in, and the pieces a host composes with
+export * from './internal/address';
 export * from './internal/cards';
 export * from './internal/clustering';
 export * from './internal/directions';

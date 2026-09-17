@@ -12,7 +12,10 @@ import { IMapPinResolver } from '../internal/pinAppearance';
 export interface IMapClientApi {
     /** Dataset the map is bound to, so a customizer can register record expressions or listen to it. */
     dataset?: IDataset;
-    /** Chooses how a record's pin looks. Registering again replaces the previous resolver. */
+    /**
+     * Chooses how a record's pin looks. Registering again replaces the previous resolver. The `svg` an
+     * appearance carries is inserted as markup, so never compose it out of record values.
+     */
     setPinResolver: (resolver: IMapPinResolver) => void;
 }
 

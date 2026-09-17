@@ -13,12 +13,12 @@ export interface IJsonRequest {
 /** Builds a url, dropping the parameters that have no value. */
 export const buildUrl = (base: string, parameters: IUrlParameters = {}): string => {
     const query = new URLSearchParams();
-    Object.entries(parameters).forEach(([name, value]) => {
+    for (const [name, value] of Object.entries(parameters)) {
         if (value === undefined || value === null || value === '') {
-            return;
+            continue;
         }
         query.append(name, `${value}`);
-    });
+    }
     const search = query.toString();
     return search ? `${base}?${search}` : base;
 };
