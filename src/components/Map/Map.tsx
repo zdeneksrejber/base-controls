@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { IDataProviderEventListeners } from "@talxis/client-libraries";
 import { useControl } from "@hooks/useControl";
 import { useEventEmitter } from "@hooks/useEventEmitter";
 import { IMap } from "./interfaces";
 import { mapTranslations } from "./translations";
-import { IMapLocation, IMapProvider } from "./providers";
+import { IMapLocation } from "./providers";
 import { getMapViewport, IMapViewport } from "./internal/viewport";
 import { createGoogleMapsProvider } from "./providers/google-maps/GoogleMapsProvider";
 import { getMapStyles } from "./styles";
@@ -59,18 +59,14 @@ export const Map = (props: IMap) => {
 
     useEventEmitter<IDataProviderEventListeners>(dataset, 'onNewDataLoaded', loadLocations);
 
-    //the host's list wins, matched by the id the MapProviderId parameter carries; a host may rebuild the list on
-    //every render, so the component is remembered per id - a fresh identity would remount the map each time
+    //the host's list wins, matched by the id the MapProviderId parameter carries; the component is used as
+    //handed over, so a host keeps `provider` stable across renders - a fresh identity would remount the map
     const hostOptions = props.onGetMapProviders?.();
     const hostOption = hostOptions?.find((option) => option.id === MapProviderId?.raw) ?? hostOptions?.[0];
-    const providerCache = useRef(new globalThis.Map<string, IMapProvider>());
-    if (hostOption && !providerCache.current.has(hostOption.id)) {
-        providerCache.current.set(hostOption.id, hostOption.provider);
-    }
     //without a host list the manifest key builds Google Maps, the one vendor shipped so far
     const googleApiKey = GoogleApiKey?.raw;
     const googleProvider = useMemo(() => googleApiKey ? createGoogleMapsProvider({ apiKey: googleApiKey }) : undefined, [googleApiKey]);
-    const MapProvider = hostOption ? providerCache.current.get(hostOption.id) : googleProvider;
+    const MapProvider = hostOption ? hostOption.provider : googleProvider;
 
     const viewport = useMemo(() => getMapViewport(locations), [locations]);
 

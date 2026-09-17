@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
-import { IDataset, IRecord } from '@talxis/client-libraries';
-import { IMapPinAppearance } from '../internal/pinAppearance';
-
-/** Works out how one record's pin should look. Returning nothing leaves the pin to the rules below it. */
-export type IMapPinResolver = (record: IRecord) => IMapPinAppearance | undefined;
+import { IDataset } from '@talxis/client-libraries';
+import { IMapPinResolver } from '../internal/pinAppearance';
 
 /**
  * What a Client API web resource is handed.

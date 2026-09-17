@@ -112,13 +112,14 @@ export type IMapProvider = ComponentType<IMapProviderProps>;
 
 /** One entry of the provider list a host offers through `onGetMapProviders`. */
 export interface IMapProviderOption {
-    /**
-     * Identifies the provider. Carried by the `MapProviderId` parameter and output, and the key the control
-     * caches the component under - so it identifies the configuration too, and a changed config needs a new id.
-     */
+    /** Identifies the provider. Carried by the `MapProviderId` parameter and output. */
     id: string;
     /** Shown in the picker, falling back to `id`. */
     label?: string;
+    /**
+     * Rendered as handed over, so keep the same component identity across renders - memoize it on whatever
+     * configuration it was built from. A fresh identity remounts the map.
+     */
     provider: IMapProvider;
     /** Turns addresses into coordinates and back. Omit for a provider with no geocoding service. */
     geocoder?: IMapGeocoder;

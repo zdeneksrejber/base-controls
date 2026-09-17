@@ -33,6 +33,9 @@ export interface IMapPinAppearance {
  */
 export interface IMapPinRule extends IMapPinAppearance, IMapRuleCondition { }
 
+/** Works out how one record's pin should look. Returning nothing leaves the pin to the rules below it. */
+export type IMapPinResolver = (record: IRecord) => IMapPinAppearance | undefined;
+
 /** Resolves a web resource name to a url the browser can load. */
 export type IMapWebResourceResolver = (webResourceName: string) => string | undefined;
 

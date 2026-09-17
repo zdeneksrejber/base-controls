@@ -21,7 +21,11 @@ export interface IMapViewport {
      * output): whatever the map is currently showing, whichever way it was derived.
      */
     bounds?: IMapBounds;
-    padding: number;
+    /**
+     * Pixels to keep between `bounds` and the map's edge when fitting. Set on a viewport the control derives;
+     * a provider reporting what it shows leaves it out, so the `Viewport` output carries none.
+     */
+    padding?: number;
 }
 
 export interface IMapViewportOptions {
