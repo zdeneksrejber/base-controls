@@ -15,3 +15,14 @@ export * from './core/geocoding';
 export * from './core/pinAppearance';
 export * from './core/rules';
 export * from './core/viewport';
+
+//the control itself, and the pieces a host or a module composes with
+export * from './Map';
+export * from './core/attributes';
+export * from './core/language';
+export * from './core/pins';
+export * from './core/records';
+export * from './core/webResource';
+export * from './map-overlay';
+export * from './map-pin-swatch';
+export * from './map-status';
