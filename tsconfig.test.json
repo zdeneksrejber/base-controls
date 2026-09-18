@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": [
+      "node",
+      "vitest/globals",
+      "@testing-library/jest-dom",
+      "google.maps",
+      "powerapps-component-framework",
+      "xrm"
+    ]
+  },
+  "include": [
+    "src",
+    "vitest.setup.ts"
+  ],
+  "exclude": []
+}
