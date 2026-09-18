@@ -23,3 +23,27 @@ export const LEGEND_HTML = `
 </ul>
 <p style="margin:6px 0 0">Lines are delivery runs.</p>
 `
+
+/** An Adaptive Card template bound to a site record. */
+export const ADAPTIVE_CARD_TEMPLATE = JSON.stringify({
+    type: 'AdaptiveCard',
+    $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
+    version: '1.5',
+    body: [
+        { type: 'TextBlock', text: '${$root.name}', weight: 'Bolder', size: 'Medium', wrap: true },
+        { type: 'TextBlock', text: '${$root.address}', isSubtle: true, wrap: true, spacing: 'None' },
+        {
+            type: 'FactSet',
+            facts: [
+                { title: 'Category', value: '${$root.category}' },
+                { title: 'Capacity', value: '${$root.capacity_label}' },
+                { title: 'Opened', value: '${$root.openedOn}' }
+            ]
+        }
+    ],
+    actions: [{
+        type: 'Action.Submit',
+        title: 'Plan a visit',
+        data: { webResourceName: 'ntg_map.js', functionName: 'TALXIS.Map.planVisit' }
+    }]
+})
