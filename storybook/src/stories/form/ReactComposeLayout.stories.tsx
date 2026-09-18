@@ -205,6 +205,40 @@ const FormExample = () => {
 };`,
     },
     {
+        id: 'read-only-record-card',
+        title: 'Read-only record card',
+        summary: 'Compose a compact card that displays a record: `appearance="banded"` sections, `Form.Control readOnly` values and a skeleton shaped like the card.',
+        notes: [
+            '`readOnly` renders the formatted value as text - phone, email and url as links, an empty field as `---` - instead of resolving an editor.',
+            '`labelWidth` with `cellLabelCollapseBreakpoint={0}` keeps labels on the left in a narrow container; the default breakpoint moves them on top below 371px.',
+            '`skeletonProps` shapes the loading skeleton after the card rather than a full page.',
+        ],
+        code: `${sharedStrategyCode}
+const cardSection = { appearance: "banded", layout: { lg: 1 }, labelWidth: 110, cellLabelCollapseBreakpoint: 0 };
+
+const FormExample = () => {
+  return (
+    <div style={{ maxWidth: 340 }}>
+      <Form.Root strategy={strategy} skeletonProps={{ sectionCount: 2, fieldsPerSection: 3, showRibbon: false }}>
+        <Form.Section label="Basic information" {...cardSection}>
+          <Form.Field name="text"><Form.Cell><Form.Control readOnly /></Form.Cell></Form.Field>
+          <Form.Field name="phone"><Form.Cell><Form.Control readOnly /></Form.Cell></Form.Field>
+          <Form.Field name="url"><Form.Cell><Form.Control readOnly /></Form.Cell></Form.Field>
+        </Form.Section>
+        <Form.Section label="Status" {...cardSection}>
+          <Form.Field name="optionset"><Form.Cell><Form.Control readOnly /></Form.Cell></Form.Field>
+          <Form.Field name="twooptions"><Form.Cell><Form.Control readOnly /></Form.Cell></Form.Field>
+          <Form.Field name="dateonly"><Form.Cell><Form.Control readOnly /></Form.Cell></Form.Field>
+        </Form.Section>
+        <Form.Section label="Notes" {...cardSection}>
+          <Form.Field name="multilinetext"><Form.Cell label=""><Form.Control readOnly /></Form.Cell></Form.Field>
+        </Form.Section>
+      </Form.Root>
+    </div>
+  );
+};`,
+    },
+    {
         id: 'cell-span',
         title: 'Cell rowspan and colspan',
         summary: 'Use `Form.Cell colspan` and `rowspan` when a field or custom content should span across multiple grid tracks.',
@@ -455,4 +489,26 @@ Uses \`Form.Cell colspan\` and \`rowspan\` when fields or custom content should 
         },
     },
     render: () => renderStory(renderLayoutExample(samplesById['cell-span'])),
+}
+
+export const ReadOnlyRecordCard: Story = {
+    name: 'Cell rowspan and colspan',
+    parameters: {
+        docs: {
+            canvas: {
+                sourceState: 'none',
+                additionalActions: [],
+            },
+            description: {
+                story: `
+Uses \`Form.Cell colspan\` and \`rowspan\` when fields or custom content should span across multiple grid tracks.
+
+- gives larger cells more room within the section grid
+- supports multiline fields, maps, and other wider content
+- combines naturally with responsive section layouts
+                `.trim(),
+            },
+        },
+    },
+    render: () => renderStory(renderLayoutExample(samplesById['read-only-record-card'])),
 }
