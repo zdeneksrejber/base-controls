@@ -20,7 +20,10 @@
     },
     "types": [
       "vite/client",
-      "node"
+      "node",
+      "google.maps",
+      "powerapps-component-framework",
+      "xrm"
     ]
   },
   "include": [

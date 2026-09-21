@@ -14,5 +14,6 @@
     "src",
     "vitest.setup.ts"
   ],
+  // the base excludes tests from the build; this config exists to check them
   "exclude": []
 }

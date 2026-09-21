@@ -106,11 +106,6 @@ const config: StorybookConfig = {
     // prevents infinite or excessive watch recursion without breaking local source resolution.
     config.server.watch ??= {};
     config.server.watch.followSymlinks = false;
-    // Nothing extra to ignore: Vite already defaults to **/.git/**, **/node_modules/**, **/test-results/**
-    // and the cache dir, and server.fs.allow only widens what the server will serve - out-of-root files are
-    // watched one at a time as they enter the module graph, never as whole trees.
-    // A machine whose fs.inotify.max_user_watches is low can still lose the dev server to ENOSPC on startup.
-    // Raising that limit is the real fix; STORYBOOK_POLL_WATCHER=1 trades CPU for needing no inotify watches.
     if (process.env.STORYBOOK_POLL_WATCHER === '1') {
       config.server.watch.usePolling = true;
       config.server.watch.interval = 1000;
